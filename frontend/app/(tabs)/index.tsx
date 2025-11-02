@@ -1,87 +1,76 @@
-import { useEffect, useState } from 'react';
-import { Button, StyleSheet, ActivityIndicator } from 'react-native';
+import { StyleSheet, ScrollView, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { api } from '@/lib/api';
-import { useAuth } from '@/auth/AuthContext';
-import { useThemeColor } from '@/hooks/useThemeColor';
+
+const SPEC_PATH = 'docs/EGUCHI_SPEC.md';
 
 export default function HomeScreen() {
-  const [nugget, setNugget] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const { token, loading: authLoading } = useAuth();
-  const color = useThemeColor({}, 'text');
-
-  async function load() {
-    setLoading(true);
-    try {
-      console.log(`=== Loading nugget ===`);
-      console.log(`Token present: ${!!token}`);
-
-      const response = await api.get('/api/nugget', token);
-
-      console.log(`Response status: ${response.status}`);
-
-      if (response.data) {
-        console.log(`Response data:`, response.data);
-        setNugget(response.data.text);
-      } else {
-        console.error(`API Error: ${response.status} - ${response.error}`);
-        setNugget(response.error || `Error: ${response.status}`);
-      }
-    } catch (error) {
-      console.error(`Network error:`, error);
-      setNugget(`Network error: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function regenerate() {
-    setLoading(true);
-    try {
-      console.log(`=== Regenerating nugget ===`);
-      console.log(`Token present: ${!!token}`);
-
-      const response = await api.post('/api/nugget/regenerate', undefined, token);
-
-      console.log(`Response status: ${response.status}`);
-
-      if (response.data) {
-        console.log(`Response data:`, response.data);
-        setNugget(response.data.text);
-      } else {
-        console.error(`API Error: ${response.status} - ${response.error}`);
-        setNugget(response.error || `Error: ${response.status}`);
-      }
-    } catch (error) {
-      console.error(`Network error:`, error);
-      setNugget(`Network error: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!authLoading && token) {
-      load();
-    }
-  }, [token, authLoading]);
-
   return (
     <ThemedView style={styles.container}>
-      {loading ? (
-        <ActivityIndicator style={styles.loader} color={color} />
-      ) : (
-        <ThemedText style={styles.text}>{nugget ?? '...'}</ThemedText>
-      )}
-      <Button title="Regenerate" onPress={regenerate} />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        testID="eguchi-spec-placeholder"
+      >
+        <ThemedText type="title" style={styles.title}>
+          Eguchi Ear-Training Playground
+        </ThemedText>
+        <ThemedText style={styles.paragraph}>
+          This screen is intentionally left in a planning state. Before building UI or wiring APIs,
+          read through the Eguchi specification and capture any open questions or research tasks.
+        </ThemedText>
+        <View style={styles.callout}>
+          <ThemedText type="subtitle">
+            Next stop: {SPEC_PATH}
+          </ThemedText>
+          <ThemedText style={styles.paragraph}>
+            The spec outlines pedagogy principles, offline audio requirements, and session
+            structure. Treat it as the product source of truth when designing screens and data
+            flows.
+          </ThemedText>
+          <ThemedText style={styles.todo}>
+            TODO: replace this placeholder once the onboarding and training flows from the spec are
+            translated into UI journeys.
+          </ThemedText>
+        </View>
+        <ThemedText style={styles.paragraph}>
+          Suggested first steps:
+        </ThemedText>
+        <ThemedText style={styles.listItem}>
+          • Define the core navigation map (practice sessions, curriculum, progress tracking).
+        </ThemedText>
+        <ThemedText style={styles.listItem}>
+          • Inventory required audio assets and plan how they’ll ship with the offline bundle.
+        </ThemedText>
+        <ThemedText style={styles.listItem}>
+          • Capture technical questions from the spec directly in NOTION/issue tracker before
+            coding.
+        </ThemedText>
+      </ScrollView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  text: { fontSize: 24, lineHeight: 32, marginBottom: 16, textAlign: 'center' },
-  loader: { marginBottom: 16 },
+  container: { flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 48,
+    gap: 16,
+  },
+  title: { textAlign: 'center' },
+  paragraph: { fontSize: 16, lineHeight: 22 },
+  listItem: { fontSize: 16, lineHeight: 22, marginLeft: 12 },
+  callout: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  todo: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
 });

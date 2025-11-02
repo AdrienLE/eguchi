@@ -1,8 +1,15 @@
 # Eguchi Ear Trainer
 
-An app built with the Base App template
+An app built with the Base App template.
 
-Built with the Base App template - a modular React Native/Expo application foundation.
+> **Project status:** freshly scaffolded. No Eguchi-specific functionality has been implemented yet—use the specification below as the single source of truth while building out features.
+
+## Product Spec
+
+- Primary spec: [`docs/EGUCHI_SPEC.md`](docs/EGUCHI_SPEC.md)
+- Quick pointer: the default home screen currently renders a placeholder that links to the spec so designers/devs can align before writing code.
+
+Please review the spec before starting implementation work; note open questions inline (look for `TODO` callouts) to capture any clarifications.
 
 ## Getting Started
 

@@ -1,0 +1,24 @@
+[variables]
+PYTHONPATH = "/opt/venv/lib/python3.11/site-packages"
+PATH = "/opt/venv/bin:$PATH"
+
+[phases.setup]
+nixPkgs = ["coreutils", "nodejs", "yarn", "python311", "python311Packages.virtualenv"]
+
+[phases.install]
+cmds = [
+    # Python setup (fast with no-cache-dir)
+    "python -m venv /opt/venv",
+    "/opt/venv/bin/pip install --upgrade pip --no-cache-dir",
+    "/opt/venv/bin/pip install --no-cache-dir -r requirements.txt",
+    # Frontend setup (optimized)
+    "cd frontend && yarn install --frozen-lockfile --ignore-engines --silent"
+]
+
+[phases.build]
+cmds = [
+    "cd frontend && EXPO_PUBLIC_ENVIRONMENT=production yarn build:production"
+]
+
+[start]
+cmd = "/opt/venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT"

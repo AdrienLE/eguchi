@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+app.db
+
+# Node
+node_modules/
+.yarn/
+
+# Coverage reports
+.coverage
+htmlcov/
+frontend/coverage/
+
+# SSL certificates and keys
+certs/*.pem
+*.pem
+*.key
+*.crt
+
+# Build outputs
+frontend/dist/
+
+# Misc
+.DS_Store
+.pnp.cjs
+.pnp.loader.mjs
+.vscode/
+package-lock.json
+
+# Ignore test database file
+test.db
+
+*~
+
+.env
+
+\#*\#

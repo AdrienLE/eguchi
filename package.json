@@ -1,0 +1,24 @@
+{
+  "name": "baseapp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "format": "black backend/ scripts/ tests/ && cd frontend && yarn format",
+    "format:check": "black --check backend/ scripts/ tests/ && cd frontend && yarn format:check",
+    "format:python": "black backend/ scripts/ tests/",
+    "format:frontend": "cd frontend && yarn format",
+    "setup:formatting": "./scripts/setup-formatting.sh",
+    "test": "pytest && cd frontend && yarn test",
+    "test:python": "pytest",
+    "test:frontend": "cd frontend && yarn test"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  },
+  "dependencies": {
+    "expo": "~51.0.0",
+    "expo-modules-core": "~2.5.0",
+    "react-native-reanimated": "~3.17.4",
+    "react-native-gesture-handler": "~2.24.0"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "cli": {
+    "version": ">= 12.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "development",
+        "EXPO_PUBLIC_AUTH0_DOMAIN": "dev-dv5sxg3q0hnih5mb.us.auth0.com",
+        "EXPO_PUBLIC_AUTH0_CLIENT_ID": "13AcdsTmghcCiqn9ex4ChDHOJabK1zVq",
+        "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://dev-dv5sxg3q0hnih5mb.us.auth0.com/api/v2/"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_AUTH0_DOMAIN": "dev-dv5sxg3q0hnih5mb.us.auth0.com",
+        "EXPO_PUBLIC_AUTH0_CLIENT_ID": "13AcdsTmghcCiqn9ex4ChDHOJabK1zVq",
+        "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://dev-dv5sxg3q0hnih5mb.us.auth0.com/api/v2/"
+      }
+    },
+    "production": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_API_URL_PRODUCTION": "REPLACE_WITH_PROD_URL",
+        "EXPO_PUBLIC_AUTH0_DOMAIN": "dev-dv5sxg3q0hnih5mb.us.auth0.com",
+        "EXPO_PUBLIC_AUTH0_CLIENT_ID": "13AcdsTmghcCiqn9ex4ChDHOJabK1zVq",
+        "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://dev-dv5sxg3q0hnih5mb.us.auth0.com/api/v2/"
+      }
+    },
+    "app-store": {
+      "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_API_URL_PRODUCTION": "REPLACE_WITH_PROD_URL",
+        "EXPO_PUBLIC_AUTH0_DOMAIN": "dev-dv5sxg3q0hnih5mb.us.auth0.com",
+        "EXPO_PUBLIC_AUTH0_CLIENT_ID": "13AcdsTmghcCiqn9ex4ChDHOJabK1zVq",
+        "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://dev-dv5sxg3q0hnih5mb.us.auth0.com/api/v2/"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

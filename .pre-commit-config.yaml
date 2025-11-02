@@ -1,0 +1,40 @@
+repos:
+  # Python formatting with Black
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.11
+        files: '^(backend/|scripts/|tests/).*\.py$'
+
+  # JavaScript/TypeScript formatting with Prettier
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: '^frontend/.*\.(js|jsx|ts|tsx|json|css|md)$'
+        exclude: '^frontend/(node_modules/|dist/|\.expo/|coverage/|lib/features/notifications/NotificationProvider\.ts)$'
+        args: ['--config', 'frontend/.prettierrc']
+        additional_dependencies:
+          - prettier@3.4.2
+
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+        exclude: '^frontend/package\.json$'  # package.json can have trailing commas
+      - id: check-merge-conflict
+      - id: check-added-large-files
+  # Local hook to run tests with coverage before commit
+  - repo: local
+    hooks:
+      - id: run-tests
+        name: Run full test suite with coverage (opt-in)
+        entry: bash scripts/run-tests-precommit.sh
+        language: system
+        pass_filenames: false
+        always_run: true

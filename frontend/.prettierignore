@@ -1,0 +1,20 @@
+# Build outputs
+dist/
+.expo/
+web-build/
+
+# Dependencies
+node_modules/
+
+# Coverage
+coverage/
+
+# Generated files
+*.d.ts
+expo-env.d.ts
+
+# Assets
+assets/
+
+# Problematic files with JSX in .ts extension
+lib/features/notifications/NotificationProvider.ts

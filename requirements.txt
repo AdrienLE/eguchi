@@ -1,0 +1,17 @@
+# Version ranges are pinned to at least the minor level to reduce breaking
+# changes. When adding dependencies, specify a version requirement.
+fastapi~=0.116
+uvicorn~=0.35
+sqlalchemy~=2.0
+psycopg2-binary~=2.9
+pillow~=11.3
+openai~=1.97
+python-jose[cryptography]~=3.5
+python-multipart~=0.0
+requests~=2.32
+boto3~=1.39
+pytest~=8.0
+pytest-asyncio~=0.24
+pytest-cov~=6.0
+black~=24.0
+pre-commit~=3.8

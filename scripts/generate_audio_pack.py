@@ -4,6 +4,7 @@ import json
 import random
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -67,6 +68,17 @@ class RenderConfig:
     velocity_jitter: int
     sample_rate: int
     output_format: str
+
+
+@dataclass(frozen=True)
+class RenderTask:
+    chord: str
+    octave: int
+    variant: int
+    midi_path: Path
+    audio_path: Path
+    notes: list[int]
+    seed: int
 
 
 def parse_note(note: str) -> int:
@@ -166,6 +178,46 @@ def render_audio(soundfont: str, midi_path: Path, output_path: Path, sample_rate
     subprocess.run(command, check=True, capture_output=True)
 
 
+def transcode_to_mp3(source_wav: Path, target_mp3: Path, bitrate: str) -> None:
+    command = [
+        "ffmpeg",
+        "-y",
+        "-loglevel",
+        "error",
+        "-i",
+        str(source_wav),
+        "-codec:a",
+        "libmp3lame",
+        "-b:a",
+        bitrate,
+        str(target_mp3),
+    ]
+    subprocess.run(command, check=True, capture_output=True)
+
+
+def process_task(
+    task: RenderTask,
+    config: RenderConfig,
+    soundfont: str,
+    midi_only: bool,
+    mp3_bitrate: str,
+    keep_wav: bool,
+) -> None:
+    rng = random.Random(task.seed)
+    build_midi(task.midi_path, task.notes, rng, config)
+    if midi_only:
+        return
+
+    if config.output_format == "mp3":
+        wav_path = task.audio_path.with_suffix(".wav")
+        render_audio(soundfont, task.midi_path, wav_path, config.sample_rate)
+        transcode_to_mp3(wav_path, task.audio_path, mp3_bitrate)
+        if not keep_wav:
+            wav_path.unlink(missing_ok=True)
+    else:
+        render_audio(soundfont, task.midi_path, task.audio_path, config.sample_rate)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate Eguchi chord audio packs.")
     parser.add_argument(
@@ -232,13 +284,29 @@ def main() -> int:
         "--format",
         dest="output_format",
         default="wav",
-        choices=["wav"],
+        choices=["wav", "mp3"],
         help="Output format (default: wav).",
+    )
+    parser.add_argument(
+        "--mp3-bitrate",
+        default="192k",
+        help="MP3 bitrate (default: 192k).",
     )
     parser.add_argument(
         "--midi-only",
         action="store_true",
         help="Generate MIDI files only (skip audio rendering).",
+    )
+    parser.add_argument(
+        "--keep-wav",
+        action="store_true",
+        help="Keep intermediate WAV files when outputting MP3.",
+    )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="Parallel workers to render audio (default: 1).",
     )
     parser.add_argument(
         "--seed",
@@ -262,6 +330,10 @@ def main() -> int:
     if not args.midi_only and shutil.which("fluidsynth") is None:
         print("fluidsynth is not installed or not on PATH.")
         print("Install it or use --midi-only to generate MIDI files.")
+        return 1
+    if not args.midi_only and args.output_format == "mp3" and shutil.which("ffmpeg") is None:
+        print("ffmpeg is required for MP3 output but was not found on PATH.")
+        print("Install ffmpeg or use --format wav.")
         return 1
 
     chords = args.chords or DEFAULT_CHORD_LABELS
@@ -298,7 +370,7 @@ def main() -> int:
         "files": [],
     }
 
-    total = 0
+    tasks: list[RenderTask] = []
     for label in chords:
         for octave in config.octaves:
             notes = chord_to_midi_notes(label, octave)
@@ -306,10 +378,19 @@ def main() -> int:
                 filename = f"{label}__o-{octave}__v-{variant:02d}"
                 midi_path = midi_dir / f"{filename}.mid"
                 audio_path = audio_dir / f"{filename}.{config.output_format}"
+                seed = rng.randint(0, 2**31 - 1)
 
-                build_midi(midi_path, notes, rng, config)
-                if not args.midi_only:
-                    render_audio(args.soundfont, midi_path, audio_path, config.sample_rate)
+                tasks.append(
+                    RenderTask(
+                        chord=label,
+                        octave=octave,
+                        variant=variant,
+                        midi_path=midi_path,
+                        audio_path=audio_path,
+                        notes=notes,
+                        seed=seed,
+                    )
+                )
 
                 manifest["files"].append(
                     {
@@ -320,12 +401,39 @@ def main() -> int:
                         "audioFile": None if args.midi_only else f"audio/{filename}.{config.output_format}",
                     }
                 )
-                total += 1
+
+    jobs = max(1, args.jobs)
+    if jobs == 1:
+        for task in tasks:
+            process_task(
+                task,
+                config,
+                args.soundfont,
+                args.midi_only,
+                args.mp3_bitrate,
+                args.keep_wav,
+            )
+    else:
+        with ThreadPoolExecutor(max_workers=jobs) as executor:
+            futures = [
+                executor.submit(
+                    process_task,
+                    task,
+                    config,
+                    args.soundfont,
+                    args.midi_only,
+                    args.mp3_bitrate,
+                    args.keep_wav,
+                )
+                for task in tasks
+            ]
+            for future in as_completed(futures):
+                future.result()
 
     manifest_path = pack_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-    print(f"Generated {total} variants in {pack_dir}")
+    print(f"Generated {len(tasks)} variants in {pack_dir}")
     if args.midi_only:
         print("Audio not rendered. Re-run with --soundfont and fluidsynth installed.")
     return 0

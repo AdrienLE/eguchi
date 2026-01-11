@@ -6,7 +6,7 @@
 - Auth-gated routing and profile settings are still in place (`frontend/app/index.tsx`, `frontend/app/settings.tsx`).
 - Backend APIs are template defaults (nugget + profile settings) and not tied to Eguchi data (`backend/main.py`).
 - Eguchi chord order + default mappings live in `frontend/lib/eguchi/chords.ts`.
-- Audio pack generator script added at `scripts/generate_audio_pack.py` (requires `fluidsynth` + a piano .sf2).
+- Audio pack generator script added at `scripts/generate_audio_pack.py` (requires `fluidsynth` + a piano .sf2, and `ffmpeg` for MP3 output).
 
 ## Decisions To Confirm
 - **Spec source of truth:** `SPEC.md` is canonical.

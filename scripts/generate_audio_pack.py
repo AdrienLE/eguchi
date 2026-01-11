@@ -4,6 +4,7 @@ import json
 import random
 import shutil
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -218,6 +219,19 @@ def process_task(
         render_audio(soundfont, task.midi_path, task.audio_path, config.sample_rate)
 
 
+def render_progress(current: int, total: int, bar_length: int = 30) -> None:
+    if total <= 0:
+        return
+    ratio = min(max(current / total, 0), 1)
+    filled = int(ratio * bar_length)
+    bar = "#" * filled + "-" * (bar_length - filled)
+    percent = int(ratio * 100)
+    sys.stdout.write(f"\r[{bar}] {current}/{total} ({percent}%)")
+    sys.stdout.flush()
+    if current >= total:
+        sys.stdout.write("\n")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate Eguchi chord audio packs.")
     parser.add_argument(
@@ -403,6 +417,9 @@ def main() -> int:
                 )
 
     jobs = max(1, args.jobs)
+    total_tasks = len(tasks)
+    render_progress(0, total_tasks)
+    completed = 0
     if jobs == 1:
         for task in tasks:
             process_task(
@@ -413,6 +430,8 @@ def main() -> int:
                 args.mp3_bitrate,
                 args.keep_wav,
             )
+            completed += 1
+            render_progress(completed, total_tasks)
     else:
         with ThreadPoolExecutor(max_workers=jobs) as executor:
             futures = [
@@ -429,6 +448,8 @@ def main() -> int:
             ]
             for future in as_completed(futures):
                 future.result()
+                completed += 1
+                render_progress(completed, total_tasks)
 
     manifest_path = pack_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")

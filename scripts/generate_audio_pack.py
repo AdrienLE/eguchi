@@ -168,6 +168,8 @@ def build_midi(
 
 
 def render_audio(soundfont: str, midi_path: Path, output_path: Path, sample_rate: int) -> None:
+    if not Path(soundfont).exists():
+        raise RuntimeError(f"soundfont not found: {soundfont}")
     command = [
         "fluidsynth",
         "-ni",
@@ -175,6 +177,8 @@ def render_audio(soundfont: str, midi_path: Path, output_path: Path, sample_rate
         str(midi_path),
         "-F",
         str(output_path),
+        "-T",
+        "wav",
         "-r",
         str(sample_rate),
     ]
@@ -186,7 +190,9 @@ def render_audio(soundfont: str, midi_path: Path, output_path: Path, sample_rate
             f" {result.stderr.strip() or result.stdout.strip() or 'no output'}"
         )
     if not output_path.exists():
-        raise RuntimeError(f"fluidsynth did not create output: {output_path}")
+        details = result.stderr.strip() or result.stdout.strip()
+        suffix = f" ({details})" if details else ""
+        raise RuntimeError(f"fluidsynth did not create output: {output_path}{suffix}")
 
 
 def transcode_to_mp3(source_wav: Path, target_mp3: Path, bitrate: str) -> None:
@@ -213,7 +219,9 @@ def transcode_to_mp3(source_wav: Path, target_mp3: Path, bitrate: str) -> None:
             f" {result.stderr.strip() or result.stdout.strip() or 'no output'}"
         )
     if not target_mp3.exists():
-        raise RuntimeError(f"ffmpeg did not create output: {target_mp3}")
+        details = result.stderr.strip() or result.stdout.strip()
+        suffix = f" ({details})" if details else ""
+        raise RuntimeError(f"ffmpeg did not create output: {target_mp3}{suffix}")
 
 
 LOG_LOCK = Lock()

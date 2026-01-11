@@ -6,7 +6,7 @@ An app built with the Base App template.
 
 ## Product Spec
 
-- Primary spec: [`docs/EGUCHI_SPEC.md`](docs/EGUCHI_SPEC.md)
+- Primary spec: [`SPEC.md`](SPEC.md)
 - Quick pointer: the default home screen currently renders a placeholder that links to the spec so designers/devs can align before writing code.
 
 Please review the spec before starting implementation work; note open questions inline (look for `TODO` callouts) to capture any clarifications.

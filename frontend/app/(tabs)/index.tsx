@@ -2,7 +2,7 @@ import { StyleSheet, ScrollView, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
-const SPEC_PATH = 'docs/EGUCHI_SPEC.md';
+const SPEC_PATH = 'SPEC.md';
 
 export default function HomeScreen() {
   return (

@@ -30,6 +30,6 @@ describe('APP_CONFIG API URL precedence', () => {
 
   test('falls back to hardcoded default', () => {
     const cfg = reloadConfig({ EXPO_PUBLIC_ENVIRONMENT: 'production' });
-    expect(cfg.api.baseUrl).toMatch('https://baseapp-production-');
+    expect(cfg.api.baseUrl).toBe('REPLACE_WITH_PROD_URL');
   });
 });

@@ -29,6 +29,7 @@ and prefer configuration over hard-coded app-specific logic.
 - Locations: backend tests in `tests/test_*.py`; frontend tests in `frontend/__tests__/**/*.test.ts(x)`.
 - Coverage: maintain high coverage for critical paths (aim ≥80% overall). Generate HTML via
   `pytest --cov-report=html` and view frontend reports in `frontend/coverage/`.
+- Workflow: after every change, run the relevant tests (or full suite) and commit the change.
 
 ## iOS Production Builds
 - Default prod API: `REPLACE_WITH_PROD_URL` (template default).

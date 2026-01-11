@@ -529,18 +529,18 @@ def main() -> int:
     completed = 0
     if jobs == 1:
         for task in tasks:
-                process_task(
-                    task,
-                    config,
-                    args.soundfont,
-                    args.midi_only,
-                    args.mp3_bitrate,
-                    args.keep_wav,
-                    total_tasks,
-                    args.verbose,
-                    args.normalize,
-                    args.gain_db,
-                )
+            process_task(
+                task,
+                config,
+                args.soundfont,
+                args.midi_only,
+                args.mp3_bitrate,
+                args.keep_wav,
+                total_tasks,
+                args.verbose,
+                args.normalize,
+                args.gain_db,
+            )
             completed += 1
             if not args.verbose:
                 render_progress(completed, total_tasks)

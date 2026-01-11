@@ -1,7 +1,8 @@
 # Repository Guidelines
 
 This is a template repository. Treat changes as reusable patterns, keep modules isolated,
-and prefer configuration over hard-coded app-specific logic.
+and prefer configuration over hard-coded app-specific logic. Prioritize MVPs and visible UI
+changes so functionality can be tested early and often.
 
 ## Project Structure & Module Organization
 - Frontend (React Native/Expo): `frontend/` (app code, components, hooks, lib, assets, tests in `frontend/__tests__/`).

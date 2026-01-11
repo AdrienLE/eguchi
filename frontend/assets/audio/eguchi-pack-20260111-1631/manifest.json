@@ -1,7 +1,7 @@
 {
   "pack": "eguchi-pack-20260111-1631",
   "format": "mp3",
-  "generatedAt": "2026-01-11T16:31:13.091351+00:00",
+  "generatedAt": "2026-01-11T18:51:27.424435+00:00",
   "chords": [
     "C-E-G",
     "F-A-C",
@@ -24,6 +24,8 @@
     5
   ],
   "variants": 8,
+  "normalize": true,
+  "gainDb": 0.0,
   "files": [
     {
       "chord": "C-E-G",

@@ -173,14 +173,14 @@ def render_audio(soundfont: str, midi_path: Path, output_path: Path, sample_rate
     command = [
         "fluidsynth",
         "-ni",
-        soundfont,
-        str(midi_path),
         "-F",
         str(output_path),
         "-T",
         "wav",
         "-r",
         str(sample_rate),
+        soundfont,
+        str(midi_path),
     ]
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:

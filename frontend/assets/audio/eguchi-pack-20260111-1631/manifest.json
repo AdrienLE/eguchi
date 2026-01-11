@@ -1,0 +1,2381 @@
+{
+  "pack": "eguchi-pack-20260111-1631",
+  "format": "mp3",
+  "generatedAt": "2026-01-11T16:31:13.091351+00:00",
+  "chords": [
+    "C-E-G",
+    "F-A-C",
+    "G-B-D",
+    "E-G-C",
+    "A-C-F",
+    "B-D-G",
+    "G-C-E",
+    "C-F-A",
+    "D-G-B",
+    "A-C#-E",
+    "D-F#-A",
+    "E-G#-B",
+    "Bb-D-F",
+    "Eb-G-Bb"
+  ],
+  "octaves": [
+    3,
+    4,
+    5
+  ],
+  "variants": 8,
+  "files": [
+    {
+      "chord": "C-E-G",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/C-E-G__o-3__v-01.mid",
+      "audioFile": "audio/C-E-G__o-3__v-01.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/C-E-G__o-3__v-02.mid",
+      "audioFile": "audio/C-E-G__o-3__v-02.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/C-E-G__o-3__v-03.mid",
+      "audioFile": "audio/C-E-G__o-3__v-03.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/C-E-G__o-3__v-04.mid",
+      "audioFile": "audio/C-E-G__o-3__v-04.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/C-E-G__o-3__v-05.mid",
+      "audioFile": "audio/C-E-G__o-3__v-05.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/C-E-G__o-3__v-06.mid",
+      "audioFile": "audio/C-E-G__o-3__v-06.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/C-E-G__o-3__v-07.mid",
+      "audioFile": "audio/C-E-G__o-3__v-07.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/C-E-G__o-3__v-08.mid",
+      "audioFile": "audio/C-E-G__o-3__v-08.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/C-E-G__o-4__v-01.mid",
+      "audioFile": "audio/C-E-G__o-4__v-01.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/C-E-G__o-4__v-02.mid",
+      "audioFile": "audio/C-E-G__o-4__v-02.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/C-E-G__o-4__v-03.mid",
+      "audioFile": "audio/C-E-G__o-4__v-03.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/C-E-G__o-4__v-04.mid",
+      "audioFile": "audio/C-E-G__o-4__v-04.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/C-E-G__o-4__v-05.mid",
+      "audioFile": "audio/C-E-G__o-4__v-05.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/C-E-G__o-4__v-06.mid",
+      "audioFile": "audio/C-E-G__o-4__v-06.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/C-E-G__o-4__v-07.mid",
+      "audioFile": "audio/C-E-G__o-4__v-07.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/C-E-G__o-4__v-08.mid",
+      "audioFile": "audio/C-E-G__o-4__v-08.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/C-E-G__o-5__v-01.mid",
+      "audioFile": "audio/C-E-G__o-5__v-01.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/C-E-G__o-5__v-02.mid",
+      "audioFile": "audio/C-E-G__o-5__v-02.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/C-E-G__o-5__v-03.mid",
+      "audioFile": "audio/C-E-G__o-5__v-03.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/C-E-G__o-5__v-04.mid",
+      "audioFile": "audio/C-E-G__o-5__v-04.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/C-E-G__o-5__v-05.mid",
+      "audioFile": "audio/C-E-G__o-5__v-05.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/C-E-G__o-5__v-06.mid",
+      "audioFile": "audio/C-E-G__o-5__v-06.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/C-E-G__o-5__v-07.mid",
+      "audioFile": "audio/C-E-G__o-5__v-07.mp3"
+    },
+    {
+      "chord": "C-E-G",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/C-E-G__o-5__v-08.mid",
+      "audioFile": "audio/C-E-G__o-5__v-08.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/F-A-C__o-3__v-01.mid",
+      "audioFile": "audio/F-A-C__o-3__v-01.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/F-A-C__o-3__v-02.mid",
+      "audioFile": "audio/F-A-C__o-3__v-02.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/F-A-C__o-3__v-03.mid",
+      "audioFile": "audio/F-A-C__o-3__v-03.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/F-A-C__o-3__v-04.mid",
+      "audioFile": "audio/F-A-C__o-3__v-04.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/F-A-C__o-3__v-05.mid",
+      "audioFile": "audio/F-A-C__o-3__v-05.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/F-A-C__o-3__v-06.mid",
+      "audioFile": "audio/F-A-C__o-3__v-06.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/F-A-C__o-3__v-07.mid",
+      "audioFile": "audio/F-A-C__o-3__v-07.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/F-A-C__o-3__v-08.mid",
+      "audioFile": "audio/F-A-C__o-3__v-08.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/F-A-C__o-4__v-01.mid",
+      "audioFile": "audio/F-A-C__o-4__v-01.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/F-A-C__o-4__v-02.mid",
+      "audioFile": "audio/F-A-C__o-4__v-02.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/F-A-C__o-4__v-03.mid",
+      "audioFile": "audio/F-A-C__o-4__v-03.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/F-A-C__o-4__v-04.mid",
+      "audioFile": "audio/F-A-C__o-4__v-04.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/F-A-C__o-4__v-05.mid",
+      "audioFile": "audio/F-A-C__o-4__v-05.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/F-A-C__o-4__v-06.mid",
+      "audioFile": "audio/F-A-C__o-4__v-06.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/F-A-C__o-4__v-07.mid",
+      "audioFile": "audio/F-A-C__o-4__v-07.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/F-A-C__o-4__v-08.mid",
+      "audioFile": "audio/F-A-C__o-4__v-08.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/F-A-C__o-5__v-01.mid",
+      "audioFile": "audio/F-A-C__o-5__v-01.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/F-A-C__o-5__v-02.mid",
+      "audioFile": "audio/F-A-C__o-5__v-02.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/F-A-C__o-5__v-03.mid",
+      "audioFile": "audio/F-A-C__o-5__v-03.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/F-A-C__o-5__v-04.mid",
+      "audioFile": "audio/F-A-C__o-5__v-04.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/F-A-C__o-5__v-05.mid",
+      "audioFile": "audio/F-A-C__o-5__v-05.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/F-A-C__o-5__v-06.mid",
+      "audioFile": "audio/F-A-C__o-5__v-06.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/F-A-C__o-5__v-07.mid",
+      "audioFile": "audio/F-A-C__o-5__v-07.mp3"
+    },
+    {
+      "chord": "F-A-C",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/F-A-C__o-5__v-08.mid",
+      "audioFile": "audio/F-A-C__o-5__v-08.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/G-B-D__o-3__v-01.mid",
+      "audioFile": "audio/G-B-D__o-3__v-01.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/G-B-D__o-3__v-02.mid",
+      "audioFile": "audio/G-B-D__o-3__v-02.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/G-B-D__o-3__v-03.mid",
+      "audioFile": "audio/G-B-D__o-3__v-03.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/G-B-D__o-3__v-04.mid",
+      "audioFile": "audio/G-B-D__o-3__v-04.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/G-B-D__o-3__v-05.mid",
+      "audioFile": "audio/G-B-D__o-3__v-05.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/G-B-D__o-3__v-06.mid",
+      "audioFile": "audio/G-B-D__o-3__v-06.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/G-B-D__o-3__v-07.mid",
+      "audioFile": "audio/G-B-D__o-3__v-07.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/G-B-D__o-3__v-08.mid",
+      "audioFile": "audio/G-B-D__o-3__v-08.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/G-B-D__o-4__v-01.mid",
+      "audioFile": "audio/G-B-D__o-4__v-01.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/G-B-D__o-4__v-02.mid",
+      "audioFile": "audio/G-B-D__o-4__v-02.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/G-B-D__o-4__v-03.mid",
+      "audioFile": "audio/G-B-D__o-4__v-03.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/G-B-D__o-4__v-04.mid",
+      "audioFile": "audio/G-B-D__o-4__v-04.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/G-B-D__o-4__v-05.mid",
+      "audioFile": "audio/G-B-D__o-4__v-05.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/G-B-D__o-4__v-06.mid",
+      "audioFile": "audio/G-B-D__o-4__v-06.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/G-B-D__o-4__v-07.mid",
+      "audioFile": "audio/G-B-D__o-4__v-07.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/G-B-D__o-4__v-08.mid",
+      "audioFile": "audio/G-B-D__o-4__v-08.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/G-B-D__o-5__v-01.mid",
+      "audioFile": "audio/G-B-D__o-5__v-01.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/G-B-D__o-5__v-02.mid",
+      "audioFile": "audio/G-B-D__o-5__v-02.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/G-B-D__o-5__v-03.mid",
+      "audioFile": "audio/G-B-D__o-5__v-03.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/G-B-D__o-5__v-04.mid",
+      "audioFile": "audio/G-B-D__o-5__v-04.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/G-B-D__o-5__v-05.mid",
+      "audioFile": "audio/G-B-D__o-5__v-05.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/G-B-D__o-5__v-06.mid",
+      "audioFile": "audio/G-B-D__o-5__v-06.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/G-B-D__o-5__v-07.mid",
+      "audioFile": "audio/G-B-D__o-5__v-07.mp3"
+    },
+    {
+      "chord": "G-B-D",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/G-B-D__o-5__v-08.mid",
+      "audioFile": "audio/G-B-D__o-5__v-08.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/E-G-C__o-3__v-01.mid",
+      "audioFile": "audio/E-G-C__o-3__v-01.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/E-G-C__o-3__v-02.mid",
+      "audioFile": "audio/E-G-C__o-3__v-02.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/E-G-C__o-3__v-03.mid",
+      "audioFile": "audio/E-G-C__o-3__v-03.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/E-G-C__o-3__v-04.mid",
+      "audioFile": "audio/E-G-C__o-3__v-04.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/E-G-C__o-3__v-05.mid",
+      "audioFile": "audio/E-G-C__o-3__v-05.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/E-G-C__o-3__v-06.mid",
+      "audioFile": "audio/E-G-C__o-3__v-06.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/E-G-C__o-3__v-07.mid",
+      "audioFile": "audio/E-G-C__o-3__v-07.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/E-G-C__o-3__v-08.mid",
+      "audioFile": "audio/E-G-C__o-3__v-08.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/E-G-C__o-4__v-01.mid",
+      "audioFile": "audio/E-G-C__o-4__v-01.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/E-G-C__o-4__v-02.mid",
+      "audioFile": "audio/E-G-C__o-4__v-02.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/E-G-C__o-4__v-03.mid",
+      "audioFile": "audio/E-G-C__o-4__v-03.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/E-G-C__o-4__v-04.mid",
+      "audioFile": "audio/E-G-C__o-4__v-04.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/E-G-C__o-4__v-05.mid",
+      "audioFile": "audio/E-G-C__o-4__v-05.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/E-G-C__o-4__v-06.mid",
+      "audioFile": "audio/E-G-C__o-4__v-06.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/E-G-C__o-4__v-07.mid",
+      "audioFile": "audio/E-G-C__o-4__v-07.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/E-G-C__o-4__v-08.mid",
+      "audioFile": "audio/E-G-C__o-4__v-08.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/E-G-C__o-5__v-01.mid",
+      "audioFile": "audio/E-G-C__o-5__v-01.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/E-G-C__o-5__v-02.mid",
+      "audioFile": "audio/E-G-C__o-5__v-02.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/E-G-C__o-5__v-03.mid",
+      "audioFile": "audio/E-G-C__o-5__v-03.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/E-G-C__o-5__v-04.mid",
+      "audioFile": "audio/E-G-C__o-5__v-04.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/E-G-C__o-5__v-05.mid",
+      "audioFile": "audio/E-G-C__o-5__v-05.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/E-G-C__o-5__v-06.mid",
+      "audioFile": "audio/E-G-C__o-5__v-06.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/E-G-C__o-5__v-07.mid",
+      "audioFile": "audio/E-G-C__o-5__v-07.mp3"
+    },
+    {
+      "chord": "E-G-C",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/E-G-C__o-5__v-08.mid",
+      "audioFile": "audio/E-G-C__o-5__v-08.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/A-C-F__o-3__v-01.mid",
+      "audioFile": "audio/A-C-F__o-3__v-01.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/A-C-F__o-3__v-02.mid",
+      "audioFile": "audio/A-C-F__o-3__v-02.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/A-C-F__o-3__v-03.mid",
+      "audioFile": "audio/A-C-F__o-3__v-03.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/A-C-F__o-3__v-04.mid",
+      "audioFile": "audio/A-C-F__o-3__v-04.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/A-C-F__o-3__v-05.mid",
+      "audioFile": "audio/A-C-F__o-3__v-05.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/A-C-F__o-3__v-06.mid",
+      "audioFile": "audio/A-C-F__o-3__v-06.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/A-C-F__o-3__v-07.mid",
+      "audioFile": "audio/A-C-F__o-3__v-07.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/A-C-F__o-3__v-08.mid",
+      "audioFile": "audio/A-C-F__o-3__v-08.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/A-C-F__o-4__v-01.mid",
+      "audioFile": "audio/A-C-F__o-4__v-01.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/A-C-F__o-4__v-02.mid",
+      "audioFile": "audio/A-C-F__o-4__v-02.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/A-C-F__o-4__v-03.mid",
+      "audioFile": "audio/A-C-F__o-4__v-03.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/A-C-F__o-4__v-04.mid",
+      "audioFile": "audio/A-C-F__o-4__v-04.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/A-C-F__o-4__v-05.mid",
+      "audioFile": "audio/A-C-F__o-4__v-05.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/A-C-F__o-4__v-06.mid",
+      "audioFile": "audio/A-C-F__o-4__v-06.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/A-C-F__o-4__v-07.mid",
+      "audioFile": "audio/A-C-F__o-4__v-07.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/A-C-F__o-4__v-08.mid",
+      "audioFile": "audio/A-C-F__o-4__v-08.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/A-C-F__o-5__v-01.mid",
+      "audioFile": "audio/A-C-F__o-5__v-01.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/A-C-F__o-5__v-02.mid",
+      "audioFile": "audio/A-C-F__o-5__v-02.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/A-C-F__o-5__v-03.mid",
+      "audioFile": "audio/A-C-F__o-5__v-03.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/A-C-F__o-5__v-04.mid",
+      "audioFile": "audio/A-C-F__o-5__v-04.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/A-C-F__o-5__v-05.mid",
+      "audioFile": "audio/A-C-F__o-5__v-05.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/A-C-F__o-5__v-06.mid",
+      "audioFile": "audio/A-C-F__o-5__v-06.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/A-C-F__o-5__v-07.mid",
+      "audioFile": "audio/A-C-F__o-5__v-07.mp3"
+    },
+    {
+      "chord": "A-C-F",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/A-C-F__o-5__v-08.mid",
+      "audioFile": "audio/A-C-F__o-5__v-08.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/B-D-G__o-3__v-01.mid",
+      "audioFile": "audio/B-D-G__o-3__v-01.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/B-D-G__o-3__v-02.mid",
+      "audioFile": "audio/B-D-G__o-3__v-02.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/B-D-G__o-3__v-03.mid",
+      "audioFile": "audio/B-D-G__o-3__v-03.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/B-D-G__o-3__v-04.mid",
+      "audioFile": "audio/B-D-G__o-3__v-04.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/B-D-G__o-3__v-05.mid",
+      "audioFile": "audio/B-D-G__o-3__v-05.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/B-D-G__o-3__v-06.mid",
+      "audioFile": "audio/B-D-G__o-3__v-06.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/B-D-G__o-3__v-07.mid",
+      "audioFile": "audio/B-D-G__o-3__v-07.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/B-D-G__o-3__v-08.mid",
+      "audioFile": "audio/B-D-G__o-3__v-08.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/B-D-G__o-4__v-01.mid",
+      "audioFile": "audio/B-D-G__o-4__v-01.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/B-D-G__o-4__v-02.mid",
+      "audioFile": "audio/B-D-G__o-4__v-02.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/B-D-G__o-4__v-03.mid",
+      "audioFile": "audio/B-D-G__o-4__v-03.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/B-D-G__o-4__v-04.mid",
+      "audioFile": "audio/B-D-G__o-4__v-04.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/B-D-G__o-4__v-05.mid",
+      "audioFile": "audio/B-D-G__o-4__v-05.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/B-D-G__o-4__v-06.mid",
+      "audioFile": "audio/B-D-G__o-4__v-06.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/B-D-G__o-4__v-07.mid",
+      "audioFile": "audio/B-D-G__o-4__v-07.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/B-D-G__o-4__v-08.mid",
+      "audioFile": "audio/B-D-G__o-4__v-08.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/B-D-G__o-5__v-01.mid",
+      "audioFile": "audio/B-D-G__o-5__v-01.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/B-D-G__o-5__v-02.mid",
+      "audioFile": "audio/B-D-G__o-5__v-02.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/B-D-G__o-5__v-03.mid",
+      "audioFile": "audio/B-D-G__o-5__v-03.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/B-D-G__o-5__v-04.mid",
+      "audioFile": "audio/B-D-G__o-5__v-04.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/B-D-G__o-5__v-05.mid",
+      "audioFile": "audio/B-D-G__o-5__v-05.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/B-D-G__o-5__v-06.mid",
+      "audioFile": "audio/B-D-G__o-5__v-06.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/B-D-G__o-5__v-07.mid",
+      "audioFile": "audio/B-D-G__o-5__v-07.mp3"
+    },
+    {
+      "chord": "B-D-G",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/B-D-G__o-5__v-08.mid",
+      "audioFile": "audio/B-D-G__o-5__v-08.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/G-C-E__o-3__v-01.mid",
+      "audioFile": "audio/G-C-E__o-3__v-01.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/G-C-E__o-3__v-02.mid",
+      "audioFile": "audio/G-C-E__o-3__v-02.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/G-C-E__o-3__v-03.mid",
+      "audioFile": "audio/G-C-E__o-3__v-03.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/G-C-E__o-3__v-04.mid",
+      "audioFile": "audio/G-C-E__o-3__v-04.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/G-C-E__o-3__v-05.mid",
+      "audioFile": "audio/G-C-E__o-3__v-05.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/G-C-E__o-3__v-06.mid",
+      "audioFile": "audio/G-C-E__o-3__v-06.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/G-C-E__o-3__v-07.mid",
+      "audioFile": "audio/G-C-E__o-3__v-07.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/G-C-E__o-3__v-08.mid",
+      "audioFile": "audio/G-C-E__o-3__v-08.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/G-C-E__o-4__v-01.mid",
+      "audioFile": "audio/G-C-E__o-4__v-01.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/G-C-E__o-4__v-02.mid",
+      "audioFile": "audio/G-C-E__o-4__v-02.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/G-C-E__o-4__v-03.mid",
+      "audioFile": "audio/G-C-E__o-4__v-03.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/G-C-E__o-4__v-04.mid",
+      "audioFile": "audio/G-C-E__o-4__v-04.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/G-C-E__o-4__v-05.mid",
+      "audioFile": "audio/G-C-E__o-4__v-05.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/G-C-E__o-4__v-06.mid",
+      "audioFile": "audio/G-C-E__o-4__v-06.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/G-C-E__o-4__v-07.mid",
+      "audioFile": "audio/G-C-E__o-4__v-07.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/G-C-E__o-4__v-08.mid",
+      "audioFile": "audio/G-C-E__o-4__v-08.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/G-C-E__o-5__v-01.mid",
+      "audioFile": "audio/G-C-E__o-5__v-01.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/G-C-E__o-5__v-02.mid",
+      "audioFile": "audio/G-C-E__o-5__v-02.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/G-C-E__o-5__v-03.mid",
+      "audioFile": "audio/G-C-E__o-5__v-03.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/G-C-E__o-5__v-04.mid",
+      "audioFile": "audio/G-C-E__o-5__v-04.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/G-C-E__o-5__v-05.mid",
+      "audioFile": "audio/G-C-E__o-5__v-05.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/G-C-E__o-5__v-06.mid",
+      "audioFile": "audio/G-C-E__o-5__v-06.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/G-C-E__o-5__v-07.mid",
+      "audioFile": "audio/G-C-E__o-5__v-07.mp3"
+    },
+    {
+      "chord": "G-C-E",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/G-C-E__o-5__v-08.mid",
+      "audioFile": "audio/G-C-E__o-5__v-08.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/C-F-A__o-3__v-01.mid",
+      "audioFile": "audio/C-F-A__o-3__v-01.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/C-F-A__o-3__v-02.mid",
+      "audioFile": "audio/C-F-A__o-3__v-02.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/C-F-A__o-3__v-03.mid",
+      "audioFile": "audio/C-F-A__o-3__v-03.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/C-F-A__o-3__v-04.mid",
+      "audioFile": "audio/C-F-A__o-3__v-04.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/C-F-A__o-3__v-05.mid",
+      "audioFile": "audio/C-F-A__o-3__v-05.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/C-F-A__o-3__v-06.mid",
+      "audioFile": "audio/C-F-A__o-3__v-06.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/C-F-A__o-3__v-07.mid",
+      "audioFile": "audio/C-F-A__o-3__v-07.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/C-F-A__o-3__v-08.mid",
+      "audioFile": "audio/C-F-A__o-3__v-08.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/C-F-A__o-4__v-01.mid",
+      "audioFile": "audio/C-F-A__o-4__v-01.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/C-F-A__o-4__v-02.mid",
+      "audioFile": "audio/C-F-A__o-4__v-02.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/C-F-A__o-4__v-03.mid",
+      "audioFile": "audio/C-F-A__o-4__v-03.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/C-F-A__o-4__v-04.mid",
+      "audioFile": "audio/C-F-A__o-4__v-04.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/C-F-A__o-4__v-05.mid",
+      "audioFile": "audio/C-F-A__o-4__v-05.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/C-F-A__o-4__v-06.mid",
+      "audioFile": "audio/C-F-A__o-4__v-06.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/C-F-A__o-4__v-07.mid",
+      "audioFile": "audio/C-F-A__o-4__v-07.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/C-F-A__o-4__v-08.mid",
+      "audioFile": "audio/C-F-A__o-4__v-08.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/C-F-A__o-5__v-01.mid",
+      "audioFile": "audio/C-F-A__o-5__v-01.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/C-F-A__o-5__v-02.mid",
+      "audioFile": "audio/C-F-A__o-5__v-02.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/C-F-A__o-5__v-03.mid",
+      "audioFile": "audio/C-F-A__o-5__v-03.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/C-F-A__o-5__v-04.mid",
+      "audioFile": "audio/C-F-A__o-5__v-04.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/C-F-A__o-5__v-05.mid",
+      "audioFile": "audio/C-F-A__o-5__v-05.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/C-F-A__o-5__v-06.mid",
+      "audioFile": "audio/C-F-A__o-5__v-06.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/C-F-A__o-5__v-07.mid",
+      "audioFile": "audio/C-F-A__o-5__v-07.mp3"
+    },
+    {
+      "chord": "C-F-A",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/C-F-A__o-5__v-08.mid",
+      "audioFile": "audio/C-F-A__o-5__v-08.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/D-G-B__o-3__v-01.mid",
+      "audioFile": "audio/D-G-B__o-3__v-01.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/D-G-B__o-3__v-02.mid",
+      "audioFile": "audio/D-G-B__o-3__v-02.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/D-G-B__o-3__v-03.mid",
+      "audioFile": "audio/D-G-B__o-3__v-03.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/D-G-B__o-3__v-04.mid",
+      "audioFile": "audio/D-G-B__o-3__v-04.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/D-G-B__o-3__v-05.mid",
+      "audioFile": "audio/D-G-B__o-3__v-05.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/D-G-B__o-3__v-06.mid",
+      "audioFile": "audio/D-G-B__o-3__v-06.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/D-G-B__o-3__v-07.mid",
+      "audioFile": "audio/D-G-B__o-3__v-07.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/D-G-B__o-3__v-08.mid",
+      "audioFile": "audio/D-G-B__o-3__v-08.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/D-G-B__o-4__v-01.mid",
+      "audioFile": "audio/D-G-B__o-4__v-01.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/D-G-B__o-4__v-02.mid",
+      "audioFile": "audio/D-G-B__o-4__v-02.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/D-G-B__o-4__v-03.mid",
+      "audioFile": "audio/D-G-B__o-4__v-03.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/D-G-B__o-4__v-04.mid",
+      "audioFile": "audio/D-G-B__o-4__v-04.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/D-G-B__o-4__v-05.mid",
+      "audioFile": "audio/D-G-B__o-4__v-05.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/D-G-B__o-4__v-06.mid",
+      "audioFile": "audio/D-G-B__o-4__v-06.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/D-G-B__o-4__v-07.mid",
+      "audioFile": "audio/D-G-B__o-4__v-07.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/D-G-B__o-4__v-08.mid",
+      "audioFile": "audio/D-G-B__o-4__v-08.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/D-G-B__o-5__v-01.mid",
+      "audioFile": "audio/D-G-B__o-5__v-01.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/D-G-B__o-5__v-02.mid",
+      "audioFile": "audio/D-G-B__o-5__v-02.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/D-G-B__o-5__v-03.mid",
+      "audioFile": "audio/D-G-B__o-5__v-03.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/D-G-B__o-5__v-04.mid",
+      "audioFile": "audio/D-G-B__o-5__v-04.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/D-G-B__o-5__v-05.mid",
+      "audioFile": "audio/D-G-B__o-5__v-05.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/D-G-B__o-5__v-06.mid",
+      "audioFile": "audio/D-G-B__o-5__v-06.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/D-G-B__o-5__v-07.mid",
+      "audioFile": "audio/D-G-B__o-5__v-07.mp3"
+    },
+    {
+      "chord": "D-G-B",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/D-G-B__o-5__v-08.mid",
+      "audioFile": "audio/D-G-B__o-5__v-08.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/A-C#-E__o-3__v-01.mid",
+      "audioFile": "audio/A-C#-E__o-3__v-01.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/A-C#-E__o-3__v-02.mid",
+      "audioFile": "audio/A-C#-E__o-3__v-02.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/A-C#-E__o-3__v-03.mid",
+      "audioFile": "audio/A-C#-E__o-3__v-03.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/A-C#-E__o-3__v-04.mid",
+      "audioFile": "audio/A-C#-E__o-3__v-04.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/A-C#-E__o-3__v-05.mid",
+      "audioFile": "audio/A-C#-E__o-3__v-05.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/A-C#-E__o-3__v-06.mid",
+      "audioFile": "audio/A-C#-E__o-3__v-06.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/A-C#-E__o-3__v-07.mid",
+      "audioFile": "audio/A-C#-E__o-3__v-07.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/A-C#-E__o-3__v-08.mid",
+      "audioFile": "audio/A-C#-E__o-3__v-08.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/A-C#-E__o-4__v-01.mid",
+      "audioFile": "audio/A-C#-E__o-4__v-01.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/A-C#-E__o-4__v-02.mid",
+      "audioFile": "audio/A-C#-E__o-4__v-02.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/A-C#-E__o-4__v-03.mid",
+      "audioFile": "audio/A-C#-E__o-4__v-03.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/A-C#-E__o-4__v-04.mid",
+      "audioFile": "audio/A-C#-E__o-4__v-04.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/A-C#-E__o-4__v-05.mid",
+      "audioFile": "audio/A-C#-E__o-4__v-05.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/A-C#-E__o-4__v-06.mid",
+      "audioFile": "audio/A-C#-E__o-4__v-06.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/A-C#-E__o-4__v-07.mid",
+      "audioFile": "audio/A-C#-E__o-4__v-07.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/A-C#-E__o-4__v-08.mid",
+      "audioFile": "audio/A-C#-E__o-4__v-08.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/A-C#-E__o-5__v-01.mid",
+      "audioFile": "audio/A-C#-E__o-5__v-01.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/A-C#-E__o-5__v-02.mid",
+      "audioFile": "audio/A-C#-E__o-5__v-02.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/A-C#-E__o-5__v-03.mid",
+      "audioFile": "audio/A-C#-E__o-5__v-03.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/A-C#-E__o-5__v-04.mid",
+      "audioFile": "audio/A-C#-E__o-5__v-04.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/A-C#-E__o-5__v-05.mid",
+      "audioFile": "audio/A-C#-E__o-5__v-05.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/A-C#-E__o-5__v-06.mid",
+      "audioFile": "audio/A-C#-E__o-5__v-06.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/A-C#-E__o-5__v-07.mid",
+      "audioFile": "audio/A-C#-E__o-5__v-07.mp3"
+    },
+    {
+      "chord": "A-C#-E",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/A-C#-E__o-5__v-08.mid",
+      "audioFile": "audio/A-C#-E__o-5__v-08.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/D-F#-A__o-3__v-01.mid",
+      "audioFile": "audio/D-F#-A__o-3__v-01.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/D-F#-A__o-3__v-02.mid",
+      "audioFile": "audio/D-F#-A__o-3__v-02.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/D-F#-A__o-3__v-03.mid",
+      "audioFile": "audio/D-F#-A__o-3__v-03.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/D-F#-A__o-3__v-04.mid",
+      "audioFile": "audio/D-F#-A__o-3__v-04.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/D-F#-A__o-3__v-05.mid",
+      "audioFile": "audio/D-F#-A__o-3__v-05.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/D-F#-A__o-3__v-06.mid",
+      "audioFile": "audio/D-F#-A__o-3__v-06.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/D-F#-A__o-3__v-07.mid",
+      "audioFile": "audio/D-F#-A__o-3__v-07.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/D-F#-A__o-3__v-08.mid",
+      "audioFile": "audio/D-F#-A__o-3__v-08.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/D-F#-A__o-4__v-01.mid",
+      "audioFile": "audio/D-F#-A__o-4__v-01.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/D-F#-A__o-4__v-02.mid",
+      "audioFile": "audio/D-F#-A__o-4__v-02.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/D-F#-A__o-4__v-03.mid",
+      "audioFile": "audio/D-F#-A__o-4__v-03.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/D-F#-A__o-4__v-04.mid",
+      "audioFile": "audio/D-F#-A__o-4__v-04.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/D-F#-A__o-4__v-05.mid",
+      "audioFile": "audio/D-F#-A__o-4__v-05.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/D-F#-A__o-4__v-06.mid",
+      "audioFile": "audio/D-F#-A__o-4__v-06.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/D-F#-A__o-4__v-07.mid",
+      "audioFile": "audio/D-F#-A__o-4__v-07.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/D-F#-A__o-4__v-08.mid",
+      "audioFile": "audio/D-F#-A__o-4__v-08.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/D-F#-A__o-5__v-01.mid",
+      "audioFile": "audio/D-F#-A__o-5__v-01.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/D-F#-A__o-5__v-02.mid",
+      "audioFile": "audio/D-F#-A__o-5__v-02.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/D-F#-A__o-5__v-03.mid",
+      "audioFile": "audio/D-F#-A__o-5__v-03.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/D-F#-A__o-5__v-04.mid",
+      "audioFile": "audio/D-F#-A__o-5__v-04.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/D-F#-A__o-5__v-05.mid",
+      "audioFile": "audio/D-F#-A__o-5__v-05.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/D-F#-A__o-5__v-06.mid",
+      "audioFile": "audio/D-F#-A__o-5__v-06.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/D-F#-A__o-5__v-07.mid",
+      "audioFile": "audio/D-F#-A__o-5__v-07.mp3"
+    },
+    {
+      "chord": "D-F#-A",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/D-F#-A__o-5__v-08.mid",
+      "audioFile": "audio/D-F#-A__o-5__v-08.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/E-G#-B__o-3__v-01.mid",
+      "audioFile": "audio/E-G#-B__o-3__v-01.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/E-G#-B__o-3__v-02.mid",
+      "audioFile": "audio/E-G#-B__o-3__v-02.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/E-G#-B__o-3__v-03.mid",
+      "audioFile": "audio/E-G#-B__o-3__v-03.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/E-G#-B__o-3__v-04.mid",
+      "audioFile": "audio/E-G#-B__o-3__v-04.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/E-G#-B__o-3__v-05.mid",
+      "audioFile": "audio/E-G#-B__o-3__v-05.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/E-G#-B__o-3__v-06.mid",
+      "audioFile": "audio/E-G#-B__o-3__v-06.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/E-G#-B__o-3__v-07.mid",
+      "audioFile": "audio/E-G#-B__o-3__v-07.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/E-G#-B__o-3__v-08.mid",
+      "audioFile": "audio/E-G#-B__o-3__v-08.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/E-G#-B__o-4__v-01.mid",
+      "audioFile": "audio/E-G#-B__o-4__v-01.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/E-G#-B__o-4__v-02.mid",
+      "audioFile": "audio/E-G#-B__o-4__v-02.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/E-G#-B__o-4__v-03.mid",
+      "audioFile": "audio/E-G#-B__o-4__v-03.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/E-G#-B__o-4__v-04.mid",
+      "audioFile": "audio/E-G#-B__o-4__v-04.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/E-G#-B__o-4__v-05.mid",
+      "audioFile": "audio/E-G#-B__o-4__v-05.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/E-G#-B__o-4__v-06.mid",
+      "audioFile": "audio/E-G#-B__o-4__v-06.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/E-G#-B__o-4__v-07.mid",
+      "audioFile": "audio/E-G#-B__o-4__v-07.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/E-G#-B__o-4__v-08.mid",
+      "audioFile": "audio/E-G#-B__o-4__v-08.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/E-G#-B__o-5__v-01.mid",
+      "audioFile": "audio/E-G#-B__o-5__v-01.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/E-G#-B__o-5__v-02.mid",
+      "audioFile": "audio/E-G#-B__o-5__v-02.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/E-G#-B__o-5__v-03.mid",
+      "audioFile": "audio/E-G#-B__o-5__v-03.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/E-G#-B__o-5__v-04.mid",
+      "audioFile": "audio/E-G#-B__o-5__v-04.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/E-G#-B__o-5__v-05.mid",
+      "audioFile": "audio/E-G#-B__o-5__v-05.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/E-G#-B__o-5__v-06.mid",
+      "audioFile": "audio/E-G#-B__o-5__v-06.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/E-G#-B__o-5__v-07.mid",
+      "audioFile": "audio/E-G#-B__o-5__v-07.mp3"
+    },
+    {
+      "chord": "E-G#-B",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/E-G#-B__o-5__v-08.mid",
+      "audioFile": "audio/E-G#-B__o-5__v-08.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/Bb-D-F__o-3__v-01.mid",
+      "audioFile": "audio/Bb-D-F__o-3__v-01.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/Bb-D-F__o-3__v-02.mid",
+      "audioFile": "audio/Bb-D-F__o-3__v-02.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/Bb-D-F__o-3__v-03.mid",
+      "audioFile": "audio/Bb-D-F__o-3__v-03.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/Bb-D-F__o-3__v-04.mid",
+      "audioFile": "audio/Bb-D-F__o-3__v-04.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/Bb-D-F__o-3__v-05.mid",
+      "audioFile": "audio/Bb-D-F__o-3__v-05.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/Bb-D-F__o-3__v-06.mid",
+      "audioFile": "audio/Bb-D-F__o-3__v-06.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/Bb-D-F__o-3__v-07.mid",
+      "audioFile": "audio/Bb-D-F__o-3__v-07.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/Bb-D-F__o-3__v-08.mid",
+      "audioFile": "audio/Bb-D-F__o-3__v-08.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/Bb-D-F__o-4__v-01.mid",
+      "audioFile": "audio/Bb-D-F__o-4__v-01.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/Bb-D-F__o-4__v-02.mid",
+      "audioFile": "audio/Bb-D-F__o-4__v-02.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/Bb-D-F__o-4__v-03.mid",
+      "audioFile": "audio/Bb-D-F__o-4__v-03.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/Bb-D-F__o-4__v-04.mid",
+      "audioFile": "audio/Bb-D-F__o-4__v-04.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/Bb-D-F__o-4__v-05.mid",
+      "audioFile": "audio/Bb-D-F__o-4__v-05.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/Bb-D-F__o-4__v-06.mid",
+      "audioFile": "audio/Bb-D-F__o-4__v-06.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/Bb-D-F__o-4__v-07.mid",
+      "audioFile": "audio/Bb-D-F__o-4__v-07.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/Bb-D-F__o-4__v-08.mid",
+      "audioFile": "audio/Bb-D-F__o-4__v-08.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/Bb-D-F__o-5__v-01.mid",
+      "audioFile": "audio/Bb-D-F__o-5__v-01.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/Bb-D-F__o-5__v-02.mid",
+      "audioFile": "audio/Bb-D-F__o-5__v-02.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/Bb-D-F__o-5__v-03.mid",
+      "audioFile": "audio/Bb-D-F__o-5__v-03.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/Bb-D-F__o-5__v-04.mid",
+      "audioFile": "audio/Bb-D-F__o-5__v-04.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/Bb-D-F__o-5__v-05.mid",
+      "audioFile": "audio/Bb-D-F__o-5__v-05.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/Bb-D-F__o-5__v-06.mid",
+      "audioFile": "audio/Bb-D-F__o-5__v-06.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/Bb-D-F__o-5__v-07.mid",
+      "audioFile": "audio/Bb-D-F__o-5__v-07.mp3"
+    },
+    {
+      "chord": "Bb-D-F",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/Bb-D-F__o-5__v-08.mid",
+      "audioFile": "audio/Bb-D-F__o-5__v-08.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 3,
+      "variant": 1,
+      "midiFile": "midi/Eb-G-Bb__o-3__v-01.mid",
+      "audioFile": "audio/Eb-G-Bb__o-3__v-01.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 3,
+      "variant": 2,
+      "midiFile": "midi/Eb-G-Bb__o-3__v-02.mid",
+      "audioFile": "audio/Eb-G-Bb__o-3__v-02.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 3,
+      "variant": 3,
+      "midiFile": "midi/Eb-G-Bb__o-3__v-03.mid",
+      "audioFile": "audio/Eb-G-Bb__o-3__v-03.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 3,
+      "variant": 4,
+      "midiFile": "midi/Eb-G-Bb__o-3__v-04.mid",
+      "audioFile": "audio/Eb-G-Bb__o-3__v-04.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 3,
+      "variant": 5,
+      "midiFile": "midi/Eb-G-Bb__o-3__v-05.mid",
+      "audioFile": "audio/Eb-G-Bb__o-3__v-05.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 3,
+      "variant": 6,
+      "midiFile": "midi/Eb-G-Bb__o-3__v-06.mid",
+      "audioFile": "audio/Eb-G-Bb__o-3__v-06.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 3,
+      "variant": 7,
+      "midiFile": "midi/Eb-G-Bb__o-3__v-07.mid",
+      "audioFile": "audio/Eb-G-Bb__o-3__v-07.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 3,
+      "variant": 8,
+      "midiFile": "midi/Eb-G-Bb__o-3__v-08.mid",
+      "audioFile": "audio/Eb-G-Bb__o-3__v-08.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 4,
+      "variant": 1,
+      "midiFile": "midi/Eb-G-Bb__o-4__v-01.mid",
+      "audioFile": "audio/Eb-G-Bb__o-4__v-01.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 4,
+      "variant": 2,
+      "midiFile": "midi/Eb-G-Bb__o-4__v-02.mid",
+      "audioFile": "audio/Eb-G-Bb__o-4__v-02.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 4,
+      "variant": 3,
+      "midiFile": "midi/Eb-G-Bb__o-4__v-03.mid",
+      "audioFile": "audio/Eb-G-Bb__o-4__v-03.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 4,
+      "variant": 4,
+      "midiFile": "midi/Eb-G-Bb__o-4__v-04.mid",
+      "audioFile": "audio/Eb-G-Bb__o-4__v-04.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 4,
+      "variant": 5,
+      "midiFile": "midi/Eb-G-Bb__o-4__v-05.mid",
+      "audioFile": "audio/Eb-G-Bb__o-4__v-05.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 4,
+      "variant": 6,
+      "midiFile": "midi/Eb-G-Bb__o-4__v-06.mid",
+      "audioFile": "audio/Eb-G-Bb__o-4__v-06.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 4,
+      "variant": 7,
+      "midiFile": "midi/Eb-G-Bb__o-4__v-07.mid",
+      "audioFile": "audio/Eb-G-Bb__o-4__v-07.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 4,
+      "variant": 8,
+      "midiFile": "midi/Eb-G-Bb__o-4__v-08.mid",
+      "audioFile": "audio/Eb-G-Bb__o-4__v-08.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 5,
+      "variant": 1,
+      "midiFile": "midi/Eb-G-Bb__o-5__v-01.mid",
+      "audioFile": "audio/Eb-G-Bb__o-5__v-01.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 5,
+      "variant": 2,
+      "midiFile": "midi/Eb-G-Bb__o-5__v-02.mid",
+      "audioFile": "audio/Eb-G-Bb__o-5__v-02.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 5,
+      "variant": 3,
+      "midiFile": "midi/Eb-G-Bb__o-5__v-03.mid",
+      "audioFile": "audio/Eb-G-Bb__o-5__v-03.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 5,
+      "variant": 4,
+      "midiFile": "midi/Eb-G-Bb__o-5__v-04.mid",
+      "audioFile": "audio/Eb-G-Bb__o-5__v-04.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 5,
+      "variant": 5,
+      "midiFile": "midi/Eb-G-Bb__o-5__v-05.mid",
+      "audioFile": "audio/Eb-G-Bb__o-5__v-05.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 5,
+      "variant": 6,
+      "midiFile": "midi/Eb-G-Bb__o-5__v-06.mid",
+      "audioFile": "audio/Eb-G-Bb__o-5__v-06.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 5,
+      "variant": 7,
+      "midiFile": "midi/Eb-G-Bb__o-5__v-07.mid",
+      "audioFile": "audio/Eb-G-Bb__o-5__v-07.mp3"
+    },
+    {
+      "chord": "Eb-G-Bb",
+      "octave": 5,
+      "variant": 8,
+      "midiFile": "midi/Eb-G-Bb__o-5__v-08.mid",
+      "audioFile": "audio/Eb-G-Bb__o-5__v-08.mp3"
+    }
+  ]
+}

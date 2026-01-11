@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Audio } from 'expo-av';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -9,6 +10,7 @@ import {
   DEFAULT_UNLOCKED_CHORD_IDS,
   type EguchiChordId,
 } from '@/lib/eguchi/chords';
+import { pickRandomAudioModule } from '@/lib/eguchi/audio-pack';
 
 const AUTO_ADVANCE_MS = 900;
 
@@ -33,6 +35,7 @@ export default function HomeScreen() {
   const [lastAnswerId, setLastAnswerId] = useState<EguchiChordId | null>(null);
   const [lastResult, setLastResult] = useState<'correct' | 'incorrect' | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current) {
@@ -41,12 +44,44 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const stopSound = useCallback(async () => {
+    if (soundRef.current) {
+      try {
+        await soundRef.current.unloadAsync();
+      } catch (error) {
+        console.warn('Failed to unload audio', error);
+      } finally {
+        soundRef.current = null;
+      }
+    }
+  }, []);
+
+  const playChord = useCallback(
+    async (chordId: EguchiChordId) => {
+      const source = pickRandomAudioModule(chordId);
+      if (!source) {
+        console.warn('No audio file available for chord', chordId);
+        return;
+      }
+      await stopSound();
+      try {
+        const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true });
+        soundRef.current = sound;
+      } catch (error) {
+        console.warn('Failed to play chord audio', error);
+      }
+    },
+    [stopSound]
+  );
+
   const startNewTrial = useCallback(() => {
     clearAdvanceTimer();
     setLastAnswerId(null);
     setLastResult(null);
-    setCurrentChordId(pickRandomChordId(unlockedChordIds));
-  }, [clearAdvanceTimer, unlockedChordIds]);
+    const nextChordId = pickRandomChordId(unlockedChordIds);
+    setCurrentChordId(nextChordId);
+    void playChord(nextChordId);
+  }, [clearAdvanceTimer, unlockedChordIds, playChord]);
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
@@ -64,12 +99,18 @@ export default function HomeScreen() {
   const handleReplay = useCallback(() => {
     setLastAnswerId(null);
     setLastResult(null);
-  }, []);
+    if (currentChordId) {
+      void playChord(currentChordId);
+    }
+  }, [currentChordId, playChord]);
 
   useEffect(() => {
     startNewTrial();
-    return () => clearAdvanceTimer();
-  }, [clearAdvanceTimer, startNewTrial]);
+    return () => {
+      clearAdvanceTimer();
+      void stopSound();
+    };
+  }, [clearAdvanceTimer, startNewTrial, stopSound]);
 
   const buttonBackground = Colors[colorScheme ?? 'light'].tint;
   const buttonTextColor = colorScheme === 'light' ? '#FFFFFF' : '#111111';

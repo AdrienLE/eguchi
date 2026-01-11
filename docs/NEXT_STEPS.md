@@ -7,6 +7,7 @@
 - Backend APIs are template defaults (nugget + profile settings) and not tied to Eguchi data (`backend/main.py`).
 - Eguchi chord order + default mappings live in `frontend/lib/eguchi/chords.ts`.
 - Audio pack generator script added at `scripts/generate_audio_pack.py` (requires `fluidsynth` + a piano .sf2, and `ffmpeg` for MP3 output).
+- Audio playback wired to the training UI using the generated pack (`frontend/lib/eguchi/audio-pack.ts`).
 
 ## Decisions To Confirm
 - **Spec source of truth:** `SPEC.md` is canonical.

@@ -178,10 +178,20 @@ def render_audio(soundfont: str, midi_path: Path, output_path: Path, sample_rate
         "-r",
         str(sample_rate),
     ]
-    subprocess.run(command, check=True, capture_output=True)
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "fluidsynth failed"
+            f" (exit {result.returncode}) for {midi_path.name}:"
+            f" {result.stderr.strip() or result.stdout.strip() or 'no output'}"
+        )
+    if not output_path.exists():
+        raise RuntimeError(f"fluidsynth did not create output: {output_path}")
 
 
 def transcode_to_mp3(source_wav: Path, target_mp3: Path, bitrate: str) -> None:
+    if not source_wav.exists():
+        raise RuntimeError(f"missing WAV input for ffmpeg: {source_wav}")
     command = [
         "ffmpeg",
         "-y",
@@ -195,7 +205,15 @@ def transcode_to_mp3(source_wav: Path, target_mp3: Path, bitrate: str) -> None:
         bitrate,
         str(target_mp3),
     ]
-    subprocess.run(command, check=True, capture_output=True)
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "ffmpeg failed"
+            f" (exit {result.returncode}) for {source_wav.name}:"
+            f" {result.stderr.strip() or result.stdout.strip() or 'no output'}"
+        )
+    if not target_mp3.exists():
+        raise RuntimeError(f"ffmpeg did not create output: {target_mp3}")
 
 
 LOG_LOCK = Lock()
@@ -216,27 +234,33 @@ def process_task(
     total: int,
     verbose: bool,
 ) -> None:
-    if verbose:
-        log_line(
-            f"▶ Task {task.index}/{total}: {task.chord} o{task.octave} v{task.variant:02d}"
-        )
-    rng = random.Random(task.seed)
-    build_midi(task.midi_path, task.notes, rng, config)
-    if midi_only:
+    try:
         if verbose:
-            log_line(f"✓ Task {task.index}/{total}: MIDI saved")
-        return
+            log_line(
+                f"▶ Task {task.index}/{total}: {task.chord} o{task.octave} v{task.variant:02d}"
+            )
+        rng = random.Random(task.seed)
+        build_midi(task.midi_path, task.notes, rng, config)
+        if midi_only:
+            if verbose:
+                log_line(f"✓ Task {task.index}/{total}: MIDI saved")
+            return
 
-    if config.output_format == "mp3":
-        wav_path = task.audio_path.with_suffix(".wav")
-        render_audio(soundfont, task.midi_path, wav_path, config.sample_rate)
-        transcode_to_mp3(wav_path, task.audio_path, mp3_bitrate)
-        if not keep_wav:
-            wav_path.unlink(missing_ok=True)
-    else:
-        render_audio(soundfont, task.midi_path, task.audio_path, config.sample_rate)
-    if verbose:
-        log_line(f"✓ Task {task.index}/{total}: audio rendered")
+        if config.output_format == "mp3":
+            wav_path = task.audio_path.with_suffix(".wav")
+            render_audio(soundfont, task.midi_path, wav_path, config.sample_rate)
+            transcode_to_mp3(wav_path, task.audio_path, mp3_bitrate)
+            if not keep_wav:
+                wav_path.unlink(missing_ok=True)
+        else:
+            render_audio(soundfont, task.midi_path, task.audio_path, config.sample_rate)
+        if verbose:
+            log_line(f"✓ Task {task.index}/{total}: audio rendered")
+    except Exception as exc:
+        log_line(
+            f"✖ Task {task.index}/{total} failed ({task.chord} o{task.octave} v{task.variant:02d}): {exc}"
+        )
+        raise
 
 
 def render_progress(current: int, total: int, bar_length: int = 30) -> None:

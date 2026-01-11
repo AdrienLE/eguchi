@@ -5,6 +5,7 @@ import random
 import shutil
 import subprocess
 import sys
+from threading import Lock
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -73,6 +74,7 @@ class RenderConfig:
 
 @dataclass(frozen=True)
 class RenderTask:
+    index: int
     chord: str
     octave: int
     variant: int
@@ -196,6 +198,14 @@ def transcode_to_mp3(source_wav: Path, target_mp3: Path, bitrate: str) -> None:
     subprocess.run(command, check=True, capture_output=True)
 
 
+LOG_LOCK = Lock()
+
+
+def log_line(message: str) -> None:
+    with LOG_LOCK:
+        print(message, flush=True)
+
+
 def process_task(
     task: RenderTask,
     config: RenderConfig,
@@ -203,10 +213,18 @@ def process_task(
     midi_only: bool,
     mp3_bitrate: str,
     keep_wav: bool,
+    total: int,
+    verbose: bool,
 ) -> None:
+    if verbose:
+        log_line(
+            f"▶ Task {task.index}/{total}: {task.chord} o{task.octave} v{task.variant:02d}"
+        )
     rng = random.Random(task.seed)
     build_midi(task.midi_path, task.notes, rng, config)
     if midi_only:
+        if verbose:
+            log_line(f"✓ Task {task.index}/{total}: MIDI saved")
         return
 
     if config.output_format == "mp3":
@@ -217,6 +235,8 @@ def process_task(
             wav_path.unlink(missing_ok=True)
     else:
         render_audio(soundfont, task.midi_path, task.audio_path, config.sample_rate)
+    if verbose:
+        log_line(f"✓ Task {task.index}/{total}: audio rendered")
 
 
 def render_progress(current: int, total: int, bar_length: int = 30) -> None:
@@ -323,6 +343,11 @@ def main() -> int:
         help="Parallel workers to render audio (default: 1).",
     )
     parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Log each task start/finish instead of a progress bar.",
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=None,
@@ -396,6 +421,7 @@ def main() -> int:
 
                 tasks.append(
                     RenderTask(
+                        index=len(tasks) + 1,
                         chord=label,
                         octave=octave,
                         variant=variant,
@@ -418,7 +444,10 @@ def main() -> int:
 
     jobs = max(1, args.jobs)
     total_tasks = len(tasks)
-    render_progress(0, total_tasks)
+    if args.verbose:
+        print(f"Rendering {total_tasks} files with {jobs} job(s).", flush=True)
+    else:
+        render_progress(0, total_tasks)
     completed = 0
     if jobs == 1:
         for task in tasks:
@@ -429,9 +458,12 @@ def main() -> int:
                 args.midi_only,
                 args.mp3_bitrate,
                 args.keep_wav,
+                total_tasks,
+                args.verbose,
             )
             completed += 1
-            render_progress(completed, total_tasks)
+            if not args.verbose:
+                render_progress(completed, total_tasks)
     else:
         with ThreadPoolExecutor(max_workers=jobs) as executor:
             futures = [
@@ -443,13 +475,16 @@ def main() -> int:
                     args.midi_only,
                     args.mp3_bitrate,
                     args.keep_wav,
+                    total_tasks,
+                    args.verbose,
                 )
                 for task in tasks
             ]
             for future in as_completed(futures):
                 future.result()
                 completed += 1
-                render_progress(completed, total_tasks)
+                if not args.verbose:
+                    render_progress(completed, total_tasks)
 
     manifest_path = pack_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")

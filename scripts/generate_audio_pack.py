@@ -195,33 +195,45 @@ def render_audio(soundfont: str, midi_path: Path, output_path: Path, sample_rate
         raise RuntimeError(f"fluidsynth did not create output: {output_path}{suffix}")
 
 
-def transcode_to_mp3(source_wav: Path, target_mp3: Path, bitrate: str) -> None:
-    if not source_wav.exists():
-        raise RuntimeError(f"missing WAV input for ffmpeg: {source_wav}")
+def build_filter_chain(normalize: bool, gain_db: float) -> str | None:
+    filters: list[str] = []
+    if normalize:
+        filters.append("loudnorm=I=-14:TP=-1.5:LRA=11")
+    if gain_db:
+        filters.append(f"volume={gain_db}dB")
+    if not filters:
+        return None
+    return ",".join(filters)
+
+
+def run_ffmpeg(
+    source: Path,
+    target: Path,
+    extra_args: list[str],
+    filter_chain: str | None,
+) -> None:
     command = [
         "ffmpeg",
         "-y",
         "-loglevel",
         "error",
         "-i",
-        str(source_wav),
-        "-codec:a",
-        "libmp3lame",
-        "-b:a",
-        bitrate,
-        str(target_mp3),
+        str(source),
     ]
+    if filter_chain:
+        command += ["-af", filter_chain]
+    command += extra_args + [str(target)]
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(
             "ffmpeg failed"
-            f" (exit {result.returncode}) for {source_wav.name}:"
+            f" (exit {result.returncode}) for {source.name}:"
             f" {result.stderr.strip() or result.stdout.strip() or 'no output'}"
         )
-    if not target_mp3.exists():
+    if not target.exists():
         details = result.stderr.strip() or result.stdout.strip()
         suffix = f" ({details})" if details else ""
-        raise RuntimeError(f"ffmpeg did not create output: {target_mp3}{suffix}")
+        raise RuntimeError(f"ffmpeg did not create output: {target}{suffix}")
 
 
 LOG_LOCK = Lock()
@@ -241,6 +253,8 @@ def process_task(
     keep_wav: bool,
     total: int,
     verbose: bool,
+    normalize: bool,
+    gain_db: float,
 ) -> None:
     try:
         if verbose:
@@ -254,14 +268,29 @@ def process_task(
                 log_line(f"✓ Task {task.index}/{total}: MIDI saved")
             return
 
+        filter_chain = build_filter_chain(normalize, gain_db)
         if config.output_format == "mp3":
             wav_path = task.audio_path.with_suffix(".wav")
             render_audio(soundfont, task.midi_path, wav_path, config.sample_rate)
-            transcode_to_mp3(wav_path, task.audio_path, mp3_bitrate)
+            run_ffmpeg(
+                wav_path,
+                task.audio_path,
+                ["-codec:a", "libmp3lame", "-b:a", mp3_bitrate],
+                filter_chain,
+            )
             if not keep_wav:
                 wav_path.unlink(missing_ok=True)
         else:
             render_audio(soundfont, task.midi_path, task.audio_path, config.sample_rate)
+            if filter_chain:
+                processed_path = task.audio_path.with_suffix(".processed.wav")
+                run_ffmpeg(
+                    task.audio_path,
+                    processed_path,
+                    ["-c:a", "pcm_s16le"],
+                    filter_chain,
+                )
+                processed_path.replace(task.audio_path)
         if verbose:
             log_line(f"✓ Task {task.index}/{total}: audio rendered")
     except Exception as exc:
@@ -359,6 +388,17 @@ def main() -> int:
         help="MP3 bitrate (default: 192k).",
     )
     parser.add_argument(
+        "--normalize",
+        action="store_true",
+        help="Apply loudness normalization via ffmpeg (slower, consistent volume).",
+    )
+    parser.add_argument(
+        "--gain-db",
+        type=float,
+        default=0.0,
+        help="Apply a gain in decibels (e.g. 6 for +6dB).",
+    )
+    parser.add_argument(
         "--midi-only",
         action="store_true",
         help="Generate MIDI files only (skip audio rendering).",
@@ -402,7 +442,11 @@ def main() -> int:
         print("fluidsynth is not installed or not on PATH.")
         print("Install it or use --midi-only to generate MIDI files.")
         return 1
-    if not args.midi_only and args.output_format == "mp3" and shutil.which("ffmpeg") is None:
+    if (
+        not args.midi_only
+        and (args.output_format == "mp3" or args.normalize or args.gain_db)
+        and shutil.which("ffmpeg") is None
+    ):
         print("ffmpeg is required for MP3 output but was not found on PATH.")
         print("Install ffmpeg or use --format wav.")
         return 1
@@ -438,6 +482,8 @@ def main() -> int:
         "chords": chords,
         "octaves": config.octaves,
         "variants": config.variants,
+        "normalize": args.normalize,
+        "gainDb": args.gain_db,
         "files": [],
     }
 
@@ -483,16 +529,18 @@ def main() -> int:
     completed = 0
     if jobs == 1:
         for task in tasks:
-            process_task(
-                task,
-                config,
-                args.soundfont,
-                args.midi_only,
-                args.mp3_bitrate,
-                args.keep_wav,
-                total_tasks,
-                args.verbose,
-            )
+                process_task(
+                    task,
+                    config,
+                    args.soundfont,
+                    args.midi_only,
+                    args.mp3_bitrate,
+                    args.keep_wav,
+                    total_tasks,
+                    args.verbose,
+                    args.normalize,
+                    args.gain_db,
+                )
             completed += 1
             if not args.verbose:
                 render_progress(completed, total_tasks)
@@ -509,6 +557,8 @@ def main() -> int:
                     args.keep_wav,
                     total_tasks,
                     args.verbose,
+                    args.normalize,
+                    args.gain_db,
                 )
                 for task in tasks
             ]

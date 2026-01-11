@@ -65,7 +65,10 @@ export default function HomeScreen() {
       }
       await stopSound();
       try {
-        const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true });
+        const { sound } = await Audio.Sound.createAsync(source, {
+          shouldPlay: true,
+          volume: 1.0,
+        });
         soundRef.current = sound;
       } catch (error) {
         console.warn('Failed to play chord audio', error);

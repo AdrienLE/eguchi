@@ -6,6 +6,7 @@
 - Auth-gated routing and profile settings are still in place (`frontend/app/index.tsx`, `frontend/app/settings.tsx`).
 - Backend APIs are template defaults (nugget + profile settings) and not tied to Eguchi data (`backend/main.py`).
 - Eguchi chord order + default mappings live in `frontend/lib/eguchi/chords.ts`.
+- Audio pack generator script added at `scripts/generate_audio_pack.py` (requires `fluidsynth` + a piano .sf2).
 
 ## Decisions To Confirm
 - **Spec source of truth:** `SPEC.md` is canonical.
@@ -17,7 +18,7 @@
 1. **MVP: make the training loop playable** (audio playback + replay, auto-advance, and random chord selection).
 2. **MVP: store local progress** (unlocked chords, trial history, and daily summaries).
 3. **MVP: basic caregiver settings** (unlock toggles + start set, and reset data).
-4. **Audio packs + offline caching** (manifest or directory scan, download/delete flow).
+4. **Audio packs + offline caching** (run generator, add manifest or directory scan, download/delete flow).
 5. **Simplify navigation** to main training + Settings gear; remove unused tabs and auth gating if not needed.
 6. **Add tests** for chord selection randomness, unlock toggles, and training state transitions.
 

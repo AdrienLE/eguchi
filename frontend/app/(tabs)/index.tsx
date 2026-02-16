@@ -10,7 +10,7 @@ import {
   DEFAULT_UNLOCKED_CHORD_IDS,
   type EguchiChordId,
 } from '@/lib/eguchi/chords';
-import { pickRandomAudioModule } from '@/lib/eguchi/audio-pack';
+import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
 
 const AUTO_ADVANCE_MS = 900;
 
@@ -36,6 +36,8 @@ export default function HomeScreen() {
   const [lastResult, setLastResult] = useState<'correct' | 'incorrect' | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const currentChordRef = useRef<EguchiChordId | null>(null);
+  const currentAudioRef = useRef<AudioEntry | null>(null);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current) {
@@ -56,56 +58,82 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const playChord = useCallback(
-    async (chordId: EguchiChordId) => {
-      const source = pickRandomAudioModule(chordId);
-      if (!source) {
-        console.warn('No audio file available for chord', chordId);
-        return;
-      }
-      await stopSound();
-      try {
-        const { sound } = await Audio.Sound.createAsync(source, {
-          shouldPlay: true,
-          volume: 1.0,
-        });
-        soundRef.current = sound;
-      } catch (error) {
-        console.warn('Failed to play chord audio', error);
-      }
-    },
-    [stopSound]
-  );
+  const playCurrentAudio = useCallback(async () => {
+    const chordId = currentChordRef.current;
+    const entry = currentAudioRef.current;
+    if (!chordId || !entry) {
+      console.warn('No audio available for current chord', chordId);
+      return;
+    }
+    await stopSound();
+    try {
+      console.log('[Eguchi] Playing audio', {
+        chord: chordId,
+        file: entry.fileName,
+      });
+      const { sound } = await Audio.Sound.createAsync(entry.module, {
+        shouldPlay: true,
+        volume: 1.0,
+      });
+      soundRef.current = sound;
+    } catch (error) {
+      console.warn('Failed to play chord audio', error);
+    }
+  }, [stopSound]);
 
   const startNewTrial = useCallback(() => {
     clearAdvanceTimer();
     setLastAnswerId(null);
     setLastResult(null);
     const nextChordId = pickRandomChordId(unlockedChordIds);
+    currentChordRef.current = nextChordId;
     setCurrentChordId(nextChordId);
-    void playChord(nextChordId);
-  }, [clearAdvanceTimer, unlockedChordIds, playChord]);
+    const nextAudio = pickRandomAudioEntry(nextChordId);
+    if (!nextAudio) {
+      console.warn('No audio file available for chord', nextChordId);
+    }
+    currentAudioRef.current = nextAudio;
+    console.log('[Eguchi] New trial', {
+      chord: nextChordId,
+      animal: CHORD_BY_ID[nextChordId]?.animal,
+      file: nextAudio?.fileName ?? 'missing',
+    });
+    void playCurrentAudio();
+  }, [clearAdvanceTimer, unlockedChordIds, playCurrentAudio]);
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
-      if (!currentChordId) return;
+      const expectedId = currentChordRef.current;
+      if (!expectedId) return;
+      const selectedChord = CHORD_BY_ID[id];
+      const expectedChord = CHORD_BY_ID[expectedId];
+      const isCorrect = id === expectedId;
       setLastAnswerId(id);
-      setLastResult(id === currentChordId ? 'correct' : 'incorrect');
+      setLastResult(isCorrect ? 'correct' : 'incorrect');
+      console.log('[Eguchi] Answer selected', {
+        selected: id,
+        selectedAnimal: selectedChord?.animal,
+        expected: expectedId,
+        expectedAnimal: expectedChord?.animal,
+        correct: isCorrect,
+      });
       clearAdvanceTimer();
       advanceTimer.current = setTimeout(() => {
         startNewTrial();
       }, AUTO_ADVANCE_MS);
     },
-    [clearAdvanceTimer, currentChordId, startNewTrial]
+    [clearAdvanceTimer, startNewTrial]
   );
 
-  const handleReplay = useCallback(() => {
+  const handlePlay = useCallback(() => {
     setLastAnswerId(null);
     setLastResult(null);
-    if (currentChordId) {
-      void playChord(currentChordId);
+    if (!currentChordRef.current) {
+      startNewTrial();
+      return;
     }
-  }, [currentChordId, playChord]);
+    void playCurrentAudio();
+  }, [playCurrentAudio, startNewTrial]);
 
   useEffect(() => {
     startNewTrial();
@@ -133,7 +161,7 @@ export default function HomeScreen() {
         <View style={styles.controls}>
           <Pressable
             accessibilityRole="button"
-            onPress={startNewTrial}
+            onPress={handlePlay}
             style={[styles.primaryButton, { backgroundColor: buttonBackground }]}
           >
             <ThemedText style={[styles.primaryButtonText, { color: buttonTextColor }]}>
@@ -142,7 +170,7 @@ export default function HomeScreen() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            onPress={handleReplay}
+            onPress={handlePlay}
             style={[styles.secondaryButton, { borderColor: outlineColor }]}
           >
             <ThemedText style={styles.secondaryButtonText}>Replay</ThemedText>

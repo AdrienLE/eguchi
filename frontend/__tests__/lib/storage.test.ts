@@ -112,5 +112,6 @@ describe('STORAGE_KEYS', () => {
     expect(STORAGE_KEYS.USER_PREFERENCES).toBe('user_preferences');
     expect(STORAGE_KEYS.THEME).toBe('theme');
     expect(STORAGE_KEYS.LAST_SYNC).toBe('last_sync');
+    expect(STORAGE_KEYS.EGUCHI_PROGRESS).toBe('eguchi_progress_v1');
   });
 });

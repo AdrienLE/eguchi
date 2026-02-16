@@ -70,4 +70,5 @@ export const STORAGE_KEYS = {
   THEME: 'theme',
   LAST_SYNC: 'last_sync',
   EGUCHI_PROGRESS: 'eguchi_progress_v1',
+  EGUCHI_SESSION_PREFERENCES: 'eguchi_session_preferences_v1',
 } as const;

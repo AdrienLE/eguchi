@@ -6,8 +6,7 @@ import { View } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { AuthProvider, useAuth } from '@/auth/AuthContext';
-import { Colors } from '@/constants/Colors';
+import { AuthProvider } from '@/auth/AuthContext';
 
 export default function RootLayout() {
   return (
@@ -19,16 +18,11 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const { token, loading } = useAuth();
-
-  if (loading) {
-    return null;
-  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Head>
-        <title>Base App</title>
+        <title>Eguchi Ear Trainer</title>
         {/* Static favicon for production web */}
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -42,15 +36,9 @@ function RootLayoutNav() {
       >
         <View style={{ flex: 1, width: '100%', maxWidth: 800 }}>
           <Stack screenOptions={{ headerShown: false }}>
-            {token ? (
-              <>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="settings" />
-                <Stack.Screen name="+not-found" />
-              </>
-            ) : (
-              <Stack.Screen name="login" />
-            )}
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="settings" options={{ presentation: 'modal', headerShown: true }} />
+            <Stack.Screen name="+not-found" />
           </Stack>
         </View>
       </View>

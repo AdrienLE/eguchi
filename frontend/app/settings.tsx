@@ -1,313 +1,283 @@
-import { Stack, useRouter } from 'expo-router';
-import { useEffect, useState, useRef } from 'react';
-import { View, Button, StyleSheet, Pressable, Platform } from 'react-native';
-import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
+import { Stack } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedTextInput } from '@/components/ThemedTextInput';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import { api } from '@/lib/api';
+import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
-import { useAuth } from '@/auth/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { CHORD_BY_ID, ORDERED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
+import {
+  createDefaultEguchiProgress,
+  getProgressSnapshot,
+  loadEguchiProgress,
+  resetEguchiProgress,
+  saveEguchiProgress,
+  setChordUnlocked,
+  type EguchiProgress,
+} from '@/lib/eguchi/progress';
+
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
 export default function SettingsScreen() {
-  const [name, setName] = useState('');
-  const [nickname, setNickname] = useState('');
-  const [email, setEmail] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [pendingImage, setPendingImage] = useState<{
-    uri: string;
-    fileName?: string;
-    mimeType?: string;
-  } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const { token } = useAuth();
   const colorScheme = useColorScheme();
-  const router = useRouter();
-  const hasLoaded = useRef(false);
-
-  // Compress image to reduce file size
-  const compressImage = async (uri: string, fileName: string, mimeType: string) => {
-    if (Platform.OS === 'web') {
-      // Web compression using Canvas
-      const img = new window.Image();
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      return new Promise<{ uri: string; fileName: string; mimeType: string }>(resolve => {
-        img.onload = () => {
-          // Target size: 300px (suitable for profile pics)
-          const maxSize = 300;
-          let { width, height } = img;
-
-          if (width > height) {
-            if (width > maxSize) {
-              height = (height * maxSize) / width;
-              width = maxSize;
-            }
-          } else {
-            if (height > maxSize) {
-              width = (width * maxSize) / height;
-              height = maxSize;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          canvas.toBlob(
-            blob => {
-              if (blob) {
-                const compressedUri = URL.createObjectURL(blob);
-                resolve({
-                  uri: compressedUri,
-                  fileName,
-                  mimeType: 'image/jpeg', // Always convert to JPEG for better compression
-                });
-              }
-            },
-            'image/jpeg',
-            0.8
-          ); // 80% quality
-        };
-        img.src = uri;
-      });
-    } else {
-      // Mobile: Use expo-image-manipulator for compression
-      const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
-      const result = await manipulateAsync(
-        uri,
-        [{ resize: { width: 300 } }], // Resize to 300px width, maintain aspect ratio
-        {
-          compress: 0.8,
-          format: SaveFormat.JPEG,
-        }
-      );
-
-      return {
-        uri: result.uri,
-        fileName: fileName.replace(/\.[^/.]+$/, '.jpg'), // Change extension to .jpg
-        mimeType: 'image/jpeg',
-      };
-    }
-  };
-
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-    if (!result.canceled) {
-      const asset = result.assets[0];
-
-      // Compress the image before storing
-      const compressed = await compressImage(
-        asset.uri,
-        asset.fileName ?? 'profile.jpg',
-        asset.mimeType ?? 'image/jpeg'
-      );
-
-      setPendingImage(compressed);
-    }
-  };
+  const [progress, setProgress] = useState<EguchiProgress | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const load = async () => {
-      if (!token || hasLoaded.current) return;
-      hasLoaded.current = true;
+      setLoading(true);
       try {
-        const response = await api.get('/api/settings', token);
-        if (response.data) {
-          setName(response.data.name ?? '');
-          setNickname(response.data.nickname ?? '');
-          setEmail(response.data.email ?? '');
-          setImageUrl(response.data.imageUrl ?? '');
+        const loaded = await loadEguchiProgress();
+        if (isMounted) {
+          setProgress(loaded);
         }
-      } catch (e) {
-        console.warn('Failed to load settings', e);
-        hasLoaded.current = false; // Reset on error to allow retry
+      } catch (error) {
+        console.warn('Failed to load Eguchi settings', error);
+        if (isMounted) {
+          setProgress(createDefaultEguchiProgress());
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
-    load();
-  }, [!!token]);
 
-  const save = async () => {
-    if (!token) return;
+    void load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const persistProgress = useCallback(async (nextProgress: EguchiProgress) => {
     setSaving(true);
     try {
-      let finalImageUrl = imageUrl;
-
-      // Upload pending image first if there is one
-      if (pendingImage) {
-        console.log('Uploading pending image:', pendingImage);
-        const formData = new FormData();
-
-        // On web, we need to create a proper File object from the URI
-        if (pendingImage.uri.startsWith('blob:') || pendingImage.uri.startsWith('data:')) {
-          // Web: Convert blob/data URI to File
-          const response = await fetch(pendingImage.uri);
-          const blob = await response.blob();
-          const file = new File([blob], pendingImage.fileName || 'profile.jpg', {
-            type: pendingImage.mimeType || 'image/jpeg',
-          });
-          formData.append('file', file);
-        } else {
-          // Mobile: Use the existing format
-          formData.append('file', {
-            uri: pendingImage.uri,
-            name: pendingImage.fileName,
-            type: pendingImage.mimeType,
-          } as any);
-        }
-
-        const uploadResponse = await api.upload('/api/upload-profile-picture', formData, token);
-
-        if (uploadResponse.data) {
-          finalImageUrl = uploadResponse.data.url;
-        } else {
-          console.warn('Failed to upload image:', uploadResponse.error);
-          setSaving(false);
-          return; // Don't save if upload failed
-        }
-      }
-
-      // Save settings with the final image URL
-      await api.post('/api/settings', { name, nickname, email, imageUrl: finalImageUrl }, token);
-
-      router.back();
-    } catch (e) {
-      console.warn('Failed to save settings', e);
+      await saveEguchiProgress(nextProgress);
+    } catch (error) {
+      console.warn('Failed to save Eguchi settings', error);
     } finally {
       setSaving(false);
     }
-  };
+  }, []);
+
+  const handleToggleChord = useCallback(
+    (chordId: EguchiChordId, enabled: boolean) => {
+      setProgress(previous => {
+        const current = previous ?? createDefaultEguchiProgress();
+        const next = setChordUnlocked(current, chordId, enabled);
+
+        if (next === current) {
+          console.log('[Eguchi] Kept at least one chord unlocked', {
+            attemptedChord: chordId,
+          });
+          return current;
+        }
+
+        console.log('[Eguchi] Updated unlocked chords', {
+          chord: chordId,
+          enabled,
+          unlocked: next.unlockedChordIds,
+        });
+
+        void persistProgress(next);
+        return next;
+      });
+    },
+    [persistProgress]
+  );
+
+  const handleResetProgress = useCallback(async () => {
+    setSaving(true);
+    try {
+      const reset = await resetEguchiProgress();
+      console.log('[Eguchi] Progress reset to defaults');
+      setProgress(reset);
+    } catch (error) {
+      console.warn('Failed to reset Eguchi progress', error);
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const activeProgress = progress ?? createDefaultEguchiProgress();
+  const snapshot = getProgressSnapshot(activeProgress);
+  const tintColor = Colors[colorScheme ?? 'light'].tint;
+  const iconColor = Colors[colorScheme ?? 'light'].icon;
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Settings' }} />
-      <Pressable style={styles.overlay} onPress={router.back}>
-        <Pressable
-          onPress={e => e.stopPropagation()}
-          style={[styles.modal, { backgroundColor: Colors[colorScheme ?? 'light'].background }]}
-        >
-          <Pressable onPress={router.back} style={styles.closeButton} hitSlop={8}>
-            <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].icon} />
-          </Pressable>
-          <View style={styles.content}>
-            <View style={styles.pictureRow}>
-              {pendingImage || imageUrl ? (
-                <Image source={{ uri: pendingImage?.uri || imageUrl }} style={styles.avatar} />
-              ) : (
-                <IconSymbol
-                  name="person.crop.circle"
-                  size={120}
-                  color={Colors[colorScheme ?? 'light'].icon}
-                  style={styles.avatar}
-                />
-              )}
-              <Pressable
-                onPress={pickImage}
-                style={[
-                  styles.changeButton,
-                  { backgroundColor: Colors[colorScheme ?? 'light'].tint },
-                ]}
-              >
-                <ThemedText
-                  style={{
-                    color: colorScheme === 'light' ? '#fff' : Colors.dark.background,
-                  }}
-                >
-                  Change Picture
-                </ThemedText>
-              </Pressable>
-            </View>
-            <View style={styles.row}>
-              <ThemedText style={styles.label}>Name</ThemedText>
-              <ThemedTextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Your name"
-              />
-            </View>
-            <View style={styles.row}>
-              <ThemedText style={styles.label}>Nickname</ThemedText>
-              <ThemedTextInput
-                style={styles.input}
-                value={nickname}
-                onChangeText={setNickname}
-                placeholder="Your nickname"
-              />
-            </View>
-            <View style={styles.row}>
-              <ThemedText style={styles.label}>Email</ThemedText>
-              <ThemedTextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="your.email@example.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-            <View style={styles.buttonRow}>
-              <Button
-                title="Cancel"
-                onPress={router.back}
-                color={Colors[colorScheme ?? 'light'].icon}
-                disabled={saving}
-              />
-              <Button title={saving ? 'Saving...' : 'Save'} onPress={save} disabled={saving} />
-            </View>
+    <ThemedView style={styles.container}>
+      <Stack.Screen options={{ title: 'Caregiver Settings' }} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <ThemedText type="title" style={styles.title}>
+            Caregiver Settings
+          </ThemedText>
+          <ThemedText style={styles.subtitle}>
+            Choose unlocked chords and reset progress.
+          </ThemedText>
+        </View>
+
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <ThemedText style={styles.summaryLabel}>Unlocked chords</ThemedText>
+            <ThemedText style={styles.summaryValue}>
+              {snapshot.unlockedCount}/{ORDERED_CHORD_IDS.length}
+            </ThemedText>
           </View>
+          <View style={styles.summaryRow}>
+            <ThemedText style={styles.summaryLabel}>Today</ThemedText>
+            <ThemedText style={styles.summaryValue}>
+              {snapshot.todayCorrect}/{snapshot.todayAttempts} ({formatPercent(snapshot.todayAccuracy)})
+            </ThemedText>
+          </View>
+          <View style={styles.summaryRow}>
+            <ThemedText style={styles.summaryLabel}>Total</ThemedText>
+            <ThemedText style={styles.summaryValue}>
+              {snapshot.totalCorrect}/{snapshot.totalAttempts} ({formatPercent(snapshot.totalAccuracy)})
+            </ThemedText>
+          </View>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <ThemedText type="subtitle">Unlocked Chords</ThemedText>
+          {saving ? <ActivityIndicator size="small" color={tintColor} /> : null}
+        </View>
+
+        {loading ? (
+          <ActivityIndicator size="small" color={tintColor} />
+        ) : (
+          ORDERED_CHORD_IDS.map(chordId => {
+            const chord = CHORD_BY_ID[chordId];
+            const isEnabled = activeProgress.unlockedChordIds.includes(chordId);
+
+            return (
+              <View key={chordId} style={styles.chordRow}>
+                <View style={styles.chordMeta}>
+                  <View style={[styles.colorDot, { backgroundColor: chord.color.hex }]} />
+                  <View>
+                    <ThemedText style={styles.chordAnimal}>{chord.animal}</ThemedText>
+                    <ThemedText style={styles.chordLabel}>
+                      {chord.label} · {chord.color.name}
+                    </ThemedText>
+                  </View>
+                </View>
+                <Switch
+                  value={isEnabled}
+                  onValueChange={enabled => handleToggleChord(chordId, enabled)}
+                  trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
+                  thumbColor={isEnabled ? tintColor : iconColor}
+                />
+              </View>
+            );
+          })
+        )}
+
+        <Pressable
+          onPress={handleResetProgress}
+          accessibilityRole="button"
+          style={[styles.resetButton, { borderColor: iconColor }]}
+        >
+          <ThemedText style={styles.resetText}>Reset Progress</ThemedText>
         </Pressable>
-      </Pressable>
-    </>
+
+        <ThemedText style={styles.note}>
+          The app always keeps at least one chord unlocked so training stays playable.
+        </ThemedText>
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
+  container: { flex: 1 },
+  content: {
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    gap: 16,
+  },
+  header: {
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 24,
+    gap: 8,
   },
-  modal: {
-    width: '100%',
-    maxWidth: 480,
-    borderRadius: 8,
-    padding: 24,
+  title: {
+    textAlign: 'center',
   },
-  content: { width: '100%', gap: 16 },
-  pictureRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  label: { width: 90 },
-  input: {
-    flex: 1,
+  subtitle: {
+    textAlign: 'center',
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  summaryCard: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 8,
-    borderRadius: 4,
+    borderColor: '#D3D3D3',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
   },
-  avatar: { width: 120, height: 120, borderRadius: 60 },
-  changeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  buttonRow: {
+  summaryRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 16,
+    justifyContent: 'space-between',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  summaryValue: {
+    fontSize: 14,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  chordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#E1E1E1',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  chordMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
+  },
+  colorDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  chordAnimal: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  chordLabel: {
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  resetButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  resetText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  note: {
+    textAlign: 'center',
+    fontSize: 12,
+    opacity: 0.75,
+    lineHeight: 18,
   },
 });

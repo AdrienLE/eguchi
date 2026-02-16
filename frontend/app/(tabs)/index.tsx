@@ -1,16 +1,25 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
 import {
   CHORD_BY_ID,
   DEFAULT_UNLOCKED_CHORD_IDS,
   type EguchiChordId,
 } from '@/lib/eguchi/chords';
-import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
+import {
+  createDefaultEguchiProgress,
+  getProgressSnapshot,
+  loadEguchiProgress,
+  recordTrial,
+  saveEguchiProgress,
+  type EguchiProgress,
+} from '@/lib/eguchi/progress';
 
 const AUTO_ADVANCE_MS = 900;
 
@@ -27,10 +36,16 @@ const getReadableTextColor = (hex: string) => {
 const pickRandomChordId = (ids: EguchiChordId[]) =>
   ids[Math.floor(Math.random() * ids.length)];
 
+const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
-  const unlockedChordIds = DEFAULT_UNLOCKED_CHORD_IDS;
+  const [progress, setProgress] = useState<EguchiProgress | null>(null);
+  const [isProgressLoading, setIsProgressLoading] = useState(true);
+  const unlockedChordIds =
+    progress?.unlockedChordIds.length ? progress.unlockedChordIds : DEFAULT_UNLOCKED_CHORD_IDS;
   const unlockedChords = unlockedChordIds.map(id => CHORD_BY_ID[id]);
+  const unlockedChordKey = unlockedChordIds.join('|');
   const [currentChordId, setCurrentChordId] = useState<EguchiChordId | null>(null);
   const [lastAnswerId, setLastAnswerId] = useState<EguchiChordId | null>(null);
   const [lastResult, setLastResult] = useState<'correct' | 'incorrect' | null>(null);
@@ -38,6 +53,7 @@ export default function HomeScreen() {
   const soundRef = useRef<Audio.Sound | null>(null);
   const currentChordRef = useRef<EguchiChordId | null>(null);
   const currentAudioRef = useRef<AudioEntry | null>(null);
+  const hasAnsweredCurrentTrialRef = useRef(false);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current) {
@@ -57,6 +73,26 @@ export default function HomeScreen() {
       }
     }
   }, []);
+
+  const loadProgress = useCallback(async () => {
+    setIsProgressLoading(true);
+    try {
+      const loaded = await loadEguchiProgress();
+      setProgress(loaded);
+    } catch (error) {
+      console.warn('Failed to load Eguchi progress', error);
+      setProgress(createDefaultEguchiProgress());
+    } finally {
+      setIsProgressLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadProgress();
+      return undefined;
+    }, [loadProgress])
+  );
 
   const playCurrentAudio = useCallback(async () => {
     const chordId = currentChordRef.current;
@@ -82,34 +118,66 @@ export default function HomeScreen() {
   }, [stopSound]);
 
   const startNewTrial = useCallback(() => {
+    if (!unlockedChordIds.length) {
+      currentChordRef.current = null;
+      currentAudioRef.current = null;
+      setCurrentChordId(null);
+      return;
+    }
+
     clearAdvanceTimer();
+    hasAnsweredCurrentTrialRef.current = false;
     setLastAnswerId(null);
     setLastResult(null);
+
     const nextChordId = pickRandomChordId(unlockedChordIds);
     currentChordRef.current = nextChordId;
     setCurrentChordId(nextChordId);
+
     const nextAudio = pickRandomAudioEntry(nextChordId);
     if (!nextAudio) {
       console.warn('No audio file available for chord', nextChordId);
     }
     currentAudioRef.current = nextAudio;
+
     console.log('[Eguchi] New trial', {
       chord: nextChordId,
       animal: CHORD_BY_ID[nextChordId]?.animal,
       file: nextAudio?.fileName ?? 'missing',
     });
+
     void playCurrentAudio();
-  }, [clearAdvanceTimer, unlockedChordIds, playCurrentAudio]);
+  }, [clearAdvanceTimer, playCurrentAudio, unlockedChordIds]);
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
+      if (hasAnsweredCurrentTrialRef.current || isProgressLoading) {
+        return;
+      }
+
       const expectedId = currentChordRef.current;
       if (!expectedId) return;
+
+      hasAnsweredCurrentTrialRef.current = true;
+
       const selectedChord = CHORD_BY_ID[id];
       const expectedChord = CHORD_BY_ID[expectedId];
       const isCorrect = id === expectedId;
+
       setLastAnswerId(id);
       setLastResult(isCorrect ? 'correct' : 'incorrect');
+      setProgress(previous => {
+        const currentProgress = previous ?? createDefaultEguchiProgress();
+        const nextProgress = recordTrial(currentProgress, {
+          chordId: expectedId,
+          correct: isCorrect,
+        });
+        void saveEguchiProgress(nextProgress).catch(error => {
+          console.warn('Failed to save Eguchi progress', error);
+        });
+        return nextProgress;
+      });
+
       console.log('[Eguchi] Answer selected', {
         selected: id,
         selectedAnimal: selectedChord?.animal,
@@ -117,32 +185,41 @@ export default function HomeScreen() {
         expectedAnimal: expectedChord?.animal,
         correct: isCorrect,
       });
+
       clearAdvanceTimer();
       advanceTimer.current = setTimeout(() => {
         startNewTrial();
       }, AUTO_ADVANCE_MS);
     },
-    [clearAdvanceTimer, startNewTrial]
+    [clearAdvanceTimer, isProgressLoading, startNewTrial]
   );
 
-  const handlePlay = useCallback(() => {
-    setLastAnswerId(null);
-    setLastResult(null);
-    if (!currentChordRef.current) {
+  const handleReplay = useCallback(() => {
+    if (!currentChordRef.current || !currentAudioRef.current) {
       startNewTrial();
       return;
     }
     void playCurrentAudio();
   }, [playCurrentAudio, startNewTrial]);
 
+  const handleSkip = useCallback(() => {
+    startNewTrial();
+  }, [startNewTrial]);
+
+  const isProgressReady = !isProgressLoading && progress !== null;
   useEffect(() => {
+    if (!isProgressReady) {
+      return;
+    }
+
     startNewTrial();
     return () => {
       clearAdvanceTimer();
       void stopSound();
     };
-  }, [clearAdvanceTimer, startNewTrial, stopSound]);
+  }, [clearAdvanceTimer, isProgressReady, startNewTrial, stopSound, unlockedChordKey]);
 
+  const progressSnapshot = progress ? getProgressSnapshot(progress) : null;
   const buttonBackground = Colors[colorScheme ?? 'light'].tint;
   const buttonTextColor = colorScheme === 'light' ? '#FFFFFF' : '#111111';
   const outlineColor = Colors[colorScheme ?? 'light'].icon;
@@ -158,24 +235,59 @@ export default function HomeScreen() {
             Listen, then tap the animal you hear.
           </ThemedText>
         </View>
+        {progressSnapshot ? (
+          <View style={styles.statsCard}>
+            <View style={styles.statsRow}>
+              <ThemedText style={styles.statsLabel}>Today</ThemedText>
+              <ThemedText style={styles.statsValue}>
+                {progressSnapshot.todayCorrect}/{progressSnapshot.todayAttempts} (
+                {formatPercent(progressSnapshot.todayAccuracy)})
+              </ThemedText>
+            </View>
+            <View style={styles.statsRow}>
+              <ThemedText style={styles.statsLabel}>Total</ThemedText>
+              <ThemedText style={styles.statsValue}>
+                {progressSnapshot.totalCorrect}/{progressSnapshot.totalAttempts} (
+                {formatPercent(progressSnapshot.totalAccuracy)})
+              </ThemedText>
+            </View>
+            <View style={styles.statsRow}>
+              <ThemedText style={styles.statsLabel}>Unlocked</ThemedText>
+              <ThemedText style={styles.statsValue}>
+                {progressSnapshot.unlockedCount}/{Object.keys(CHORD_BY_ID).length}
+              </ThemedText>
+            </View>
+          </View>
+        ) : null}
         <View style={styles.controls}>
           <Pressable
             accessibilityRole="button"
-            onPress={handlePlay}
-            style={[styles.primaryButton, { backgroundColor: buttonBackground }]}
+            onPress={handleReplay}
+            disabled={isProgressLoading}
+            style={[
+              styles.primaryButton,
+              { backgroundColor: buttonBackground },
+              isProgressLoading && styles.buttonDisabled,
+            ]}
           >
             <ThemedText style={[styles.primaryButtonText, { color: buttonTextColor }]}>
-              Play
+              Replay
             </ThemedText>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            onPress={handlePlay}
-            style={[styles.secondaryButton, { borderColor: outlineColor }]}
+            onPress={handleSkip}
+            disabled={isProgressLoading}
+            style={[
+              styles.secondaryButton,
+              { borderColor: outlineColor },
+              isProgressLoading && styles.buttonDisabled,
+            ]}
           >
-            <ThemedText style={styles.secondaryButtonText}>Replay</ThemedText>
+            <ThemedText style={styles.secondaryButtonText}>Skip</ThemedText>
           </Pressable>
         </View>
+        {isProgressLoading ? <ActivityIndicator /> : null}
         <View style={styles.grid}>
           {unlockedChords.map(chord => {
             const showCorrect = lastResult !== null;
@@ -188,12 +300,14 @@ export default function HomeScreen() {
               <Pressable
                 key={chord.id}
                 accessibilityRole="button"
+                disabled={isProgressLoading}
                 onPress={() => handleAnswer(chord.id)}
                 style={[
                   styles.tile,
                   { backgroundColor: chord.color.hex },
                   isCorrectTile && styles.tileCorrect,
                   isWrongSelection && styles.tileIncorrect,
+                  isProgressLoading && styles.buttonDisabled,
                 ]}
               >
                 <ThemedText style={[styles.tileLabel, { color: tileTextColor }]}>
@@ -222,6 +336,20 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: 8 },
   title: { textAlign: 'center' },
   subtitle: { fontSize: 16, lineHeight: 22, textAlign: 'center' },
+  statsCard: {
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statsLabel: { fontSize: 14, fontWeight: '600' },
+  statsValue: { fontSize: 14 },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -264,5 +392,8 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: '#B71C1C',
     opacity: 0.8,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
 });

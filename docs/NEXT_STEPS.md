@@ -6,6 +6,7 @@
 - Local progress is persisted (unlocked chords, trial history, daily summaries) and shown directly in the UI (`frontend/lib/eguchi/progress.ts`, `frontend/app/(tabs)/index.tsx`).
 - Navigation is now simplified to training + caregiver settings via a header gear (`frontend/app/(tabs)/_layout.tsx`, `frontend/app/index.tsx`).
 - Auth-gated routing for app entry has been removed in the UI shell (`frontend/app/_layout.tsx`), while auth modules remain in repo for now.
+- Caregiver settings now include audio pack cache management (download all, clear cache, progress UI, and cache metadata) via `frontend/lib/eguchi/audio-cache.ts` and `frontend/app/settings.tsx`.
 - Backend APIs are template defaults (nugget + profile settings) and not tied to Eguchi data (`backend/main.py`).
 - Eguchi chord order + default mappings live in `frontend/lib/eguchi/chords.ts`.
 - Audio pack generator script added at `scripts/generate_audio_pack.py` (requires `fluidsynth` + a piano .sf2, and `ffmpeg` for MP3 output).
@@ -21,7 +22,7 @@
 - [x] **MVP: make the training loop playable** (audio playback + replay, auto-advance, and random chord selection).
 - [x] **MVP: store local progress** (unlocked chords, trial history, and daily summaries).
 - [x] **MVP: basic caregiver settings** (unlock toggles and reset data).
-- [ ] **Audio packs + offline caching** (download/delete flow + explicit offline cache management still pending).
+- [x] **Audio packs + offline caching** (download/delete flow + explicit offline cache management in Settings).
 - [x] **Simplify navigation** to main training + Settings gear and remove unused tab shell.
 - [ ] **Add tests** for chord selection randomness and training UI transitions.
 - [x] **Add tests** for progress state transitions and unlock persistence.

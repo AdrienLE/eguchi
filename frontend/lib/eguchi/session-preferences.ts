@@ -53,14 +53,14 @@ const normalizeFeedbackSeconds = (candidate: unknown): number => {
 
 const normalizePerfectDaysRequired = (candidate: unknown): number => {
   if (typeof candidate !== 'number' || Number.isNaN(candidate)) {
-    return 7;
+    return 14;
   }
   return Math.min(30, Math.max(1, Math.round(candidate)));
 };
 
 const normalizeDailyAttemptTarget = (candidate: unknown): number => {
   if (typeof candidate !== 'number' || Number.isNaN(candidate)) {
-    return 10;
+    return 100;
   }
   return Math.min(100, Math.max(1, Math.round(candidate)));
 };
@@ -71,8 +71,8 @@ export const createDefaultEguchiSessionPreferences = (): EguchiSessionPreference
   autoAdvanceEnabled: true,
   feedbackSeconds: 3,
   autoUnlockEnabled: false,
-  perfectDaysRequired: 7,
-  dailyAttemptTarget: 10,
+  perfectDaysRequired: 14,
+  dailyAttemptTarget: 100,
 });
 
 export const loadEguchiSessionPreferences = async (

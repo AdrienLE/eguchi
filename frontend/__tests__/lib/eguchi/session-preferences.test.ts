@@ -40,8 +40,8 @@ describe('eguchi session preferences', () => {
     expect(defaults.autoAdvanceEnabled).toBe(true);
     expect(defaults.feedbackSeconds).toBe(3);
     expect(defaults.autoUnlockEnabled).toBe(false);
-    expect(defaults.perfectDaysRequired).toBe(7);
-    expect(defaults.dailyAttemptTarget).toBe(10);
+    expect(defaults.perfectDaysRequired).toBe(14);
+    expect(defaults.dailyAttemptTarget).toBe(100);
   });
 
   test('load sanitizes invalid values', async () => {

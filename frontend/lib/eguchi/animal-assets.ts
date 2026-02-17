@@ -39,7 +39,9 @@ type AnimalBundleSource = number;
 
 export const CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID: Partial<
   Record<EguchiChordId, AnimalBundleSource>
-> = {};
+> = {
+  'C-E-G': require('../../assets/images/eguchi/animals/fox.png'),
+};
 
 type AnimalImageSource = AnimalBundleSource | { uri: string };
 
@@ -47,10 +49,15 @@ export const getChordAnimalImageSource = (
   chordId: EguchiChordId,
   platform: PlatformOSType = Platform.OS
 ): AnimalImageSource | null => {
+  const bundledSource = CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID[chordId];
+  if (bundledSource) {
+    return bundledSource;
+  }
+
   if (platform === 'web') {
     return { uri: CHORD_ANIMAL_WEB_PATH_BY_ID[chordId] };
   }
 
-  // Native currently falls back to emoji until a bundled-asset map is generated.
+  // Native falls back to emoji when no bundled source exists for this chord.
   return null;
 };

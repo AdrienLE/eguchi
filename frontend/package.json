@@ -91,7 +91,8 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
+      "^@/(.*)$": "<rootDir>/$1",
+      "\\.(png|jpg|jpeg|gif|webp|svg)$": "<rootDir>/jest-file-mock.js"
     },
     "testMatch": [
       "**/__tests__/**/*.(js|jsx|ts|tsx)",

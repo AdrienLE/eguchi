@@ -13,13 +13,16 @@ describe('eguchi animal assets', () => {
   });
 
   test('web source returns uri path for each chord', () => {
-    const source = getChordAnimalImageSource('C-E-G', 'web');
-    expect(source).toEqual({ uri: '/assets/images/eguchi/animals/fox.png' });
+    const foxSource = getChordAnimalImageSource('C-E-G', 'web');
+    expect(foxSource).toBe(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['C-E-G']);
+
+    const whaleSource = getChordAnimalImageSource('F-A-C', 'web');
+    expect(whaleSource).toEqual({ uri: '/assets/images/eguchi/animals/whale.png' });
   });
 
-  test('native source falls back to emoji (no bundled map yet)', () => {
-    expect(Object.keys(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID).length).toBe(0);
-    expect(getChordAnimalImageSource('C-E-G', 'ios')).toBeNull();
+  test('native source uses bundled assets first, then emoji fallback', () => {
+    expect(Object.keys(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID).length > 0).toBe(true);
+    expect(getChordAnimalImageSource('C-E-G', 'ios')).toBe(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['C-E-G']);
     expect(getChordAnimalImageSource('F-A-C', 'android')).toBeNull();
   });
 });

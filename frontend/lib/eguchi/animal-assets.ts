@@ -58,6 +58,25 @@ export const CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID: Partial<
   'Eb-G-Bb': require('../../assets/images/eguchi/animals/crab.png'),
 };
 
+export const CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID: Partial<
+  Record<EguchiChordId, AnimalBundleSource>
+> = {
+  'C-E-G': require('../../assets/images/eguchi/animals/fox__sad.png'),
+  'F-A-C': require('../../assets/images/eguchi/animals/whale__sad.png'),
+  'G-B-D': require('../../assets/images/eguchi/animals/frog__sad.png'),
+  'E-G-C': require('../../assets/images/eguchi/animals/tiger__sad.png'),
+  'A-C-F': require('../../assets/images/eguchi/animals/octopus__sad.png'),
+  'B-D-G': require('../../assets/images/eguchi/animals/chick__sad.png'),
+  'G-C-E': require('../../assets/images/eguchi/animals/bunny__sad.png'),
+  'C-F-A': require('../../assets/images/eguchi/animals/turtle__sad.png'),
+  'D-G-B': require('../../assets/images/eguchi/animals/bluebird__sad.png'),
+  'A-C#-E': require('../../assets/images/eguchi/animals/lion__sad.png'),
+  'D-F#-A': require('../../assets/images/eguchi/animals/parrot__sad.png'),
+  'E-G#-B': require('../../assets/images/eguchi/animals/fish__sad.png'),
+  'Bb-D-F': require('../../assets/images/eguchi/animals/seal__sad.png'),
+  'Eb-G-Bb': require('../../assets/images/eguchi/animals/crab__sad.png'),
+};
+
 type AnimalImageSource = AnimalBundleSource | { uri: string };
 type AnimalImageOptions = {
   emotion?: AnimalEmotion;
@@ -78,17 +97,18 @@ export const getChordAnimalImageSource = (
   options: AnimalImageOptions = {}
 ): AnimalImageSource | null => {
   const emotion = options.emotion ?? 'happy';
+  const sadBundledSource = CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID[chordId];
   const bundledSource = CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID[chordId];
-  if (bundledSource && emotion !== 'sad') {
-    return bundledSource;
-  }
-
-  if (platform === 'web') {
-    return { uri: getChordAnimalWebPath(chordId, emotion) };
+  if (emotion === 'sad' && sadBundledSource) {
+    return sadBundledSource;
   }
 
   if (bundledSource) {
     return bundledSource;
+  }
+
+  if (platform === 'web') {
+    return { uri: getChordAnimalWebPath(chordId, 'happy') };
   }
 
   // Native falls back to emoji when no bundled source exists for this chord.

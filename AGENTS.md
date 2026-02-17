@@ -41,6 +41,7 @@ changes so functionality can be tested early and often.
 
 ## Commit & Pull Request Guidelines
 - Current history is informal. Prefer Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, etc.; imperative, ≤72-char subject.
+- Commit policy: every completed change must be committed immediately after relevant tests pass.
 - PRs: clear description, linked issues, screenshots for UI, test plan, and checklist (formatting passes, tests added/updated, no secrets in `.env`).
 
 ## Security & Configuration Tips

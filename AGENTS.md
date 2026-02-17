@@ -31,6 +31,7 @@ changes so functionality can be tested early and often.
 - Coverage: maintain high coverage for critical paths (aim ≥80% overall). Generate HTML via
   `pytest --cov-report=html` and view frontend reports in `frontend/coverage/`.
 - Workflow: after every change, run the relevant tests (or full suite) and commit the change.
+- Required cadence: do not batch unrelated edits; each completed change should be tested and committed before starting the next change.
 
 ## iOS Production Builds
 - Default prod API: `REPLACE_WITH_PROD_URL` (template default).

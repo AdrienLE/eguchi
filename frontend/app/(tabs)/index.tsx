@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -90,6 +90,8 @@ export default function HomeScreen() {
   const [failedAnimalImageChordIds, setFailedAnimalImageChordIds] = useState<Set<EguchiChordId>>(
     new Set()
   );
+  const centerFlashOpacity = useRef(new Animated.Value(1)).current;
+  const centerFlashAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current) {
@@ -246,6 +248,7 @@ export default function HomeScreen() {
         expectedAnimal: expectedChord?.animal,
         correct: isCorrect,
       });
+      void playCurrentAudio();
 
       clearAdvanceTimer();
       const countdownStartedAt = Date.now();
@@ -260,7 +263,7 @@ export default function HomeScreen() {
         startNewTrial();
       }, AUTO_ADVANCE_MS);
     },
-    [clearAdvanceTimer, isLoading, sessionPreferences, startNewTrial]
+    [clearAdvanceTimer, isLoading, playCurrentAudio, sessionPreferences, startNewTrial]
   );
 
   const handleReplay = useCallback(() => {
@@ -346,6 +349,46 @@ export default function HomeScreen() {
       ? 0
       : getAutoAdvanceProgress(autoAdvanceRemainingMs, AUTO_ADVANCE_MS);
   const autoAdvanceSeconds = getAutoAdvanceSeconds(autoAdvanceRemainingMs);
+  const showCenterFlash = Boolean(currentChord && lastResult && autoAdvanceRemainingMs !== null);
+  const currentChordImageSource =
+    currentChord && !failedAnimalImageChordIds.has(currentChord.id)
+      ? getChordAnimalImageSource(currentChord.id)
+      : null;
+
+  useEffect(() => {
+    if (!showCenterFlash) {
+      centerFlashAnimationRef.current?.stop();
+      centerFlashAnimationRef.current = null;
+      centerFlashOpacity.setValue(1);
+      return;
+    }
+
+    centerFlashOpacity.setValue(1);
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(centerFlashOpacity, {
+          toValue: 0.35,
+          duration: 230,
+          useNativeDriver: true,
+        }),
+        Animated.timing(centerFlashOpacity, {
+          toValue: 1,
+          duration: 230,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    centerFlashAnimationRef.current = animation;
+    animation.start();
+
+    return () => {
+      animation.stop();
+      if (centerFlashAnimationRef.current === animation) {
+        centerFlashAnimationRef.current = null;
+      }
+      centerFlashOpacity.setValue(1);
+    };
+  }, [centerFlashOpacity, showCenterFlash]);
 
   return (
     <ThemedView style={styles.container}>
@@ -397,9 +440,6 @@ export default function HomeScreen() {
                     {ANIMAL_EMOJIS[chord.id]}
                   </ThemedText>
                 )}
-                <ThemedText style={[styles.tileLabel, { color: tileTextColor }]}>
-                  {chord.animal}
-                </ThemedText>
               </Pressable>
             );
           })}
@@ -517,6 +557,36 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+      {showCenterFlash && currentChord ? (
+        <View pointerEvents="none" style={styles.centerFlashOverlay}>
+          <Animated.View
+            style={[
+              styles.centerFlashCard,
+              { backgroundColor: currentChord.color.hex, opacity: centerFlashOpacity },
+            ]}
+          >
+            {currentChordImageSource ? (
+              <Image
+                source={currentChordImageSource}
+                style={styles.centerFlashImage}
+                contentFit="contain"
+                onError={() => {
+                  console.log('[Eguchi] Center flash image missing, using emoji fallback', {
+                    chord: currentChord.id,
+                    uri:
+                      typeof currentChordImageSource === 'number'
+                        ? 'bundle'
+                        : currentChordImageSource.uri,
+                  });
+                  markAnimalImageFailed(currentChord.id);
+                }}
+              />
+            ) : (
+              <ThemedText style={styles.centerFlashEmoji}>{ANIMAL_EMOJIS[currentChord.id]}</ThemedText>
+            )}
+          </Animated.View>
+        </View>
+      ) : null}
     </ThemedView>
   );
 }
@@ -617,11 +687,10 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   tileImage: {
-    width: 74,
-    height: 74,
+    width: '88%',
+    height: '88%',
   },
-  tileEmoji: { fontSize: 48, lineHeight: 52 },
-  tileLabel: { fontSize: 20, fontWeight: '700', marginTop: 10 },
+  tileEmoji: { fontSize: 94, lineHeight: 100 },
   tileCorrect: {
     borderWidth: 4,
     borderColor: '#FFFFFF',
@@ -684,5 +753,33 @@ const styles = StyleSheet.create({
   feedbackSecondaryButtonText: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  centerFlashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  centerFlashCard: {
+    width: 220,
+    height: 220,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  centerFlashImage: {
+    width: '84%',
+    height: '84%',
+  },
+  centerFlashEmoji: {
+    fontSize: 132,
+    lineHeight: 138,
   },
 });

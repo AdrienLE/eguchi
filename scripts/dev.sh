@@ -90,6 +90,17 @@ if [ "$TARGET" = "web" ]; then
   (cd frontend && npx expo export --platform web)
 fi
 
+# Validate audio assets before starting backend/frontend.
+# Set SKIP_AUDIO_CHECK=1 to bypass this check temporarily.
+if [ "${SKIP_AUDIO_CHECK:-}" != "1" ]; then
+  echo "Checking Eguchi audio assets..."
+  AUDIO_CHECK_ARGS=()
+  if [ "$TARGET" = "web" ]; then
+    AUDIO_CHECK_ARGS+=(--check-dist)
+  fi
+  python scripts/check_audio_assets.py "${AUDIO_CHECK_ARGS[@]}"
+fi
+
 # Determine API URL and SSL configuration
 if [ "$TARGET" = "web" ]; then
   # For web development, use HTTPS with localhost

@@ -97,3 +97,110 @@ def test_build_prompt_contains_style_and_subject():
         assert "no text" in prompt.lower()
     finally:
         manifest_path.unlink(missing_ok=True)
+
+
+def test_find_static_animal_reference_uses_non_overwritten_asset(tmp_path: Path):
+    module = load_module()
+    repo_root = tmp_path
+    animal_dir = repo_root / "frontend" / "assets" / "images" / "eguchi" / "animals"
+    animal_dir.mkdir(parents=True, exist_ok=True)
+
+    fox = module.AssetDefinition(
+        id="fox",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/fox.png",
+        subject_prompt="Fox",
+    )
+    whale = module.AssetDefinition(
+        id="whale",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/whale.png",
+        subject_prompt="Whale",
+    )
+
+    fox_path = animal_dir / "fox.png"
+    fox_path.write_bytes(b"fox")
+    selected_plans = module.plan_selected_assets(repo_root, [whale], variant=None, force=False)
+    selected_by_id = module.map_plans_by_asset_id(selected_plans)
+
+    reference = module.find_static_animal_reference(
+        repo_root,
+        [fox, whale],
+        selected_by_id,
+        variant=None,
+        force=False,
+    )
+    assert reference == fox_path
+
+
+def test_force_mode_disables_static_animal_reference(tmp_path: Path):
+    module = load_module()
+    repo_root = tmp_path
+    animal_dir = repo_root / "frontend" / "assets" / "images" / "eguchi" / "animals"
+    animal_dir.mkdir(parents=True, exist_ok=True)
+
+    fox = module.AssetDefinition(
+        id="fox",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/fox.png",
+        subject_prompt="Fox",
+    )
+    fox_path = animal_dir / "fox.png"
+    fox_path.write_bytes(b"fox")
+    selected_plans = module.plan_selected_assets(repo_root, [fox], variant=None, force=True)
+    selected_by_id = module.map_plans_by_asset_id(selected_plans)
+
+    reference = module.find_static_animal_reference(
+        repo_root,
+        [fox],
+        selected_by_id,
+        variant=None,
+        force=True,
+    )
+    assert reference is None
+
+
+def test_select_reference_images_prefers_static_then_generated(tmp_path: Path):
+    module = load_module()
+    animal_asset = module.AssetDefinition(
+        id="fox",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/fox.png",
+        subject_prompt="Fox",
+    )
+    ui_asset = module.AssetDefinition(
+        id="gear",
+        category="ui",
+        output_path="frontend/assets/images/eguchi/ui/caregiver-gear.png",
+        subject_prompt="Gear",
+    )
+
+    static_reference = tmp_path / "static.png"
+    static_reference.write_bytes(b"static")
+    generated_reference = tmp_path / "generated.png"
+    generated_reference.write_bytes(b"generated")
+    output = tmp_path / "output.png"
+
+    references = module.select_reference_images(
+        asset=animal_asset,
+        output_path=output,
+        static_animal_reference=static_reference,
+        generated_animal_reference=generated_reference,
+    )
+    assert references == [static_reference]
+
+    references_no_static = module.select_reference_images(
+        asset=animal_asset,
+        output_path=output,
+        static_animal_reference=None,
+        generated_animal_reference=generated_reference,
+    )
+    assert references_no_static == [generated_reference]
+
+    references_non_animal = module.select_reference_images(
+        asset=ui_asset,
+        output_path=output,
+        static_animal_reference=static_reference,
+        generated_animal_reference=generated_reference,
+    )
+    assert references_non_animal == []

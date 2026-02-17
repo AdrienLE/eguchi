@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import json
 import os
 import sys
@@ -34,6 +35,13 @@ class ManifestDefinition:
     style_guide_prompt: str
     defaults: dict[str, Any]
     assets: list[AssetDefinition]
+
+
+@dataclass(frozen=True)
+class PlannedAssetTask:
+    asset: AssetDefinition
+    output_path: Path
+    will_generate: bool
 
 
 def parse_manifest(path: Path) -> ManifestDefinition:
@@ -161,6 +169,75 @@ def should_generate(path: Path, force: bool) -> bool:
     return force or not path.exists()
 
 
+def plan_selected_assets(
+    repo_root: Path,
+    assets: Sequence[AssetDefinition],
+    *,
+    variant: str | None,
+    force: bool,
+) -> list[PlannedAssetTask]:
+    planned: list[PlannedAssetTask] = []
+    for asset in assets:
+        output_path = resolve_output_path(repo_root, asset.output_path, variant)
+        planned.append(
+            PlannedAssetTask(
+                asset=asset,
+                output_path=output_path,
+                will_generate=should_generate(output_path, force),
+            )
+        )
+    return planned
+
+
+def map_plans_by_asset_id(
+    planned_assets: Sequence[PlannedAssetTask],
+) -> dict[str, PlannedAssetTask]:
+    return {planned.asset.id: planned for planned in planned_assets}
+
+
+def find_static_animal_reference(
+    repo_root: Path,
+    manifest_assets: Sequence[AssetDefinition],
+    selected_plan_by_id: dict[str, PlannedAssetTask],
+    *,
+    variant: str | None,
+    force: bool,
+) -> Path | None:
+    if force:
+        return None
+
+    candidates: list[Path] = []
+    for asset in manifest_assets:
+        if asset.category != "animals":
+            continue
+        output_path = resolve_output_path(repo_root, asset.output_path, variant)
+        selected_plan = selected_plan_by_id.get(asset.id)
+        if selected_plan and selected_plan.will_generate:
+            continue
+        if output_path.exists():
+            candidates.append(output_path)
+
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda path: path.as_posix())[0]
+
+
+def select_reference_images(
+    *,
+    asset: AssetDefinition,
+    output_path: Path,
+    static_animal_reference: Path | None,
+    generated_animal_reference: Path | None,
+) -> list[Path]:
+    if asset.category != "animals":
+        return []
+
+    for candidate in (static_animal_reference, generated_animal_reference):
+        if candidate and candidate != output_path and candidate.exists():
+            return [candidate]
+    return []
+
+
 def generate_image_bytes(
     client: OpenAI,
     *,
@@ -170,11 +247,9 @@ def generate_image_bytes(
     quality: str | None,
     background: str | None,
     output_format: str | None,
+    reference_image_paths: Sequence[Path] | None = None,
 ) -> tuple[bytes, dict[str, Any]]:
-    request_kwargs: dict[str, Any] = {
-        "model": model,
-        "prompt": prompt,
-    }
+    request_kwargs: dict[str, Any] = {"model": model, "prompt": prompt}
     if size:
         request_kwargs["size"] = size
     if quality:
@@ -184,7 +259,14 @@ def generate_image_bytes(
     if output_format:
         request_kwargs["output_format"] = output_format
 
-    response = client.images.generate(**request_kwargs)
+    references = list(reference_image_paths or [])
+    if references:
+        with contextlib.ExitStack() as stack:
+            image_files = [stack.enter_context(path.open("rb")) for path in references]
+            response = client.images.edit(image=image_files, **request_kwargs)
+    else:
+        response = client.images.generate(**request_kwargs)
+
     if not response.data:
         raise RuntimeError("Image API returned no data.")
 
@@ -203,10 +285,12 @@ def generate_image_bytes(
     metadata = {
         "created": getattr(response, "created", None),
         "model": model,
+        "mode": "edit" if references else "generate",
         "size": size,
         "quality": quality,
         "background": background,
         "output_format": output_format,
+        "references": [path.as_posix() for path in references],
     }
     return image_bytes, metadata
 
@@ -289,6 +373,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("No assets selected. Use --all, --asset, or --category.", file=sys.stderr)
         return 2
 
+    planned_assets = plan_selected_assets(
+        repo_root, selected_assets, variant=args.variant, force=args.force
+    )
+    selected_plan_by_id = map_plans_by_asset_id(planned_assets)
+    static_animal_reference = find_static_animal_reference(
+        repo_root,
+        manifest.assets,
+        selected_plan_by_id,
+        variant=args.variant,
+        force=args.force,
+    )
+    generated_animal_reference: Path | None = None
+
     client = None
     if not args.dry_run:
         if not os.getenv("OPENAI_API_KEY"):
@@ -296,15 +393,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         client = OpenAI()
 
-    total = len(selected_assets)
+    total = len(planned_assets)
     generated = 0
     skipped = 0
 
-    for index, asset in enumerate(selected_assets, start=1):
-        output_path = resolve_output_path(repo_root, asset.output_path, args.variant)
+    for index, planned in enumerate(planned_assets, start=1):
+        asset = planned.asset
+        output_path = planned.output_path
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if not should_generate(output_path, args.force):
+        if not planned.will_generate:
             skipped += 1
             print(f"[{index}/{total}] skip {asset.id} (exists): {output_path}")
             continue
@@ -314,14 +412,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         background = asset.background or manifest.defaults.get("background")
         output_format = asset.output_format or manifest.defaults.get("output_format")
         prompt = build_prompt(manifest.style_guide_prompt, asset)
+        reference_images = select_reference_images(
+            asset=asset,
+            output_path=output_path,
+            static_animal_reference=static_animal_reference,
+            generated_animal_reference=generated_animal_reference,
+        )
+        reference_suffix = (
+            f" [ref: {reference_images[0].name}]"
+            if reference_images
+            else " [ref: none]" if asset.category == "animals" else ""
+        )
 
-        print(f"[{index}/{total}] generate {asset.id} -> {output_path}")
+        print(f"[{index}/{total}] generate {asset.id} -> {output_path}{reference_suffix}")
         if args.show_prompts:
             print(prompt)
             print("---")
 
         if args.dry_run:
             generated += 1
+            if asset.category == "animals" and generated_animal_reference is None:
+                generated_animal_reference = output_path
             continue
 
         image_bytes, api_metadata = generate_image_bytes(
@@ -332,8 +443,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             quality=quality,
             background=background,
             output_format=output_format,
+            reference_image_paths=reference_images,
         )
         output_path.write_bytes(image_bytes)
+        if asset.category == "animals" and generated_animal_reference is None:
+            generated_animal_reference = output_path
 
         metadata_path = output_path.with_suffix(f"{output_path.suffix}.meta.json")
         metadata_payload = {
@@ -345,6 +459,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "background": background,
             "output_format": output_format,
             "prompt": prompt,
+            "reference_images": [path.as_posix() for path in reference_images],
             "generated_at_utc": datetime.now(timezone.utc).isoformat(),
             "api": api_metadata,
         }

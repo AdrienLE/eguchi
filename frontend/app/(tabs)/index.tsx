@@ -515,7 +515,13 @@ export default function HomeScreen() {
       dailyAttemptTarget: activeSessionPreferences.dailyAttemptTarget,
     });
   }, [progress, sessionPreferences]);
+  const isDarkMode = colorScheme === 'dark';
   const buttonBackground = Colors[colorScheme ?? 'light'].tint;
+  const startCardBackground = isDarkMode ? '#242628' : '#FFFFFF';
+  const startCardBorderColor = isDarkMode ? '#3E4448' : '#D0D0D0';
+  const startTitleColor = Colors[colorScheme ?? 'light'].text;
+  const startSubtitleColor = isDarkMode ? '#C9CED3' : '#4B5560';
+  const startBadgeTextColor = isDarkMode ? '#111111' : '#FFFFFF';
   const autoAdvanceMs = getAutoAdvanceDurationMs(
     (sessionPreferences ?? defaultSessionPreferences.current).feedbackSeconds
   );
@@ -809,11 +815,21 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Start training"
               onPress={handleStartTraining}
-              style={styles.startCard}
+              style={[
+                styles.startCard,
+                {
+                  backgroundColor: startCardBackground,
+                  borderColor: startCardBorderColor,
+                },
+              ]}
             >
-              <ThemedText style={styles.startEmoji}>🎵</ThemedText>
-              <ThemedText style={styles.startTitle}>Tap To Start</ThemedText>
-              <ThemedText style={styles.startSubtitle}>Let&apos;s hear the animal chord</ThemedText>
+              <View style={[styles.startEmojiBadge, { backgroundColor: buttonBackground }]}>
+                <ThemedText style={[styles.startEmoji, { color: startBadgeTextColor }]}>🔊</ThemedText>
+              </View>
+              <ThemedText style={[styles.startTitle, { color: startTitleColor }]}>Tap To Start</ThemedText>
+              <ThemedText style={[styles.startSubtitle, { color: startSubtitleColor }]}>
+                Listen, then tap the matching animal
+              </ThemedText>
             </Pressable>
           </View>
         ) : null}
@@ -916,7 +932,7 @@ const styles = StyleSheet.create({
   },
   startOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 14, 28, 0.74)',
+    backgroundColor: 'rgba(8, 10, 14, 0.68)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 30,
@@ -926,39 +942,47 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     minHeight: 210,
-    borderRadius: 28,
-    backgroundColor: '#FFF7D6',
-    borderWidth: 3,
-    borderColor: '#2E7D32',
+    borderRadius: 24,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 22,
-    gap: 10,
+    gap: 12,
     shadowColor: '#000000',
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  startEmojiBadge: {
+    width: 108,
+    height: 108,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   startEmoji: {
-    fontSize: 72,
-    lineHeight: 76,
+    fontSize: 62,
+    lineHeight: 66,
   },
   startTitle: {
     fontSize: 30,
     lineHeight: 34,
     fontWeight: '800',
-    color: '#153A2B',
     textAlign: 'center',
   },
   startSubtitle: {
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '700',
-    color: '#1D5A43',
     textAlign: 'center',
-    opacity: 0.95,
+    opacity: 0.9,
   },
   grid: {
     flexDirection: 'row',

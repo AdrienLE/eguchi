@@ -29,6 +29,12 @@ import {
   pickRandomChordId,
 } from '@/lib/eguchi/training-loop';
 import {
+  getPlaybackRetryDelayMs,
+  getPlaybackRetryLimit,
+  STARTUP_PLAYBACK_WATCHDOG_DELAY_MS,
+  type PlaybackOrigin,
+} from '@/lib/eguchi/audio-playback';
+import {
   createDefaultEguchiSessionPreferences,
   loadEguchiSessionPreferences,
   type EguchiSessionPreferences,
@@ -41,13 +47,13 @@ const GRID_GAP = 10;
 const GRID_MIN_TILE_SIZE = 28;
 const GRID_MAX_COLUMNS = 6;
 const GRID_BASE_RESERVED_HEIGHT = 30;
-const INITIAL_AUDIO_RETRY_DELAY_MS = 180;
 
 type PlayCurrentAudioOptions = {
   chordId?: EguchiChordId | null;
   entry?: AudioEntry | null;
-  allowRetry?: boolean;
-  origin?: 'new-trial' | 'answer-feedback' | 'replay' | 'retry';
+  origin?: PlaybackOrigin;
+  retryCount?: number;
+  retryLimit?: number;
 };
 
 const getReadableTextColor = (hex: string) => {
@@ -130,8 +136,11 @@ export default function HomeScreen() {
   const advanceTicker = useRef<ReturnType<typeof setInterval> | null>(null);
   const [autoAdvanceRemainingMs, setAutoAdvanceRemainingMs] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const hasPlayedAnyAudioRef = useRef(false);
   const playbackRequestIdRef = useRef(0);
   const playbackRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startupPlaybackWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [startupAutoplayPending, setStartupAutoplayPending] = useState(false);
   const currentChordRef = useRef<EguchiChordId | null>(null);
   const currentAudioRef = useRef<AudioEntry | null>(null);
   const hasAnsweredCurrentTrialRef = useRef(false);
@@ -168,6 +177,13 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const clearStartupPlaybackWatchdog = useCallback(() => {
+    if (startupPlaybackWatchdogRef.current) {
+      clearTimeout(startupPlaybackWatchdogRef.current);
+      startupPlaybackWatchdogRef.current = null;
+    }
+  }, []);
+
   const loadTrainingData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -197,8 +213,10 @@ export default function HomeScreen() {
     async (options: PlayCurrentAudioOptions = {}) => {
       const chordId = options.chordId ?? currentChordRef.current;
       const entry = options.entry ?? currentAudioRef.current;
-      const allowRetry = options.allowRetry ?? true;
       const origin = options.origin ?? 'replay';
+      const retryCount = options.retryCount ?? 0;
+      const retryLimit =
+        options.retryLimit ?? getPlaybackRetryLimit(origin, hasPlayedAnyAudioRef.current);
       const requestId = playbackRequestIdRef.current + 1;
       playbackRequestIdRef.current = requestId;
       clearPlaybackRetry();
@@ -218,7 +236,7 @@ export default function HomeScreen() {
           chord: chordId,
           file: entry.fileName,
           origin,
-          attempt: allowRetry ? 'initial' : 'retry',
+          attempt: retryCount === 0 ? 'initial' : `retry-${retryCount}`,
         });
         const { sound } = await Audio.Sound.createAsync(entry.module, {
           shouldPlay: true,
@@ -231,11 +249,16 @@ export default function HomeScreen() {
           return;
         }
         soundRef.current = sound;
+        hasPlayedAnyAudioRef.current = true;
+        setStartupAutoplayPending(false);
+        clearStartupPlaybackWatchdog();
       } catch (error) {
         console.warn('Failed to play chord audio', error);
-        if (!allowRetry || playbackRequestIdRef.current !== requestId) {
+        if (playbackRequestIdRef.current !== requestId || retryCount >= retryLimit) {
           return;
         }
+        const nextRetryCount = retryCount + 1;
+        const retryDelayMs = getPlaybackRetryDelayMs(retryCount);
         playbackRetryTimerRef.current = setTimeout(() => {
           playbackRetryTimerRef.current = null;
           if (playbackRequestIdRef.current !== requestId) {
@@ -244,25 +267,29 @@ export default function HomeScreen() {
           void playCurrentAudio({
             chordId,
             entry,
-            allowRetry: false,
             origin: 'retry',
+            retryCount: nextRetryCount,
+            retryLimit,
           });
-        }, INITIAL_AUDIO_RETRY_DELAY_MS);
+        }, retryDelayMs);
       }
     },
-    [clearPlaybackRetry, stopSound]
+    [clearPlaybackRetry, clearStartupPlaybackWatchdog, stopSound]
   );
 
   const startNewTrial = useCallback(() => {
     if (!unlockedChordIds.length) {
       clearAdvanceTimer();
+      clearStartupPlaybackWatchdog();
       currentChordRef.current = null;
       currentAudioRef.current = null;
       setCurrentChordId(null);
+      setStartupAutoplayPending(false);
       return;
     }
 
     clearAdvanceTimer();
+    clearStartupPlaybackWatchdog();
     hasAnsweredCurrentTrialRef.current = false;
     setLastAnswerId(null);
     setLastResult(null);
@@ -283,12 +310,31 @@ export default function HomeScreen() {
       file: nextAudio?.fileName ?? 'missing',
     });
 
+    if (!hasPlayedAnyAudioRef.current) {
+      setStartupAutoplayPending(true);
+      startupPlaybackWatchdogRef.current = setTimeout(() => {
+        startupPlaybackWatchdogRef.current = null;
+        if (hasPlayedAnyAudioRef.current || hasAnsweredCurrentTrialRef.current) {
+          return;
+        }
+        if (!currentChordRef.current || !currentAudioRef.current) {
+          return;
+        }
+        void playCurrentAudio({
+          chordId: currentChordRef.current,
+          entry: currentAudioRef.current,
+          origin: 'retry',
+          retryCount: 0,
+        });
+      }, STARTUP_PLAYBACK_WATCHDOG_DELAY_MS);
+    }
+
     void playCurrentAudio({
       chordId: nextChordId,
       entry: nextAudio,
       origin: 'new-trial',
     });
-  }, [clearAdvanceTimer, playCurrentAudio, unlockedChordIds]);
+  }, [clearAdvanceTimer, clearStartupPlaybackWatchdog, playCurrentAudio, unlockedChordIds]);
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
@@ -301,6 +347,8 @@ export default function HomeScreen() {
       const expectedAudio = currentAudioRef.current;
 
       hasAnsweredCurrentTrialRef.current = true;
+      clearStartupPlaybackWatchdog();
+      setStartupAutoplayPending(false);
 
       const selectedChord = CHORD_BY_ID[id];
       const expectedChord = CHORD_BY_ID[expectedId];
@@ -385,6 +433,34 @@ export default function HomeScreen() {
 
   const isReady = !isLoading && progress !== null;
   useEffect(() => {
+    if (!startupAutoplayPending || typeof window === 'undefined') {
+      return;
+    }
+
+    const handleInteraction = () => {
+      if (hasPlayedAnyAudioRef.current || hasAnsweredCurrentTrialRef.current) {
+        return;
+      }
+      if (!currentChordRef.current || !currentAudioRef.current) {
+        return;
+      }
+      void playCurrentAudio({
+        chordId: currentChordRef.current,
+        entry: currentAudioRef.current,
+        origin: 'retry',
+        retryCount: 0,
+      });
+    };
+
+    window.addEventListener('pointerdown', handleInteraction, { passive: true });
+    window.addEventListener('keydown', handleInteraction);
+    return () => {
+      window.removeEventListener('pointerdown', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+    };
+  }, [playCurrentAudio, startupAutoplayPending]);
+
+  useEffect(() => {
     if (!isReady) {
       return;
     }
@@ -393,10 +469,20 @@ export default function HomeScreen() {
     return () => {
       clearAdvanceTimer();
       clearPlaybackRetry();
+      clearStartupPlaybackWatchdog();
+      setStartupAutoplayPending(false);
       playbackRequestIdRef.current += 1;
       void stopSound();
     };
-  }, [clearAdvanceTimer, clearPlaybackRetry, isReady, startNewTrial, stopSound, unlockedChordKey]);
+  }, [
+    clearAdvanceTimer,
+    clearPlaybackRetry,
+    clearStartupPlaybackWatchdog,
+    isReady,
+    startNewTrial,
+    stopSound,
+    unlockedChordKey,
+  ]);
 
   const progressionStatus = useMemo(() => {
     if (!progress) {

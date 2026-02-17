@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -12,6 +12,7 @@ import {
   DEFAULT_UNLOCKED_CHORD_IDS,
   type EguchiChordId,
 } from '@/lib/eguchi/chords';
+import { getNextLevelProgress, maybeApplyAutoUnlock } from '@/lib/eguchi/progression';
 import {
   createDefaultEguchiProgress,
   getProgressSnapshot,
@@ -20,6 +21,11 @@ import {
   saveEguchiProgress,
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
+import {
+  createDefaultEguchiSessionPreferences,
+  loadEguchiSessionPreferences,
+  type EguchiSessionPreferences,
+} from '@/lib/eguchi/session-preferences';
 
 const AUTO_ADVANCE_MS = 900;
 
@@ -41,7 +47,9 @@ const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const [progress, setProgress] = useState<EguchiProgress | null>(null);
-  const [isProgressLoading, setIsProgressLoading] = useState(true);
+  const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const defaultSessionPreferences = useRef(createDefaultEguchiSessionPreferences());
   const unlockedChordIds =
     progress?.unlockedChordIds.length ? progress.unlockedChordIds : DEFAULT_UNLOCKED_CHORD_IDS;
   const unlockedChords = unlockedChordIds.map(id => CHORD_BY_ID[id]);
@@ -74,24 +82,29 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const loadProgress = useCallback(async () => {
-    setIsProgressLoading(true);
+  const loadTrainingData = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const loaded = await loadEguchiProgress();
-      setProgress(loaded);
+      const [loadedProgress, loadedSessionPreferences] = await Promise.all([
+        loadEguchiProgress(),
+        loadEguchiSessionPreferences(),
+      ]);
+      setProgress(loadedProgress);
+      setSessionPreferences(loadedSessionPreferences);
     } catch (error) {
-      console.warn('Failed to load Eguchi progress', error);
+      console.warn('Failed to load Eguchi training data', error);
       setProgress(createDefaultEguchiProgress());
+      setSessionPreferences(createDefaultEguchiSessionPreferences());
     } finally {
-      setIsProgressLoading(false);
+      setIsLoading(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void loadProgress();
+      void loadTrainingData();
       return undefined;
-    }, [loadProgress])
+    }, [loadTrainingData])
   );
 
   const playCurrentAudio = useCallback(async () => {
@@ -151,7 +164,7 @@ export default function HomeScreen() {
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
-      if (hasAnsweredCurrentTrialRef.current || isProgressLoading) {
+      if (hasAnsweredCurrentTrialRef.current || isLoading) {
         return;
       }
 
@@ -163,19 +176,33 @@ export default function HomeScreen() {
       const selectedChord = CHORD_BY_ID[id];
       const expectedChord = CHORD_BY_ID[expectedId];
       const isCorrect = id === expectedId;
+      const activeSessionPreferences = sessionPreferences ?? defaultSessionPreferences.current;
 
       setLastAnswerId(id);
       setLastResult(isCorrect ? 'correct' : 'incorrect');
       setProgress(previous => {
         const currentProgress = previous ?? createDefaultEguchiProgress();
-        const nextProgress = recordTrial(currentProgress, {
+        const afterRecord = recordTrial(currentProgress, {
           chordId: expectedId,
           correct: isCorrect,
         });
-        void saveEguchiProgress(nextProgress).catch(error => {
+        const autoUnlockResult = maybeApplyAutoUnlock(afterRecord, {
+          autoUnlockEnabled: activeSessionPreferences.autoUnlockEnabled,
+          perfectDaysRequired: activeSessionPreferences.perfectDaysRequired,
+          dailyAttemptTarget: activeSessionPreferences.dailyAttemptTarget,
+        });
+
+        if (autoUnlockResult.unlocked) {
+          console.log('[Eguchi] Auto-unlocked next level', {
+            unlockedCount: autoUnlockResult.progress.unlockedChordIds.length,
+            unlockDay: autoUnlockResult.progress.lastAutoUnlockDayKey,
+          });
+        }
+
+        void saveEguchiProgress(autoUnlockResult.progress).catch(error => {
           console.warn('Failed to save Eguchi progress', error);
         });
-        return nextProgress;
+        return autoUnlockResult.progress;
       });
 
       console.log('[Eguchi] Answer selected', {
@@ -191,7 +218,7 @@ export default function HomeScreen() {
         startNewTrial();
       }, AUTO_ADVANCE_MS);
     },
-    [clearAdvanceTimer, isProgressLoading, startNewTrial]
+    [clearAdvanceTimer, isLoading, sessionPreferences, startNewTrial]
   );
 
   const handleReplay = useCallback(() => {
@@ -206,9 +233,9 @@ export default function HomeScreen() {
     startNewTrial();
   }, [startNewTrial]);
 
-  const isProgressReady = !isProgressLoading && progress !== null;
+  const isReady = !isLoading && progress !== null;
   useEffect(() => {
-    if (!isProgressReady) {
+    if (!isReady) {
       return;
     }
 
@@ -217,9 +244,20 @@ export default function HomeScreen() {
       clearAdvanceTimer();
       void stopSound();
     };
-  }, [clearAdvanceTimer, isProgressReady, startNewTrial, stopSound, unlockedChordKey]);
+  }, [clearAdvanceTimer, isReady, startNewTrial, stopSound, unlockedChordKey]);
 
   const progressSnapshot = progress ? getProgressSnapshot(progress) : null;
+  const progressionStatus = useMemo(() => {
+    if (!progress) {
+      return null;
+    }
+    const activeSessionPreferences = sessionPreferences ?? defaultSessionPreferences.current;
+    return getNextLevelProgress(progress, {
+      autoUnlockEnabled: activeSessionPreferences.autoUnlockEnabled,
+      perfectDaysRequired: activeSessionPreferences.perfectDaysRequired,
+      dailyAttemptTarget: activeSessionPreferences.dailyAttemptTarget,
+    });
+  }, [progress, sessionPreferences]);
   const buttonBackground = Colors[colorScheme ?? 'light'].tint;
   const buttonTextColor = colorScheme === 'light' ? '#FFFFFF' : '#111111';
   const outlineColor = Colors[colorScheme ?? 'light'].icon;
@@ -257,17 +295,37 @@ export default function HomeScreen() {
                 {progressSnapshot.unlockedCount}/{Object.keys(CHORD_BY_ID).length}
               </ThemedText>
             </View>
+            {progressionStatus ? (
+              <>
+                <View style={styles.statsRow}>
+                  <ThemedText style={styles.statsLabel}>Next Level</ThemedText>
+                  <ThemedText style={styles.statsValue}>
+                    {progressionStatus.nextChordId
+                      ? `${progressionStatus.nextChordAnimal} (${progressionStatus.nextChordId})`
+                      : 'Complete'}
+                  </ThemedText>
+                </View>
+                <View style={styles.statsRow}>
+                  <ThemedText style={styles.statsLabel}>Unlock Progress</ThemedText>
+                  <ThemedText style={styles.statsValue}>
+                    {progressionStatus.isMaxLevel
+                      ? 'Done'
+                      : `${progressionStatus.perfectDayStreak}/${progressionStatus.perfectDaysRequired} perfect days`}
+                  </ThemedText>
+                </View>
+              </>
+            ) : null}
           </View>
         ) : null}
         <View style={styles.controls}>
           <Pressable
             accessibilityRole="button"
             onPress={handleReplay}
-            disabled={isProgressLoading}
+            disabled={isLoading}
             style={[
               styles.primaryButton,
               { backgroundColor: buttonBackground },
-              isProgressLoading && styles.buttonDisabled,
+              isLoading && styles.buttonDisabled,
             ]}
           >
             <ThemedText style={[styles.primaryButtonText, { color: buttonTextColor }]}>
@@ -277,17 +335,17 @@ export default function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={handleSkip}
-            disabled={isProgressLoading}
+            disabled={isLoading}
             style={[
               styles.secondaryButton,
               { borderColor: outlineColor },
-              isProgressLoading && styles.buttonDisabled,
+              isLoading && styles.buttonDisabled,
             ]}
           >
             <ThemedText style={styles.secondaryButtonText}>Skip</ThemedText>
           </Pressable>
         </View>
-        {isProgressLoading ? <ActivityIndicator /> : null}
+        {isLoading ? <ActivityIndicator /> : null}
         <View style={styles.grid}>
           {unlockedChords.map(chord => {
             const showCorrect = lastResult !== null;
@@ -300,14 +358,14 @@ export default function HomeScreen() {
               <Pressable
                 key={chord.id}
                 accessibilityRole="button"
-                disabled={isProgressLoading}
+                disabled={isLoading}
                 onPress={() => handleAnswer(chord.id)}
                 style={[
                   styles.tile,
                   { backgroundColor: chord.color.hex },
                   isCorrectTile && styles.tileCorrect,
                   isWrongSelection && styles.tileIncorrect,
-                  isProgressLoading && styles.buttonDisabled,
+                  isLoading && styles.buttonDisabled,
                 ]}
               >
                 <ThemedText style={[styles.tileLabel, { color: tileTextColor }]}>
@@ -347,9 +405,10 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 8,
   },
   statsLabel: { fontSize: 14, fontWeight: '600' },
-  statsValue: { fontSize: 14 },
+  statsValue: { fontSize: 14, flexShrink: 1, textAlign: 'right' },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',

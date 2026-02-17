@@ -36,6 +36,7 @@ describe('eguchi progress', () => {
     expect(progress.unlockedChordIds).toEqual(DEFAULT_UNLOCKED_CHORD_IDS);
     expect(progress.trialHistory).toEqual([]);
     expect(progress.dailySummaries).toEqual({});
+    expect(progress.lastAutoUnlockDayKey).toBe(null);
   });
 
   test('recordTrial updates trial history and daily summaries', () => {
@@ -110,6 +111,7 @@ describe('eguchi progress', () => {
     expect(loaded.unlockedChordIds).toEqual(DEFAULT_UNLOCKED_CHORD_IDS);
     expect(loaded.trialHistory.length).toBe(1);
     expect(loaded.dailySummaries[dayKey]).toEqual({ attempts: 1, correct: 1 });
+    expect(loaded.lastAutoUnlockDayKey).toBe(null);
   });
 
   test('save and reset use the eguchi storage key', async () => {

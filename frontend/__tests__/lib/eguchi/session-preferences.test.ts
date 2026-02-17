@@ -4,8 +4,11 @@ import {
   loadEguchiSessionPreferences,
   saveEguchiSessionPreferences,
   setAutoAdvanceEnabled,
+  setAutoUnlockEnabled,
+  setDailyAttemptTarget,
   setFeedbackSeconds,
   setImportModeEnabled,
+  setPerfectDaysRequired,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
 import { STORAGE_KEYS, type StorageService } from '@/lib/storage';
@@ -36,6 +39,9 @@ describe('eguchi session preferences', () => {
     expect(defaults.importModes.bullet).toBe(false);
     expect(defaults.autoAdvanceEnabled).toBe(true);
     expect(defaults.feedbackSeconds).toBe(3);
+    expect(defaults.autoUnlockEnabled).toBe(false);
+    expect(defaults.perfectDaysRequired).toBe(7);
+    expect(defaults.dailyAttemptTarget).toBe(10);
   });
 
   test('load sanitizes invalid values', async () => {
@@ -43,6 +49,9 @@ describe('eguchi session preferences', () => {
       importModes: { rapid: false, blitz: false, bullet: false },
       autoAdvanceEnabled: 'yes',
       feedbackSeconds: 99,
+      autoUnlockEnabled: 'yes',
+      perfectDaysRequired: 0,
+      dailyAttemptTarget: 200,
     });
 
     const loaded = await loadEguchiSessionPreferences(storage);
@@ -51,6 +60,9 @@ describe('eguchi session preferences', () => {
     expect(loaded.importModes.bullet).toBe(false);
     expect(loaded.autoAdvanceEnabled).toBe(true);
     expect(loaded.feedbackSeconds).toBe(8);
+    expect(loaded.autoUnlockEnabled).toBe(false);
+    expect(loaded.perfectDaysRequired).toBe(1);
+    expect(loaded.dailyAttemptTarget).toBe(100);
   });
 
   test('setImportModeEnabled keeps at least one mode enabled', () => {
@@ -75,6 +87,16 @@ describe('eguchi session preferences', () => {
     const defaults = createDefaultEguchiSessionPreferences();
     const disabled = setAutoAdvanceEnabled(defaults, false);
     expect(disabled.autoAdvanceEnabled).toBe(false);
+  });
+
+  test('auto unlock setters clamp and update', () => {
+    const defaults = createDefaultEguchiSessionPreferences();
+    const enabled = setAutoUnlockEnabled(defaults, true);
+    const days = setPerfectDaysRequired(enabled, 99);
+    const attempts = setDailyAttemptTarget(days, 0);
+    expect(enabled.autoUnlockEnabled).toBe(true);
+    expect(days.perfectDaysRequired).toBe(30);
+    expect(attempts.dailyAttemptTarget).toBe(1);
   });
 
   test('save writes to expected storage key', async () => {

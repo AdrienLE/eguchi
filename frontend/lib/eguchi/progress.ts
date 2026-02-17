@@ -101,6 +101,7 @@ export type EguchiProgress = {
   unlockedChordIds: EguchiChordId[];
   trialHistory: EguchiTrialRecord[];
   dailySummaries: Record<string, EguchiDailySummary>;
+  lastAutoUnlockDayKey: string | null;
 };
 
 export type RecordTrialInput = {
@@ -123,6 +124,7 @@ export const createDefaultEguchiProgress = (): EguchiProgress => ({
   unlockedChordIds: [...DEFAULT_UNLOCKED_CHORD_IDS],
   trialHistory: [],
   dailySummaries: {},
+  lastAutoUnlockDayKey: null,
 });
 
 export const loadEguchiProgress = async (
@@ -139,6 +141,8 @@ export const loadEguchiProgress = async (
     unlockedChordIds: normalizeUnlockedChordIds(stored.unlockedChordIds),
     trialHistory,
     dailySummaries: buildDailySummaries(trialHistory),
+    lastAutoUnlockDayKey:
+      typeof stored.lastAutoUnlockDayKey === 'string' ? stored.lastAutoUnlockDayKey : null,
   };
 };
 

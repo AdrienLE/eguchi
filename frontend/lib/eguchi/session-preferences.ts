@@ -14,6 +14,9 @@ export type EguchiSessionPreferences = {
   importModes: Record<ImportSpeed, boolean>;
   autoAdvanceEnabled: boolean;
   feedbackSeconds: number;
+  autoUnlockEnabled: boolean;
+  perfectDaysRequired: number;
+  dailyAttemptTarget: number;
 };
 
 const DEFAULT_IMPORT_MODES: Record<ImportSpeed, boolean> = {
@@ -48,11 +51,28 @@ const normalizeFeedbackSeconds = (candidate: unknown): number => {
   return Math.min(8, Math.max(2, Math.round(candidate)));
 };
 
+const normalizePerfectDaysRequired = (candidate: unknown): number => {
+  if (typeof candidate !== 'number' || Number.isNaN(candidate)) {
+    return 7;
+  }
+  return Math.min(30, Math.max(1, Math.round(candidate)));
+};
+
+const normalizeDailyAttemptTarget = (candidate: unknown): number => {
+  if (typeof candidate !== 'number' || Number.isNaN(candidate)) {
+    return 10;
+  }
+  return Math.min(100, Math.max(1, Math.round(candidate)));
+};
+
 export const createDefaultEguchiSessionPreferences = (): EguchiSessionPreferences => ({
   sourcePreset: 'sunny-pond-lost',
   importModes: { ...DEFAULT_IMPORT_MODES },
   autoAdvanceEnabled: true,
   feedbackSeconds: 3,
+  autoUnlockEnabled: false,
+  perfectDaysRequired: 7,
+  dailyAttemptTarget: 10,
 });
 
 export const loadEguchiSessionPreferences = async (
@@ -71,6 +91,10 @@ export const loadEguchiSessionPreferences = async (
     autoAdvanceEnabled:
       typeof stored.autoAdvanceEnabled === 'boolean' ? stored.autoAdvanceEnabled : true,
     feedbackSeconds: normalizeFeedbackSeconds(stored.feedbackSeconds),
+    autoUnlockEnabled:
+      typeof stored.autoUnlockEnabled === 'boolean' ? stored.autoUnlockEnabled : false,
+    perfectDaysRequired: normalizePerfectDaysRequired(stored.perfectDaysRequired),
+    dailyAttemptTarget: normalizeDailyAttemptTarget(stored.dailyAttemptTarget),
   };
 };
 
@@ -116,6 +140,30 @@ export const setFeedbackSeconds = (
 ): EguchiSessionPreferences => ({
   ...preferences,
   feedbackSeconds: normalizeFeedbackSeconds(feedbackSeconds),
+});
+
+export const setAutoUnlockEnabled = (
+  preferences: EguchiSessionPreferences,
+  enabled: boolean
+): EguchiSessionPreferences => ({
+  ...preferences,
+  autoUnlockEnabled: enabled,
+});
+
+export const setPerfectDaysRequired = (
+  preferences: EguchiSessionPreferences,
+  perfectDaysRequired: number
+): EguchiSessionPreferences => ({
+  ...preferences,
+  perfectDaysRequired: normalizePerfectDaysRequired(perfectDaysRequired),
+});
+
+export const setDailyAttemptTarget = (
+  preferences: EguchiSessionPreferences,
+  dailyAttemptTarget: number
+): EguchiSessionPreferences => ({
+  ...preferences,
+  dailyAttemptTarget: normalizeDailyAttemptTarget(dailyAttemptTarget),
 });
 
 export const getEnabledImportModes = (preferences: EguchiSessionPreferences): ImportSpeed[] =>

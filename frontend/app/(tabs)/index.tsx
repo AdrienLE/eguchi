@@ -70,6 +70,22 @@ const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
 const getAnimalImageFailureKey = (chordId: EguchiChordId, emotion?: AnimalEmotion) =>
   `${chordId}__${emotion ?? 'default'}`;
 
+const isAutoplayBlockedError = (error: unknown) => {
+  if (!error) {
+    return false;
+  }
+  const message =
+    typeof error === 'string'
+      ? error
+      : error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : String(error);
+  return (
+    message.includes('NotAllowedError') &&
+    message.includes("didn't interact with the document first")
+  );
+};
+
 const getGridLayout = (tileCount: number, availableWidth: number, availableHeight: number) => {
   const safeCount = Math.max(1, tileCount);
   const safeWidth = Math.max(100, availableWidth);
@@ -225,9 +241,11 @@ export default function HomeScreen() {
         return;
       }
 
-      await stopSound();
-      if (playbackRequestIdRef.current !== requestId) {
-        return;
+      if (soundRef.current) {
+        await stopSound();
+        if (playbackRequestIdRef.current !== requestId) {
+          return;
+        }
       }
 
       try {
@@ -242,8 +260,8 @@ export default function HomeScreen() {
           volume: 1.0,
         });
         if (playbackRequestIdRef.current !== requestId) {
-          await sound.unloadAsync().catch(error => {
-            console.warn('Failed to unload stale sound instance', error);
+          await sound.unloadAsync().catch(unloadError => {
+            console.warn('Failed to unload stale sound instance', unloadError);
           });
           return;
         }
@@ -253,6 +271,10 @@ export default function HomeScreen() {
         clearStartupPlaybackWatchdog();
       } catch (error) {
         console.warn('Failed to play chord audio', error);
+        if (isAutoplayBlockedError(error)) {
+          setStartupAutoplayPending(true);
+          return;
+        }
         if (playbackRequestIdRef.current !== requestId || retryCount >= retryLimit) {
           return;
         }
@@ -347,7 +369,6 @@ export default function HomeScreen() {
 
       hasAnsweredCurrentTrialRef.current = true;
       clearStartupPlaybackWatchdog();
-      setStartupAutoplayPending(false);
 
       const selectedChord = CHORD_BY_ID[id];
       const expectedChord = CHORD_BY_ID[expectedId];
@@ -433,7 +454,7 @@ export default function HomeScreen() {
 
   const isReady = !isLoading && progress !== null;
   useEffect(() => {
-    if (!startupAutoplayPending || typeof window === 'undefined') {
+    if (typeof window === 'undefined') {
       return;
     }
 
@@ -442,6 +463,7 @@ export default function HomeScreen() {
         return;
       }
       if (!currentChordRef.current || !currentAudioRef.current) {
+        setStartupAutoplayPending(previous => (previous ? previous : true));
         return;
       }
       void playCurrentAudio({
@@ -452,13 +474,16 @@ export default function HomeScreen() {
       });
     };
 
-    window.addEventListener('pointerdown', handleInteraction, { passive: true });
-    window.addEventListener('keydown', handleInteraction);
+    window.addEventListener('pointerdown', handleInteraction, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener('keydown', handleInteraction, true);
     return () => {
-      window.removeEventListener('pointerdown', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
+      window.removeEventListener('pointerdown', handleInteraction, true);
+      window.removeEventListener('keydown', handleInteraction, true);
     };
-  }, [playCurrentAudio, startupAutoplayPending]);
+  }, [playCurrentAudio]);
 
   useEffect(() => {
     if (!isReady) {
@@ -734,6 +759,9 @@ export default function HomeScreen() {
             >
               <ThemedText style={styles.replayEmoji}>🔊</ThemedText>
             </Pressable>
+            {startupAutoplayPending ? (
+              <ThemedText style={styles.startupHint}>Tap to start sound</ThemedText>
+            ) : null}
           </View>
           {progressionStatus ? (
             <View style={styles.missionCard}>
@@ -852,6 +880,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 2,
+    gap: 8,
   },
   replayButton: {
     width: 92,
@@ -868,6 +897,12 @@ const styles = StyleSheet.create({
   replayEmoji: {
     fontSize: 50,
     lineHeight: 54,
+  },
+  startupHint: {
+    fontSize: 12,
+    lineHeight: 16,
+    opacity: 0.78,
+    fontWeight: '600',
   },
   grid: {
     flexDirection: 'row',

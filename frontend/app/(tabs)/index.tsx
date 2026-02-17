@@ -37,10 +37,11 @@ import {
 
 const AUTO_ADVANCE_MS = AUTO_ADVANCE_DEFAULT_MS;
 const CONTENT_HORIZONTAL_PADDING = 24;
+const CONTENT_VERTICAL_PADDING = 20;
 const GRID_GAP = 10;
 const GRID_MIN_TILE_SIZE = 28;
 const GRID_MAX_COLUMNS = 6;
-const GRID_RESERVED_HEIGHT = 310;
+const GRID_BASE_RESERVED_HEIGHT = 30;
 
 const getReadableTextColor = (hex: string) => {
   const normalized = hex.replace('#', '');
@@ -103,6 +104,9 @@ const ANIMAL_EMOJIS: Record<EguchiChordId, string> = {
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
+  const [feedbackCardHeight, setFeedbackCardHeight] = useState(0);
   const [progress, setProgress] = useState<EguchiProgress | null>(null);
   const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -386,16 +390,59 @@ export default function HomeScreen() {
     currentChord && !failedAnimalImageChordIds.has(currentChord.id)
       ? getChordAnimalImageSource(currentChord.id)
       : null;
+  const handleViewportLayout = useCallback(
+    (width: number, height: number) => {
+      setViewportSize(previous => {
+        if (Math.abs(previous.width - width) < 1 && Math.abs(previous.height - height) < 1) {
+          return previous;
+        }
+        return { width, height };
+      });
+    },
+    [setViewportSize]
+  );
+  const handleBottomSectionLayout = useCallback((height: number) => {
+    setBottomSectionHeight(previous => (Math.abs(previous - height) < 1 ? previous : height));
+  }, []);
+  const handleFeedbackCardLayout = useCallback((height: number) => {
+    setFeedbackCardHeight(previous => (Math.abs(previous - height) < 1 ? previous : height));
+  }, []);
   const gridLayout = useMemo(() => {
-    const availableWidth = windowWidth - CONTENT_HORIZONTAL_PADDING * 2;
-    const availableHeight = windowHeight - GRID_RESERVED_HEIGHT;
+    const viewportWidth = viewportSize.width || windowWidth;
+    const viewportHeight = viewportSize.height || windowHeight;
+    const availableWidth = viewportWidth - CONTENT_HORIZONTAL_PADDING * 2;
+    const feedbackReserve = !showCenterFlash && lastResult && currentChord ? feedbackCardHeight + 14 : 0;
+    const availableHeight =
+      viewportHeight -
+      bottomSectionHeight -
+      feedbackReserve -
+      CONTENT_VERTICAL_PADDING * 2 -
+      GRID_BASE_RESERVED_HEIGHT;
     return getGridLayout(unlockedChords.length, availableWidth, availableHeight);
-  }, [unlockedChords.length, windowHeight, windowWidth]);
+  }, [
+    bottomSectionHeight,
+    currentChord,
+    feedbackCardHeight,
+    lastResult,
+    showCenterFlash,
+    unlockedChords.length,
+    viewportSize.height,
+    viewportSize.width,
+    windowHeight,
+    windowWidth,
+  ]);
   const gridWidth = gridLayout.columns * gridLayout.tileSize + GRID_GAP * (gridLayout.columns - 1);
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        onLayout={event => {
+          const { width, height } = event.nativeEvent.layout;
+          handleViewportLayout(width, height);
+        }}
+      >
         {isLoading ? <ActivityIndicator /> : null}
         {!showCenterFlash ? (
           <View style={[styles.grid, { width: gridWidth }]}>
@@ -453,7 +500,12 @@ export default function HomeScreen() {
           <View style={styles.feedbackGridSpacer} />
         )}
         {lastResult && currentChord ? (
-          <View style={styles.feedbackCard}>
+          <View
+            style={styles.feedbackCard}
+            onLayout={event => {
+              handleFeedbackCardLayout(event.nativeEvent.layout.height);
+            }}
+          >
             <ThemedText style={styles.feedbackTitle}>
               {lastResult === 'correct'
                 ? `✅ Nice tap! ${ANIMAL_EMOJIS[currentChord.id]}`
@@ -492,7 +544,12 @@ export default function HomeScreen() {
             </View>
           </View>
         ) : null}
-        <View style={styles.bottomSection}>
+        <View
+          style={styles.bottomSection}
+          onLayout={event => {
+            handleBottomSectionLayout(event.nativeEvent.layout.height);
+          }}
+        >
           {progressionStatus ? (
             <View style={styles.missionCard}>
               <ThemedText style={styles.missionTitle}>🎯 Today</ThemedText>
@@ -599,7 +656,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: CONTENT_HORIZONTAL_PADDING,
-    paddingVertical: 20,
+    paddingVertical: CONTENT_VERTICAL_PADDING,
     gap: 14,
   },
   bottomSection: {

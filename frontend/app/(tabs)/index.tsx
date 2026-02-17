@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -90,8 +90,6 @@ export default function HomeScreen() {
   const [failedAnimalImageChordIds, setFailedAnimalImageChordIds] = useState<Set<EguchiChordId>>(
     new Set()
   );
-  const centerFlashOpacity = useRef(new Animated.Value(1)).current;
-  const centerFlashAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current) {
@@ -355,95 +353,64 @@ export default function HomeScreen() {
       ? getChordAnimalImageSource(currentChord.id)
       : null;
 
-  useEffect(() => {
-    if (!showCenterFlash) {
-      centerFlashAnimationRef.current?.stop();
-      centerFlashAnimationRef.current = null;
-      centerFlashOpacity.setValue(1);
-      return;
-    }
-
-    centerFlashOpacity.setValue(1);
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(centerFlashOpacity, {
-          toValue: 0.35,
-          duration: 230,
-          useNativeDriver: true,
-        }),
-        Animated.timing(centerFlashOpacity, {
-          toValue: 1,
-          duration: 230,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    centerFlashAnimationRef.current = animation;
-    animation.start();
-
-    return () => {
-      animation.stop();
-      if (centerFlashAnimationRef.current === animation) {
-        centerFlashAnimationRef.current = null;
-      }
-      centerFlashOpacity.setValue(1);
-    };
-  }, [centerFlashOpacity, showCenterFlash]);
-
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading ? <ActivityIndicator /> : null}
-        <View style={styles.grid}>
-          {unlockedChords.map(chord => {
-            const showCorrect = lastResult !== null;
-            const isCorrectTile = showCorrect && currentChordId === chord.id;
-            const isWrongSelection =
-              lastResult === 'incorrect' && lastAnswerId === chord.id && !isCorrectTile;
-            const tileTextColor = getReadableTextColor(chord.color.hex);
-            const animalImageSource = failedAnimalImageChordIds.has(chord.id)
-              ? null
-              : getChordAnimalImageSource(chord.id);
+        {!showCenterFlash ? (
+          <View style={styles.grid}>
+            {unlockedChords.map(chord => {
+              const showCorrect = lastResult !== null;
+              const isCorrectTile = showCorrect && currentChordId === chord.id;
+              const isWrongSelection =
+                lastResult === 'incorrect' && lastAnswerId === chord.id && !isCorrectTile;
+              const tileTextColor = getReadableTextColor(chord.color.hex);
+              const animalImageSource = failedAnimalImageChordIds.has(chord.id)
+                ? null
+                : getChordAnimalImageSource(chord.id);
 
-            return (
-              <Pressable
-                key={chord.id}
-                accessibilityRole="button"
-                disabled={isLoading}
-                onPress={() => handleAnswer(chord.id)}
-                style={[
-                  styles.tile,
-                  { backgroundColor: chord.color.hex },
-                  isCorrectTile && styles.tileCorrect,
-                  isWrongSelection && styles.tileIncorrect,
-                  isLoading && styles.buttonDisabled,
-                ]}
-              >
-                {animalImageSource ? (
-                  <Image
-                    source={animalImageSource}
-                    style={styles.tileImage}
-                    contentFit="contain"
-                    onError={() => {
-                      console.log('[Eguchi] Animal image missing, using emoji fallback', {
-                        chord: chord.id,
-                        uri:
-                          typeof animalImageSource === 'number'
-                            ? 'bundle'
-                            : animalImageSource.uri,
-                      });
-                      markAnimalImageFailed(chord.id);
-                    }}
-                  />
-                ) : (
-                  <ThemedText style={[styles.tileEmoji, { color: tileTextColor }]}>
-                    {ANIMAL_EMOJIS[chord.id]}
-                  </ThemedText>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+              return (
+                <Pressable
+                  key={chord.id}
+                  accessibilityRole="button"
+                  disabled={isLoading}
+                  onPress={() => handleAnswer(chord.id)}
+                  style={[
+                    styles.tile,
+                    { backgroundColor: chord.color.hex },
+                    isCorrectTile && styles.tileCorrect,
+                    isWrongSelection && styles.tileIncorrect,
+                    isLoading && styles.buttonDisabled,
+                  ]}
+                >
+                  {animalImageSource ? (
+                    <Image
+                      source={animalImageSource}
+                      style={styles.tileImage}
+                      contentFit="contain"
+                      onError={() => {
+                        console.log('[Eguchi] Animal image missing, using emoji fallback', {
+                          chord: chord.id,
+                          uri:
+                            typeof animalImageSource === 'number'
+                              ? 'bundle'
+                              : animalImageSource.uri,
+                        });
+                        markAnimalImageFailed(chord.id);
+                      }}
+                    />
+                  ) : (
+                    <ThemedText style={[styles.tileEmoji, { color: tileTextColor }]}>
+                      {ANIMAL_EMOJIS[chord.id]}
+                    </ThemedText>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.feedbackGridSpacer} />
+        )}
         {lastResult && currentChord ? (
           <View style={styles.feedbackCard}>
             <ThemedText style={styles.feedbackTitle}>
@@ -559,12 +526,7 @@ export default function HomeScreen() {
       </ScrollView>
       {showCenterFlash && currentChord ? (
         <View pointerEvents="none" style={styles.centerFlashOverlay}>
-          <Animated.View
-            style={[
-              styles.centerFlashCard,
-              { backgroundColor: currentChord.color.hex, opacity: centerFlashOpacity },
-            ]}
-          >
+          <View style={[styles.centerFlashCard, { backgroundColor: currentChord.color.hex }]}>
             {currentChordImageSource ? (
               <Image
                 source={currentChordImageSource}
@@ -584,7 +546,7 @@ export default function HomeScreen() {
             ) : (
               <ThemedText style={styles.centerFlashEmoji}>{ANIMAL_EMOJIS[currentChord.id]}</ThemedText>
             )}
-          </Animated.View>
+          </View>
         </View>
       ) : null}
     </ThemedView>
@@ -678,6 +640,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  feedbackGridSpacer: {
+    minHeight: 20,
+  },
   tile: {
     width: '48%',
     aspectRatio: 1,
@@ -687,10 +652,10 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   tileImage: {
-    width: '88%',
-    height: '88%',
+    width: '94%',
+    height: '94%',
   },
-  tileEmoji: { fontSize: 94, lineHeight: 100 },
+  tileEmoji: { fontSize: 116, lineHeight: 124 },
   tileCorrect: {
     borderWidth: 4,
     borderColor: '#FFFFFF',
@@ -761,9 +726,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   centerFlashCard: {
-    width: 220,
-    height: 220,
-    borderRadius: 28,
+    width: 300,
+    height: 300,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
@@ -775,11 +740,11 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   centerFlashImage: {
-    width: '84%',
-    height: '84%',
+    width: '90%',
+    height: '90%',
   },
   centerFlashEmoji: {
-    fontSize: 132,
-    lineHeight: 138,
+    fontSize: 182,
+    lineHeight: 192,
   },
 });

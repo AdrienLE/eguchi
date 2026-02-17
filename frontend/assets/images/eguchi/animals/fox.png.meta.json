@@ -1,0 +1,19 @@
+{
+  "asset_id": "fox",
+  "category": "animals",
+  "model": "gpt-image-1",
+  "size": "1024x1024",
+  "quality": "high",
+  "background": "transparent",
+  "output_format": "png",
+  "prompt": "Create a clean 2D illustrated mascot sticker for a children's ear-training app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and cheerful expression. Use transparent background, centered composition, and no text.\n\nSubject: A friendly fox facing front with bright eyes and small smile.\n\nKeep composition centered with transparent background and no text.",
+  "generated_at_utc": "2026-02-17T16:41:22.404042+00:00",
+  "api": {
+    "created": 1771346481,
+    "model": "gpt-image-1",
+    "size": "1024x1024",
+    "quality": "high",
+    "background": "transparent",
+    "output_format": "png"
+  }
+}

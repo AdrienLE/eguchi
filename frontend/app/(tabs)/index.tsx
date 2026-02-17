@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
+import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
@@ -7,6 +8,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
+import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
 import {
   CHORD_BY_ID,
   DEFAULT_UNLOCKED_CHORD_IDS,
@@ -85,6 +87,9 @@ export default function HomeScreen() {
   const currentChordRef = useRef<EguchiChordId | null>(null);
   const currentAudioRef = useRef<AudioEntry | null>(null);
   const hasAnsweredCurrentTrialRef = useRef(false);
+  const [failedAnimalImageChordIds, setFailedAnimalImageChordIds] = useState<Set<EguchiChordId>>(
+    new Set()
+  );
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current) {
@@ -271,6 +276,17 @@ export default function HomeScreen() {
     startNewTrial();
   }, [clearAdvanceTimer, startNewTrial]);
 
+  const markAnimalImageFailed = useCallback((id: EguchiChordId) => {
+    setFailedAnimalImageChordIds(previous => {
+      if (previous.has(id)) {
+        return previous;
+      }
+      const next = new Set(previous);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
   const handleStayOnCard = useCallback(() => {
     clearAdvanceTimer();
   }, [clearAdvanceTimer]);
@@ -342,6 +358,9 @@ export default function HomeScreen() {
             const isWrongSelection =
               lastResult === 'incorrect' && lastAnswerId === chord.id && !isCorrectTile;
             const tileTextColor = getReadableTextColor(chord.color.hex);
+            const animalImageSource = failedAnimalImageChordIds.has(chord.id)
+              ? null
+              : getChordAnimalImageSource(chord.id);
 
             return (
               <Pressable
@@ -357,9 +376,27 @@ export default function HomeScreen() {
                   isLoading && styles.buttonDisabled,
                 ]}
               >
-                <ThemedText style={[styles.tileEmoji, { color: tileTextColor }]}>
-                  {ANIMAL_EMOJIS[chord.id]}
-                </ThemedText>
+                {animalImageSource ? (
+                  <Image
+                    source={animalImageSource}
+                    style={styles.tileImage}
+                    contentFit="contain"
+                    onError={() => {
+                      console.log('[Eguchi] Animal image missing, using emoji fallback', {
+                        chord: chord.id,
+                        uri:
+                          typeof animalImageSource === 'number'
+                            ? 'bundle'
+                            : animalImageSource.uri,
+                      });
+                      markAnimalImageFailed(chord.id);
+                    }}
+                  />
+                ) : (
+                  <ThemedText style={[styles.tileEmoji, { color: tileTextColor }]}>
+                    {ANIMAL_EMOJIS[chord.id]}
+                  </ThemedText>
+                )}
                 <ThemedText style={[styles.tileLabel, { color: tileTextColor }]}>
                   {chord.animal}
                 </ThemedText>
@@ -578,6 +615,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
+  },
+  tileImage: {
+    width: 74,
+    height: 74,
   },
   tileEmoji: { fontSize: 48, lineHeight: 52 },
   tileLabel: { fontSize: 20, fontWeight: '700', marginTop: 10 },

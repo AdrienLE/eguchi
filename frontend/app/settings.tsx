@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
+import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -57,6 +58,24 @@ const formatBytes = (bytes: number) => {
 };
 
 const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
+const STEP_REPEAT_START_DELAY_MS = 300;
+const STEP_REPEAT_INTERVAL_MS = 90;
+const FEEDBACK_STEP_SECONDS = 0.25;
+
+const formatFeedbackSeconds = (value: number) =>
+  value.toFixed(2).replace(/\.?0+$/, '');
+
+const sanitizeIntegerInput = (value: string) => value.replace(/[^0-9]/g, '');
+
+const sanitizeDecimalInput = (value: string) => {
+  const cleaned = value.replace(/[^0-9.]/g, '');
+  const [integerPart, ...fractionParts] = cleaned.split('.');
+  if (!fractionParts.length) {
+    return integerPart;
+  }
+  const fraction = fractionParts.join('');
+  return `${integerPart}.${fraction}`;
+};
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -78,6 +97,11 @@ export default function SettingsScreen() {
     fileName: string;
   } | null>(null);
   const [audioMessage, setAudioMessage] = useState<string | null>(null);
+  const [perfectDaysDraft, setPerfectDaysDraft] = useState('14');
+  const [dailyAttemptsDraft, setDailyAttemptsDraft] = useState('100');
+  const [feedbackSecondsDraft, setFeedbackSecondsDraft] = useState('2');
+  const stepRepeatStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stepRepeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -211,6 +235,103 @@ export default function SettingsScreen() {
     },
     [persistSessionPreferences]
   );
+
+  const clearStepRepeater = useCallback(() => {
+    if (stepRepeatStartTimeoutRef.current) {
+      clearTimeout(stepRepeatStartTimeoutRef.current);
+      stepRepeatStartTimeoutRef.current = null;
+    }
+    if (stepRepeatIntervalRef.current) {
+      clearInterval(stepRepeatIntervalRef.current);
+      stepRepeatIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearStepRepeater(), [clearStepRepeater]);
+
+  useEffect(() => {
+    setPerfectDaysDraft(previous => {
+      const next = String(sessionPreferences.perfectDaysRequired);
+      return previous === next ? previous : next;
+    });
+    setDailyAttemptsDraft(previous => {
+      const next = String(sessionPreferences.dailyAttemptTarget);
+      return previous === next ? previous : next;
+    });
+    setFeedbackSecondsDraft(previous => {
+      const next = formatFeedbackSeconds(sessionPreferences.feedbackSeconds);
+      return previous === next ? previous : next;
+    });
+  }, [
+    sessionPreferences.dailyAttemptTarget,
+    sessionPreferences.feedbackSeconds,
+    sessionPreferences.perfectDaysRequired,
+  ]);
+
+  const applyPerfectDaysDelta = useCallback(
+    (delta: number) => {
+      handleSessionUpdate(previous =>
+        setPerfectDaysRequired(previous, previous.perfectDaysRequired + delta)
+      );
+    },
+    [handleSessionUpdate]
+  );
+
+  const applyDailyAttemptsDelta = useCallback(
+    (delta: number) => {
+      handleSessionUpdate(previous =>
+        setDailyAttemptTarget(previous, previous.dailyAttemptTarget + delta)
+      );
+    },
+    [handleSessionUpdate]
+  );
+
+  const applyFeedbackSecondsDelta = useCallback(
+    (delta: number) => {
+      handleSessionUpdate(previous =>
+        setFeedbackSeconds(previous, previous.feedbackSeconds + delta)
+      );
+    },
+    [handleSessionUpdate]
+  );
+
+  const startRepeatingStep = useCallback(
+    (stepAction: () => void) => {
+      clearStepRepeater();
+      stepRepeatStartTimeoutRef.current = setTimeout(() => {
+        stepAction();
+        stepRepeatIntervalRef.current = setInterval(stepAction, STEP_REPEAT_INTERVAL_MS);
+      }, STEP_REPEAT_START_DELAY_MS);
+    },
+    [clearStepRepeater]
+  );
+
+  const commitPerfectDaysDraft = useCallback(() => {
+    const parsed = Number.parseInt(perfectDaysDraft, 10);
+    if (Number.isNaN(parsed)) {
+      setPerfectDaysDraft(String(sessionPreferences.perfectDaysRequired));
+      return;
+    }
+    handleSessionUpdate(previous => setPerfectDaysRequired(previous, parsed));
+  }, [handleSessionUpdate, perfectDaysDraft, sessionPreferences.perfectDaysRequired]);
+
+  const commitDailyAttemptsDraft = useCallback(() => {
+    const parsed = Number.parseInt(dailyAttemptsDraft, 10);
+    if (Number.isNaN(parsed)) {
+      setDailyAttemptsDraft(String(sessionPreferences.dailyAttemptTarget));
+      return;
+    }
+    handleSessionUpdate(previous => setDailyAttemptTarget(previous, parsed));
+  }, [dailyAttemptsDraft, handleSessionUpdate, sessionPreferences.dailyAttemptTarget]);
+
+  const commitFeedbackSecondsDraft = useCallback(() => {
+    const parsed = Number.parseFloat(feedbackSecondsDraft);
+    if (Number.isNaN(parsed)) {
+      setFeedbackSecondsDraft(formatFeedbackSeconds(sessionPreferences.feedbackSeconds));
+      return;
+    }
+    handleSessionUpdate(previous => setFeedbackSeconds(previous, parsed));
+  }, [feedbackSecondsDraft, handleSessionUpdate, sessionPreferences.feedbackSeconds]);
 
   const refreshAudioMeta = useCallback(async () => {
     const latestMeta = await loadEguchiAudioCacheMeta();
@@ -386,24 +507,30 @@ export default function SettingsScreen() {
             <View style={styles.stepperControls}>
               <Pressable
                 accessibilityRole="button"
-                onPress={() =>
-                  handleSessionUpdate(previous =>
-                    setPerfectDaysRequired(previous, previous.perfectDaysRequired - 1)
-                  )
-                }
+                onPress={() => applyPerfectDaysDelta(-1)}
+                onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(-1))}
+                onPressOut={clearStepRepeater}
                 style={[styles.stepButton, { borderColor: iconColor }]}
                 disabled={loading}
               >
                 <ThemedText style={styles.stepButtonText}>-</ThemedText>
               </Pressable>
-              <ThemedText style={styles.stepValue}>{sessionPreferences.perfectDaysRequired}</ThemedText>
+              <ThemedTextInput
+                value={perfectDaysDraft}
+                onChangeText={value => setPerfectDaysDraft(sanitizeIntegerInput(value))}
+                onBlur={commitPerfectDaysDraft}
+                onSubmitEditing={commitPerfectDaysDraft}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                selectTextOnFocus
+                editable={!loading}
+                style={[styles.stepInput, { borderColor: iconColor }]}
+              />
               <Pressable
                 accessibilityRole="button"
-                onPress={() =>
-                  handleSessionUpdate(previous =>
-                    setPerfectDaysRequired(previous, previous.perfectDaysRequired + 1)
-                  )
-                }
+                onPress={() => applyPerfectDaysDelta(1)}
+                onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(1))}
+                onPressOut={clearStepRepeater}
                 style={[styles.stepButton, { borderColor: iconColor }]}
                 disabled={loading}
               >
@@ -417,24 +544,30 @@ export default function SettingsScreen() {
             <View style={styles.stepperControls}>
               <Pressable
                 accessibilityRole="button"
-                onPress={() =>
-                  handleSessionUpdate(previous =>
-                    setDailyAttemptTarget(previous, previous.dailyAttemptTarget - 1)
-                  )
-                }
+                onPress={() => applyDailyAttemptsDelta(-1)}
+                onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(-1))}
+                onPressOut={clearStepRepeater}
                 style={[styles.stepButton, { borderColor: iconColor }]}
                 disabled={loading}
               >
                 <ThemedText style={styles.stepButtonText}>-</ThemedText>
               </Pressable>
-              <ThemedText style={styles.stepValue}>{sessionPreferences.dailyAttemptTarget}</ThemedText>
+              <ThemedTextInput
+                value={dailyAttemptsDraft}
+                onChangeText={value => setDailyAttemptsDraft(sanitizeIntegerInput(value))}
+                onBlur={commitDailyAttemptsDraft}
+                onSubmitEditing={commitDailyAttemptsDraft}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                selectTextOnFocus
+                editable={!loading}
+                style={[styles.stepInput, { borderColor: iconColor }]}
+              />
               <Pressable
                 accessibilityRole="button"
-                onPress={() =>
-                  handleSessionUpdate(previous =>
-                    setDailyAttemptTarget(previous, previous.dailyAttemptTarget + 1)
-                  )
-                }
+                onPress={() => applyDailyAttemptsDelta(1)}
+                onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(1))}
+                onPressOut={clearStepRepeater}
                 style={[styles.stepButton, { borderColor: iconColor }]}
                 disabled={loading}
               >
@@ -448,24 +581,34 @@ export default function SettingsScreen() {
             <View style={styles.stepperControls}>
               <Pressable
                 accessibilityRole="button"
-                onPress={() =>
-                  handleSessionUpdate(previous =>
-                    setFeedbackSeconds(previous, previous.feedbackSeconds - 1)
-                  )
+                onPress={() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS)}
+                onPressIn={() =>
+                  startRepeatingStep(() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS))
                 }
+                onPressOut={clearStepRepeater}
                 style={[styles.stepButton, { borderColor: iconColor }]}
                 disabled={loading}
               >
                 <ThemedText style={styles.stepButtonText}>-</ThemedText>
               </Pressable>
-              <ThemedText style={styles.stepValue}>{sessionPreferences.feedbackSeconds}</ThemedText>
+              <ThemedTextInput
+                value={feedbackSecondsDraft}
+                onChangeText={value => setFeedbackSecondsDraft(sanitizeDecimalInput(value))}
+                onBlur={commitFeedbackSecondsDraft}
+                onSubmitEditing={commitFeedbackSecondsDraft}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                selectTextOnFocus
+                editable={!loading}
+                style={[styles.stepInput, { borderColor: iconColor }]}
+              />
               <Pressable
                 accessibilityRole="button"
-                onPress={() =>
-                  handleSessionUpdate(previous =>
-                    setFeedbackSeconds(previous, previous.feedbackSeconds + 1)
-                  )
+                onPress={() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS)}
+                onPressIn={() =>
+                  startRepeatingStep(() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS))
                 }
+                onPressOut={clearStepRepeater}
                 style={[styles.stepButton, { borderColor: iconColor }]}
                 disabled={loading}
               >
@@ -724,6 +867,17 @@ const styles = StyleSheet.create({
     minWidth: 24,
     textAlign: 'center',
     fontWeight: '600',
+  },
+  stepInput: {
+    width: 68,
+    height: 32,
+    borderWidth: 1,
+    borderRadius: 8,
+    textAlign: 'center',
+    fontWeight: '600',
+    paddingVertical: 0,
+    paddingHorizontal: 8,
+    fontSize: 14,
   },
   manualRow: {
     flexDirection: 'row',

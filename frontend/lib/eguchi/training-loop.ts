@@ -4,7 +4,18 @@ export const AUTO_ADVANCE_DEFAULT_MS = 3200;
 export const AUTO_ADVANCE_TICK_MS = 100;
 
 const clampUnit = (value: number) => Math.max(0, Math.min(1, value));
-const clampFeedbackSeconds = (value: number) => Math.max(1, Math.min(8, Math.round(value)));
+const FEEDBACK_STEP_SECONDS = 0.25;
+const FEEDBACK_MIN_SECONDS = 0.25;
+const FEEDBACK_MAX_SECONDS = 8;
+
+const clampFeedbackSeconds = (value: number) =>
+  Math.min(
+    FEEDBACK_MAX_SECONDS,
+    Math.max(
+      FEEDBACK_MIN_SECONDS,
+      Math.round(value / FEEDBACK_STEP_SECONDS) * FEEDBACK_STEP_SECONDS
+    )
+  );
 
 export const pickRandomChordId = (
   ids: EguchiChordId[],

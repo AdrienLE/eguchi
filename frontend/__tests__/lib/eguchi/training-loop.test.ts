@@ -36,6 +36,9 @@ describe('eguchi training loop helpers', () => {
     expect(getAutoAdvanceDurationMs(2)).toBe(2000);
     expect(getAutoAdvanceDurationMs(8)).toBe(8000);
     expect(getAutoAdvanceDurationMs(1)).toBe(1000);
+    expect(getAutoAdvanceDurationMs(0.25)).toBe(250);
+    expect(getAutoAdvanceDurationMs(0.1)).toBe(250);
+    expect(getAutoAdvanceDurationMs(1.13)).toBe(1250);
     expect(getAutoAdvanceDurationMs(99)).toBe(8000);
     expect(getAutoAdvanceDurationMs(undefined, 3200)).toBe(3200);
     expect(getAutoAdvanceDurationMs(null, 420)).toBe(500);

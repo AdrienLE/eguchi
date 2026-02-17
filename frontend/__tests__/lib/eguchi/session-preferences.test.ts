@@ -77,9 +77,11 @@ describe('eguchi session preferences', () => {
 
   test('setFeedbackSeconds clamps range', () => {
     const defaults = createDefaultEguchiSessionPreferences();
-    const low = setFeedbackSeconds(defaults, 1);
+    const low = setFeedbackSeconds(defaults, 0.1);
+    const rounded = setFeedbackSeconds(defaults, 1.13);
     const high = setFeedbackSeconds(defaults, 20);
-    expect(low.feedbackSeconds).toBe(1);
+    expect(low.feedbackSeconds).toBe(0.25);
+    expect(rounded.feedbackSeconds).toBe(1.25);
     expect(high.feedbackSeconds).toBe(8);
   });
 

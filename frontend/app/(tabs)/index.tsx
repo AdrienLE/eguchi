@@ -411,7 +411,7 @@ export default function HomeScreen() {
     const viewportWidth = viewportSize.width || windowWidth;
     const viewportHeight = viewportSize.height || windowHeight;
     const availableWidth = viewportWidth - CONTENT_HORIZONTAL_PADDING * 2;
-    const feedbackReserve = !showCenterFlash && lastResult && currentChord ? feedbackCardHeight + 14 : 0;
+    const feedbackReserve = lastResult && currentChord ? feedbackCardHeight + 14 : 0;
     const availableHeight =
       viewportHeight -
       bottomSectionHeight -
@@ -432,6 +432,10 @@ export default function HomeScreen() {
     windowWidth,
   ]);
   const gridWidth = gridLayout.columns * gridLayout.tileSize + GRID_GAP * (gridLayout.columns - 1);
+  const gridRows = Math.max(1, Math.ceil(unlockedChords.length / Math.max(1, gridLayout.columns)));
+  const gridHeight = gridRows * gridLayout.tileSize + GRID_GAP * (gridRows - 1);
+  const centerCardSize = Math.max(120, Math.min(340, Math.max(120, Math.min(gridWidth, gridHeight) - 8)));
+  const centerEmojiSize = Math.floor(centerCardSize * 0.58);
 
   return (
     <ThemedView style={styles.container}>
@@ -444,7 +448,7 @@ export default function HomeScreen() {
         }}
       >
         {isLoading ? <ActivityIndicator /> : null}
-        {!showCenterFlash ? (
+        <View style={[styles.gridStage, { width: gridWidth, height: gridHeight }]}>
           <View style={[styles.grid, { width: gridWidth }]}>
             {unlockedChords.map(chord => {
               const showCorrect = lastResult !== null;
@@ -462,12 +466,12 @@ export default function HomeScreen() {
                   accessibilityRole="button"
                   disabled={isLoading}
                   onPress={() => handleAnswer(chord.id)}
-                style={[
-                  styles.tile,
-                  { width: gridLayout.tileSize, height: gridLayout.tileSize },
-                  { backgroundColor: chord.color.hex },
-                  isCorrectTile && styles.tileCorrect,
-                  isWrongSelection && styles.tileIncorrect,
+                  style={[
+                    styles.tile,
+                    { width: gridLayout.tileSize, height: gridLayout.tileSize },
+                    { backgroundColor: chord.color.hex },
+                    isCorrectTile && styles.tileCorrect,
+                    isWrongSelection && styles.tileIncorrect,
                     isLoading && styles.buttonDisabled,
                   ]}
                 >
@@ -496,9 +500,49 @@ export default function HomeScreen() {
               );
             })}
           </View>
-        ) : (
-          <View style={styles.feedbackGridSpacer} />
-        )}
+          {showCenterFlash && currentChord ? (
+            <View pointerEvents="none" style={styles.gridFlashOverlay}>
+              <View
+                style={[
+                  styles.centerFlashCard,
+                  {
+                    backgroundColor: currentChord.color.hex,
+                    width: centerCardSize,
+                    height: centerCardSize,
+                    borderRadius: Math.floor(centerCardSize * 0.12),
+                  },
+                ]}
+              >
+                {currentChordImageSource ? (
+                  <Image
+                    source={currentChordImageSource}
+                    style={styles.centerFlashImage}
+                    contentFit="contain"
+                    onError={() => {
+                      console.log('[Eguchi] Center flash image missing, using emoji fallback', {
+                        chord: currentChord.id,
+                        uri:
+                          typeof currentChordImageSource === 'number'
+                            ? 'bundle'
+                            : currentChordImageSource.uri,
+                      });
+                      markAnimalImageFailed(currentChord.id);
+                    }}
+                  />
+                ) : (
+                  <ThemedText
+                    style={[
+                      styles.centerFlashEmoji,
+                      { fontSize: centerEmojiSize, lineHeight: Math.round(centerEmojiSize * 1.06) },
+                    ]}
+                  >
+                    {ANIMAL_EMOJIS[currentChord.id]}
+                  </ThemedText>
+                )}
+              </View>
+            </View>
+          ) : null}
+        </View>
         {lastResult && currentChord ? (
           <View
             style={styles.feedbackCard}
@@ -622,31 +666,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-      {showCenterFlash && currentChord ? (
-        <View pointerEvents="none" style={styles.centerFlashOverlay}>
-          <View style={[styles.centerFlashCard, { backgroundColor: currentChord.color.hex }]}>
-            {currentChordImageSource ? (
-              <Image
-                source={currentChordImageSource}
-                style={styles.centerFlashImage}
-                contentFit="contain"
-                onError={() => {
-                  console.log('[Eguchi] Center flash image missing, using emoji fallback', {
-                    chord: currentChord.id,
-                    uri:
-                      typeof currentChordImageSource === 'number'
-                        ? 'bundle'
-                        : currentChordImageSource.uri,
-                  });
-                  markAnimalImageFailed(currentChord.id);
-                }}
-              />
-            ) : (
-              <ThemedText style={styles.centerFlashEmoji}>{ANIMAL_EMOJIS[currentChord.id]}</ThemedText>
-            )}
-          </View>
-        </View>
-      ) : null}
     </ThemedView>
   );
 }
@@ -739,8 +758,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: GRID_GAP,
   },
-  feedbackGridSpacer: {
-    minHeight: 20,
+  gridStage: {
+    alignSelf: 'center',
+    position: 'relative',
   },
   tile: {
     borderRadius: 16,
@@ -816,16 +836,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  centerFlashOverlay: {
+  gridFlashOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    zIndex: 20,
   },
   centerFlashCard: {
-    width: 300,
-    height: 300,
-    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,

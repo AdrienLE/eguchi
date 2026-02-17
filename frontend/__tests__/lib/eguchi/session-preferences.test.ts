@@ -79,7 +79,7 @@ describe('eguchi session preferences', () => {
     const defaults = createDefaultEguchiSessionPreferences();
     const low = setFeedbackSeconds(defaults, 1);
     const high = setFeedbackSeconds(defaults, 20);
-    expect(low.feedbackSeconds).toBe(2);
+    expect(low.feedbackSeconds).toBe(1);
     expect(high.feedbackSeconds).toBe(8);
   });
 

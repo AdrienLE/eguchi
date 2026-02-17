@@ -48,7 +48,7 @@ const normalizeFeedbackSeconds = (candidate: unknown): number => {
   if (typeof candidate !== 'number' || Number.isNaN(candidate)) {
     return 2;
   }
-  return Math.min(8, Math.max(2, Math.round(candidate)));
+  return Math.min(8, Math.max(1, Math.round(candidate)));
 };
 
 const normalizePerfectDaysRequired = (candidate: unknown): number => {

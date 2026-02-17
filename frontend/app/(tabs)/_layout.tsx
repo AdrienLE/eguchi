@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -8,7 +8,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const iconColor = Colors[colorScheme ?? 'light'].icon;
+  const isDark = colorScheme === 'dark';
+  const iconColor = isDark ? '#FFFFFF' : '#2B2F32';
 
   return (
     <Tabs
@@ -19,7 +20,14 @@ export default function TabLayout() {
           <Pressable
             accessibilityRole="button"
             onPress={() => router.push('/settings')}
-            style={{ paddingHorizontal: 14, paddingVertical: 8 }}
+            hitSlop={8}
+            style={[
+              styles.caregiverButton,
+              {
+                backgroundColor: isDark ? '#2F3438' : '#EFF3F6',
+                borderColor: isDark ? '#4A5157' : '#D2D9DE',
+              },
+            ]}
           >
             <IconSymbol size={20} name="gearshape.fill" color={iconColor} />
           </Pressable>
@@ -35,3 +43,15 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  caregiverButton: {
+    marginRight: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

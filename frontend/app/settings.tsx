@@ -297,6 +297,9 @@ export default function SettingsScreen() {
           <ThemedText style={styles.subtitle}>
             Manage level progression, unlocked chords, offline audio, and local data.
           </ThemedText>
+          <ThemedText style={styles.subtitleNote}>
+            No login is required. These settings are saved on this device.
+          </ThemedText>
         </View>
 
         <View style={styles.summaryCard}>
@@ -601,6 +604,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     lineHeight: 22,
+  },
+  subtitleNote: {
+    textAlign: 'center',
+    fontSize: 12,
+    opacity: 0.75,
+    lineHeight: 18,
   },
   summaryCard: {
     borderWidth: 1,

@@ -15,7 +15,6 @@ import {
 import { getNextLevelProgress, maybeApplyAutoUnlock } from '@/lib/eguchi/progression';
 import {
   createDefaultEguchiProgress,
-  getProgressSnapshot,
   loadEguchiProgress,
   recordTrial,
   saveEguchiProgress,
@@ -43,6 +42,7 @@ const pickRandomChordId = (ids: EguchiChordId[]) =>
   ids[Math.floor(Math.random() * ids.length)];
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
+const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -246,7 +246,6 @@ export default function HomeScreen() {
     };
   }, [clearAdvanceTimer, isReady, startNewTrial, stopSound, unlockedChordKey]);
 
-  const progressSnapshot = progress ? getProgressSnapshot(progress) : null;
   const progressionStatus = useMemo(() => {
     if (!progress) {
       return null;
@@ -261,6 +260,23 @@ export default function HomeScreen() {
   const buttonBackground = Colors[colorScheme ?? 'light'].tint;
   const buttonTextColor = colorScheme === 'light' ? '#FFFFFF' : '#111111';
   const outlineColor = Colors[colorScheme ?? 'light'].icon;
+  const missionProgress = progressionStatus
+    ? clampProgress(
+        progressionStatus.todaySummary.attempts / Math.max(1, progressionStatus.dailyAttemptTarget)
+      )
+    : 0;
+  const successProgress = progressionStatus
+    ? clampProgress(
+        progressionStatus.todaySummary.correct / Math.max(1, progressionStatus.todaySummary.attempts)
+      )
+    : 0;
+  const streakProgress = progressionStatus
+    ? progressionStatus.isMaxLevel
+      ? 1
+      : clampProgress(
+          progressionStatus.perfectDayStreak / Math.max(1, progressionStatus.perfectDaysRequired)
+        )
+    : 0;
 
   return (
     <ThemedView style={styles.container}>
@@ -273,48 +289,53 @@ export default function HomeScreen() {
             Listen, then tap the animal you hear.
           </ThemedText>
         </View>
-        {progressSnapshot ? (
-          <View style={styles.statsCard}>
-            <View style={styles.statsRow}>
-              <ThemedText style={styles.statsLabel}>Today</ThemedText>
-              <ThemedText style={styles.statsValue}>
-                {progressSnapshot.todayCorrect}/{progressSnapshot.todayAttempts} (
-                {formatPercent(progressSnapshot.todayAccuracy)})
+        {progressionStatus ? (
+          <View style={styles.missionCard}>
+            <ThemedText style={styles.missionTitle}>Today's Mission</ThemedText>
+            <ThemedText style={styles.missionSubtitle}>
+              Play {progressionStatus.dailyAttemptTarget} rounds today.
+            </ThemedText>
+
+            <View style={styles.missionRow}>
+              <ThemedText style={styles.missionLabel}>Rounds</ThemedText>
+              <ThemedText style={styles.missionValue}>
+                {progressionStatus.todaySummary.attempts}/{progressionStatus.dailyAttemptTarget}
               </ThemedText>
             </View>
-            <View style={styles.statsRow}>
-              <ThemedText style={styles.statsLabel}>Total</ThemedText>
-              <ThemedText style={styles.statsValue}>
-                {progressSnapshot.totalCorrect}/{progressSnapshot.totalAttempts} (
-                {formatPercent(progressSnapshot.totalAccuracy)})
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${missionProgress * 100}%` }]} />
+            </View>
+
+            <View style={styles.missionRow}>
+              <ThemedText style={styles.missionLabel}>Great guesses</ThemedText>
+              <ThemedText style={styles.missionValue}>
+                {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}{' '}
+                ({formatPercent(successProgress)})
               </ThemedText>
             </View>
-            <View style={styles.statsRow}>
-              <ThemedText style={styles.statsLabel}>Unlocked</ThemedText>
-              <ThemedText style={styles.statsValue}>
-                {progressSnapshot.unlockedCount}/{Object.keys(CHORD_BY_ID).length}
+            <View style={styles.progressTrack}>
+              <View
+                style={[styles.progressFill, styles.successFill, { width: `${successProgress * 100}%` }]}
+              />
+            </View>
+
+            <View style={styles.missionRow}>
+              <ThemedText style={styles.missionLabel}>Star days</ThemedText>
+              <ThemedText style={styles.missionValue}>
+                {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
               </ThemedText>
             </View>
-            {progressionStatus ? (
-              <>
-                <View style={styles.statsRow}>
-                  <ThemedText style={styles.statsLabel}>Next Level</ThemedText>
-                  <ThemedText style={styles.statsValue}>
-                    {progressionStatus.nextChordId
-                      ? `${progressionStatus.nextChordAnimal} (${progressionStatus.nextChordId})`
-                      : 'Complete'}
-                  </ThemedText>
-                </View>
-                <View style={styles.statsRow}>
-                  <ThemedText style={styles.statsLabel}>Unlock Progress</ThemedText>
-                  <ThemedText style={styles.statsValue}>
-                    {progressionStatus.isMaxLevel
-                      ? 'Done'
-                      : `${progressionStatus.perfectDayStreak}/${progressionStatus.perfectDaysRequired} perfect days`}
-                  </ThemedText>
-                </View>
-              </>
-            ) : null}
+            <View style={styles.progressTrack}>
+              <View
+                style={[styles.progressFill, styles.streakFill, { width: `${streakProgress * 100}%` }]}
+              />
+            </View>
+
+            <ThemedText style={styles.nextFriendText}>
+              {progressionStatus.nextChordAnimal
+                ? `Keep going to meet ${progressionStatus.nextChordAnimal} soon.`
+                : 'Amazing. You found all the animal sounds.'}
+            </ThemedText>
           </View>
         ) : null}
         <View style={styles.controls}>
@@ -394,21 +415,61 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: 8 },
   title: { textAlign: 'center' },
   subtitle: { fontSize: 16, lineHeight: 22, textAlign: 'center' },
-  statsCard: {
+  missionCard: {
     borderWidth: 1,
     borderColor: '#D0D0D0',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    gap: 8,
+    gap: 7,
   },
-  statsRow: {
+  missionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  missionSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.85,
+    marginBottom: 2,
+  },
+  missionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
   },
-  statsLabel: { fontSize: 14, fontWeight: '600' },
-  statsValue: { fontSize: 14, flexShrink: 1, textAlign: 'right' },
+  missionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  missionValue: {
+    fontSize: 14,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  progressTrack: {
+    width: '100%',
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#E2E2E2',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#2E7D32',
+  },
+  successFill: {
+    backgroundColor: '#1F9D55',
+  },
+  streakFill: {
+    backgroundColor: '#F4A100',
+  },
+  nextFriendText: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+    opacity: 0.85,
+  },
   controls: {
     flexDirection: 'row',
     justifyContent: 'center',

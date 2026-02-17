@@ -8,7 +8,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
-import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
+import { getChordAnimalImageSource, type AnimalEmotion } from '@/lib/eguchi/animal-assets';
 import {
   CHORD_BY_ID,
   DEFAULT_UNLOCKED_CHORD_IDS,
@@ -62,6 +62,8 @@ const getReadableTextColor = (hex: string) => {
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
+const getAnimalImageFailureKey = (chordId: EguchiChordId, emotion?: AnimalEmotion) =>
+  `${chordId}__${emotion ?? 'default'}`;
 
 const getGridLayout = (tileCount: number, availableWidth: number, availableHeight: number) => {
   const safeCount = Math.max(1, tileCount);
@@ -133,9 +135,7 @@ export default function HomeScreen() {
   const currentChordRef = useRef<EguchiChordId | null>(null);
   const currentAudioRef = useRef<AudioEntry | null>(null);
   const hasAnsweredCurrentTrialRef = useRef(false);
-  const [failedAnimalImageChordIds, setFailedAnimalImageChordIds] = useState<Set<EguchiChordId>>(
-    new Set()
-  );
+  const [failedAnimalImageKeys, setFailedAnimalImageKeys] = useState<Set<string>>(new Set());
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current) {
@@ -371,13 +371,14 @@ export default function HomeScreen() {
     void playCurrentAudio({ origin: 'replay' });
   }, [playCurrentAudio, startNewTrial]);
 
-  const markAnimalImageFailed = useCallback((id: EguchiChordId) => {
-    setFailedAnimalImageChordIds(previous => {
-      if (previous.has(id)) {
+  const markAnimalImageFailed = useCallback((id: EguchiChordId, emotion?: AnimalEmotion) => {
+    const failureKey = getAnimalImageFailureKey(id, emotion);
+    setFailedAnimalImageKeys(previous => {
+      if (previous.has(failureKey)) {
         return previous;
       }
       const next = new Set(previous);
-      next.add(id);
+      next.add(failureKey);
       return next;
     });
   }, []);
@@ -432,10 +433,41 @@ export default function HomeScreen() {
       ? 0
       : getAutoAdvanceProgress(autoAdvanceRemainingMs, AUTO_ADVANCE_MS);
   const showCenterFlash = Boolean(currentChord && lastResult && autoAdvanceRemainingMs !== null);
-  const currentChordImageSource =
-    currentChord && !failedAnimalImageChordIds.has(currentChord.id)
-      ? getChordAnimalImageSource(currentChord.id)
+  const resolveAnimalImageCandidate = useCallback(
+    (chordId: EguchiChordId, emotion?: AnimalEmotion) => {
+      const emotionCandidates: Array<AnimalEmotion | undefined> = [];
+      if (emotion) {
+        emotionCandidates.push(emotion);
+      }
+      emotionCandidates.push(undefined);
+
+      for (const candidateEmotion of emotionCandidates) {
+        const failureKey = getAnimalImageFailureKey(chordId, candidateEmotion);
+        if (failedAnimalImageKeys.has(failureKey)) {
+          continue;
+        }
+
+        const source = candidateEmotion
+          ? getChordAnimalImageSource(chordId, undefined, { emotion: candidateEmotion })
+          : getChordAnimalImageSource(chordId);
+        if (source) {
+          return {
+            source,
+            emotion: candidateEmotion,
+          };
+        }
+      }
+      return null;
+    },
+    [failedAnimalImageKeys]
+  );
+  const feedbackEmotion: AnimalEmotion | undefined =
+    lastResult === 'correct' ? 'happy' : lastResult === 'incorrect' ? 'sad' : undefined;
+  const currentChordImageCandidate =
+    currentChord && showCenterFlash
+      ? resolveAnimalImageCandidate(currentChord.id, feedbackEmotion)
       : null;
+  const currentChordImageSource = currentChordImageCandidate?.source ?? null;
   const handleViewportLayout = useCallback(
     (width: number, height: number) => {
       setViewportSize(previous => {
@@ -493,9 +525,8 @@ export default function HomeScreen() {
               const isWrongSelection =
                 lastResult === 'incorrect' && lastAnswerId === chord.id && !isCorrectTile;
               const tileTextColor = getReadableTextColor(chord.color.hex);
-              const animalImageSource = failedAnimalImageChordIds.has(chord.id)
-                ? null
-                : getChordAnimalImageSource(chord.id);
+              const animalImageCandidate = resolveAnimalImageCandidate(chord.id);
+              const animalImageSource = animalImageCandidate?.source ?? null;
 
               return (
                 <Pressable
@@ -520,12 +551,13 @@ export default function HomeScreen() {
                       onError={() => {
                         console.log('[Eguchi] Animal image missing, using emoji fallback', {
                           chord: chord.id,
+                          emotion: animalImageCandidate?.emotion ?? 'default',
                           uri:
                             typeof animalImageSource === 'number'
                               ? 'bundle'
                               : animalImageSource.uri,
                         });
-                        markAnimalImageFailed(chord.id);
+                        markAnimalImageFailed(chord.id, animalImageCandidate?.emotion);
                       }}
                     />
                   ) : (
@@ -560,12 +592,13 @@ export default function HomeScreen() {
                       onError={() => {
                         console.log('[Eguchi] Center flash image missing, using emoji fallback', {
                           chord: currentChord.id,
+                          emotion: currentChordImageCandidate?.emotion ?? 'default',
                           uri:
                             typeof currentChordImageSource === 'number'
                               ? 'bundle'
                               : currentChordImageSource.uri,
                         });
-                        markAnimalImageFailed(currentChord.id);
+                        markAnimalImageFailed(currentChord.id, currentChordImageCandidate?.emotion);
                       }}
                     />
                   ) : (

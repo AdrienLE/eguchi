@@ -2,6 +2,7 @@ import {
   CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID,
   CHORD_ANIMAL_WEB_PATH_BY_ID,
   CHORD_ANIMAL_WEB_SLUG_BY_ID,
+  getChordAnimalWebPath,
   getChordAnimalImageSource,
 } from '@/lib/eguchi/animal-assets';
 import { ORDERED_CHORD_IDS } from '@/lib/eguchi/chords';
@@ -24,5 +25,15 @@ describe('eguchi animal assets', () => {
     expect(Object.keys(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID).length > 0).toBe(true);
     expect(getChordAnimalImageSource('C-E-G', 'ios')).toBe(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['C-E-G']);
     expect(getChordAnimalImageSource('F-A-C', 'android')).toBe(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['F-A-C']);
+  });
+
+  test('sad emotion uses sad web path and native falls back to bundled happy image', () => {
+    expect(getChordAnimalWebPath('C-E-G', 'sad')).toBe('/assets/images/eguchi/animals/fox__sad.png');
+    expect(getChordAnimalImageSource('C-E-G', 'web', { emotion: 'sad' })).toEqual({
+      uri: '/assets/images/eguchi/animals/fox__sad.png',
+    });
+    expect(getChordAnimalImageSource('C-E-G', 'ios', { emotion: 'sad' })).toBe(
+      CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['C-E-G']
+    );
   });
 });

@@ -1,6 +1,8 @@
 import { Platform, type PlatformOSType } from 'react-native';
 import type { EguchiChordId } from './chords';
 
+export type AnimalEmotion = 'happy' | 'sad';
+
 export const CHORD_ANIMAL_WEB_SLUG_BY_ID: Record<EguchiChordId, string> = {
   'C-E-G': 'fox',
   'F-A-C': 'whale',
@@ -57,18 +59,36 @@ export const CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID: Partial<
 };
 
 type AnimalImageSource = AnimalBundleSource | { uri: string };
+type AnimalImageOptions = {
+  emotion?: AnimalEmotion;
+};
+
+export const getChordAnimalWebPath = (
+  chordId: EguchiChordId,
+  emotion: AnimalEmotion = 'happy'
+): string => {
+  const slug = CHORD_ANIMAL_WEB_SLUG_BY_ID[chordId];
+  const suffix = emotion === 'sad' ? '__sad' : '';
+  return `/assets/images/eguchi/animals/${slug}${suffix}.png`;
+};
 
 export const getChordAnimalImageSource = (
   chordId: EguchiChordId,
-  platform: PlatformOSType = Platform.OS
+  platform: PlatformOSType = Platform.OS,
+  options: AnimalImageOptions = {}
 ): AnimalImageSource | null => {
+  const emotion = options.emotion ?? 'happy';
   const bundledSource = CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID[chordId];
-  if (bundledSource) {
+  if (bundledSource && emotion !== 'sad') {
     return bundledSource;
   }
 
   if (platform === 'web') {
-    return { uri: CHORD_ANIMAL_WEB_PATH_BY_ID[chordId] };
+    return { uri: getChordAnimalWebPath(chordId, emotion) };
+  }
+
+  if (bundledSource) {
+    return bundledSource;
   }
 
   // Native falls back to emoji when no bundled source exists for this chord.

@@ -94,9 +94,32 @@ def test_build_prompt_contains_style_and_subject():
         prompt = module.build_prompt(manifest.style_guide_prompt, manifest.assets[0])
         assert "Base style" in prompt
         assert "A smiling animal." in prompt
+        assert "happy" in prompt.lower()
+        assert "musical notes" in prompt.lower()
         assert "no text" in prompt.lower()
     finally:
         manifest_path.unlink(missing_ok=True)
+
+
+def test_build_prompt_supports_sad_expression():
+    module = load_module()
+    asset = module.AssetDefinition(
+        id="fox",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/fox.png",
+        subject_prompt="A fox mascot.",
+    )
+    prompt = module.build_prompt("Base style", asset, emotion=module.EMOTION_SAD)
+    assert "slightly sad" in prompt.lower()
+    assert "musical notes" in prompt.lower()
+
+
+def test_get_animal_variant_uses_sad_suffix():
+    module = load_module()
+    assert module.get_animal_variant(None, module.EMOTION_HAPPY) is None
+    assert module.get_animal_variant("v2", module.EMOTION_HAPPY) == "v2"
+    assert module.get_animal_variant(None, module.EMOTION_SAD) == "sad"
+    assert module.get_animal_variant("v2", module.EMOTION_SAD) == "sad__v2"
 
 
 def test_find_static_animal_reference_uses_non_overwritten_asset(tmp_path: Path):
@@ -204,3 +227,50 @@ def test_select_reference_images_prefers_static_then_generated(tmp_path: Path):
         generated_animal_reference=generated_reference,
     )
     assert references_non_animal == []
+
+
+def test_select_sad_reference_images_includes_happy_and_sad_style_refs(tmp_path: Path):
+    module = load_module()
+    output = tmp_path / "sad-output.png"
+    happy_reference = tmp_path / "happy.png"
+    happy_reference.write_bytes(b"happy")
+    static_sad_reference = tmp_path / "sad-static.png"
+    static_sad_reference.write_bytes(b"sad-static")
+    generated_sad_reference = tmp_path / "sad-generated.png"
+    generated_sad_reference.write_bytes(b"sad-generated")
+
+    references = module.select_sad_reference_images(
+        output_path=output,
+        happy_reference=happy_reference,
+        static_sad_reference=static_sad_reference,
+        generated_sad_reference=generated_sad_reference,
+    )
+    assert references == [happy_reference, static_sad_reference, generated_sad_reference]
+
+
+def test_find_static_animal_reference_supports_sad_variant(tmp_path: Path):
+    module = load_module()
+    repo_root = tmp_path
+    animal_dir = repo_root / "frontend" / "assets" / "images" / "eguchi" / "animals"
+    animal_dir.mkdir(parents=True, exist_ok=True)
+
+    fox = module.AssetDefinition(
+        id="fox",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/fox.png",
+        subject_prompt="Fox",
+    )
+    sad_fox_path = animal_dir / "fox__sad.png"
+    sad_fox_path.write_bytes(b"sad-fox")
+    selected_plans = module.plan_selected_assets(repo_root, [fox], variant="sad", force=False)
+    selected_by_id = module.map_plans_by_asset_id(selected_plans)
+
+    reference = module.find_static_animal_reference(
+        repo_root,
+        [fox],
+        selected_by_id,
+        variant=None,
+        force=False,
+        emotion=module.EMOTION_SAD,
+    )
+    assert reference == sad_fox_path

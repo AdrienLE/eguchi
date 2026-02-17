@@ -17,6 +17,9 @@ from typing import Any, Iterable, Sequence
 import requests
 from openai import OpenAI
 
+EMOTION_HAPPY = "happy"
+EMOTION_SAD = "sad"
+
 
 @dataclass(frozen=True)
 class AssetDefinition:
@@ -146,14 +149,44 @@ def select_assets(
     return [asset for asset in assets if asset.id in selected_ids]
 
 
-def build_prompt(style_guide_prompt: str, asset: AssetDefinition) -> str:
-    return "\n\n".join(
-        [
-            style_guide_prompt.strip(),
-            f"Subject: {asset.subject_prompt.strip()}",
-            "Keep composition centered with transparent background and no text.",
-        ]
+def build_prompt(
+    style_guide_prompt: str,
+    asset: AssetDefinition,
+    *,
+    emotion: str | None = None,
+) -> str:
+    prompt_parts = [
+        style_guide_prompt.strip(),
+        f"Subject: {asset.subject_prompt.strip()}",
+    ]
+    if asset.category == "animals":
+        if emotion == EMOTION_SAD:
+            prompt_parts.append(
+                "Expression: make the animal slightly sad and disappointed, but still gentle and child-friendly."
+            )
+        else:
+            prompt_parts.append(
+                "Expression: make the animal clearly happy, warm, and friendly."
+            )
+    prompt_parts.append(
+        "Do not add musical notes, symbols, letters, numbers, thought bubbles, hats, signs, or props."
     )
+    prompt_parts.append("Keep composition centered with transparent background and no text.")
+    return "\n\n".join(prompt_parts)
+
+
+def compose_variant(base_variant: str | None, suffix: str | None) -> str | None:
+    parts: list[str] = []
+    for value in (suffix, base_variant):
+        if value and value.strip():
+            parts.append(value.strip())
+    return "__".join(parts) if parts else None
+
+
+def get_animal_variant(base_variant: str | None, emotion: str) -> str | None:
+    if emotion == EMOTION_SAD:
+        return compose_variant(base_variant, EMOTION_SAD)
+    return base_variant
 
 
 def resolve_output_path(repo_root: Path, output_path: str, variant: str | None) -> Path:
@@ -202,15 +235,17 @@ def find_static_animal_reference(
     *,
     variant: str | None,
     force: bool,
+    emotion: str = EMOTION_HAPPY,
 ) -> Path | None:
     if force:
         return None
 
     candidates: list[Path] = []
+    animal_variant = get_animal_variant(variant, emotion)
     for asset in manifest_assets:
         if asset.category != "animals":
             continue
-        output_path = resolve_output_path(repo_root, asset.output_path, variant)
+        output_path = resolve_output_path(repo_root, asset.output_path, animal_variant)
         selected_plan = selected_plan_by_id.get(asset.id)
         if selected_plan and selected_plan.will_generate:
             continue
@@ -236,6 +271,29 @@ def select_reference_images(
         if candidate and candidate != output_path and candidate.exists():
             return [candidate]
     return []
+
+
+def select_sad_reference_images(
+    *,
+    output_path: Path,
+    happy_reference: Path | None,
+    static_sad_reference: Path | None,
+    generated_sad_reference: Path | None,
+) -> list[Path]:
+    references: list[Path] = []
+    for candidate in (
+        happy_reference,
+        static_sad_reference,
+        generated_sad_reference,
+    ):
+        if (
+            candidate
+            and candidate != output_path
+            and candidate.exists()
+            and candidate not in references
+        ):
+            references.append(candidate)
+    return references
 
 
 def generate_image_bytes(
@@ -345,6 +403,15 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         action="store_true",
         help="Print the final prompt text for each selected asset.",
     )
+    parser.add_argument(
+        "--animal-emotions",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "For animals, generate happy base images first, then sad variants "
+            "as <name>__sad.png."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -373,18 +440,66 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("No assets selected. Use --all, --asset, or --category.", file=sys.stderr)
         return 2
 
-    planned_assets = plan_selected_assets(
-        repo_root, selected_assets, variant=args.variant, force=args.force
-    )
-    selected_plan_by_id = map_plans_by_asset_id(planned_assets)
-    static_animal_reference = find_static_animal_reference(
+    selected_animal_assets = [asset for asset in selected_assets if asset.category == "animals"]
+    selected_non_animal_assets = [
+        asset for asset in selected_assets if asset.category != "animals"
+    ]
+
+    planned_happy_animals = plan_selected_assets(
         repo_root,
-        manifest.assets,
-        selected_plan_by_id,
+        selected_animal_assets,
+        variant=get_animal_variant(args.variant, EMOTION_HAPPY),
+        force=args.force,
+    )
+    planned_sad_animals: list[PlannedAssetTask] = []
+    if args.animal_emotions:
+        planned_sad_animals = plan_selected_assets(
+            repo_root,
+            selected_animal_assets,
+            variant=get_animal_variant(args.variant, EMOTION_SAD),
+            force=args.force,
+        )
+    planned_non_animal_assets = plan_selected_assets(
+        repo_root,
+        selected_non_animal_assets,
         variant=args.variant,
         force=args.force,
     )
-    generated_animal_reference: Path | None = None
+
+    selected_happy_plan_by_id = map_plans_by_asset_id(planned_happy_animals)
+    static_happy_animal_reference = find_static_animal_reference(
+        repo_root,
+        manifest.assets,
+        selected_happy_plan_by_id,
+        variant=args.variant,
+        force=args.force,
+        emotion=EMOTION_HAPPY,
+    )
+    selected_sad_plan_by_id = map_plans_by_asset_id(planned_sad_animals)
+    static_sad_animal_reference = (
+        find_static_animal_reference(
+            repo_root,
+            manifest.assets,
+            selected_sad_plan_by_id,
+            variant=args.variant,
+            force=args.force,
+            emotion=EMOTION_SAD,
+        )
+        if args.animal_emotions
+        else None
+    )
+
+    happy_output_by_asset_id = {
+        planned.asset.id: planned.output_path for planned in planned_happy_animals
+    }
+    generated_happy_animal_reference: Path | None = None
+    generated_sad_animal_reference: Path | None = None
+
+    planned_assets: list[tuple[PlannedAssetTask, str | None]] = [
+        *( (planned, EMOTION_HAPPY) for planned in planned_happy_animals ),
+        *( (planned, EMOTION_SAD) for planned in planned_sad_animals ),
+        *( (planned, None) for planned in planned_non_animal_assets ),
+    ]
 
     client = None
     if not args.dry_run:
@@ -397,7 +512,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     generated = 0
     skipped = 0
 
-    for index, planned in enumerate(planned_assets, start=1):
+    for index, (planned, emotion) in enumerate(planned_assets, start=1):
         asset = planned.asset
         output_path = planned.output_path
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -411,15 +526,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         quality = asset.quality or manifest.defaults.get("quality")
         background = asset.background or manifest.defaults.get("background")
         output_format = asset.output_format or manifest.defaults.get("output_format")
-        prompt = build_prompt(manifest.style_guide_prompt, asset)
-        reference_images = select_reference_images(
-            asset=asset,
-            output_path=output_path,
-            static_animal_reference=static_animal_reference,
-            generated_animal_reference=generated_animal_reference,
-        )
+        prompt = build_prompt(manifest.style_guide_prompt, asset, emotion=emotion)
+
+        reference_images: list[Path]
+        if asset.category != "animals":
+            reference_images = []
+        elif emotion == EMOTION_SAD:
+            reference_images = select_sad_reference_images(
+                output_path=output_path,
+                happy_reference=happy_output_by_asset_id.get(asset.id),
+                static_sad_reference=static_sad_animal_reference,
+                generated_sad_reference=generated_sad_animal_reference,
+            )
+        else:
+            reference_images = select_reference_images(
+                asset=asset,
+                output_path=output_path,
+                static_animal_reference=static_happy_animal_reference,
+                generated_animal_reference=generated_happy_animal_reference,
+            )
+
+        reference_labels = ", ".join(path.name for path in reference_images)
         reference_suffix = (
-            f" [ref: {reference_images[0].name}]"
+            f" [refs: {reference_labels}]"
             if reference_images
             else " [ref: none]" if asset.category == "animals" else ""
         )
@@ -431,8 +560,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.dry_run:
             generated += 1
-            if asset.category == "animals" and generated_animal_reference is None:
-                generated_animal_reference = output_path
+            if asset.category == "animals" and emotion == EMOTION_HAPPY:
+                if generated_happy_animal_reference is None:
+                    generated_happy_animal_reference = output_path
+            if asset.category == "animals" and emotion == EMOTION_SAD:
+                if generated_sad_animal_reference is None:
+                    generated_sad_animal_reference = output_path
             continue
 
         image_bytes, api_metadata = generate_image_bytes(
@@ -446,13 +579,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             reference_image_paths=reference_images,
         )
         output_path.write_bytes(image_bytes)
-        if asset.category == "animals" and generated_animal_reference is None:
-            generated_animal_reference = output_path
+        if asset.category == "animals" and emotion == EMOTION_HAPPY:
+            if generated_happy_animal_reference is None:
+                generated_happy_animal_reference = output_path
+        if asset.category == "animals" and emotion == EMOTION_SAD:
+            if generated_sad_animal_reference is None:
+                generated_sad_animal_reference = output_path
 
         metadata_path = output_path.with_suffix(f"{output_path.suffix}.meta.json")
         metadata_payload = {
             "asset_id": asset.id,
             "category": asset.category,
+            "emotion": emotion,
             "model": args.model,
             "size": size,
             "quality": quality,
@@ -467,7 +605,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         generated += 1
 
     print(
-        f"Done. Selected={total} Generated={generated} Skipped={skipped} "
+        f"Done. AssetSelections={len(selected_assets)} Tasks={total} Generated={generated} "
+        f"Skipped={skipped} AnimalEmotions={'yes' if args.animal_emotions else 'no'} "
         f"Force={'yes' if args.force else 'no'} DryRun={'yes' if args.dry_run else 'no'}"
     )
     return 0

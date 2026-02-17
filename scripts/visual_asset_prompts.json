@@ -1,5 +1,5 @@
 {
-  "style_guide_prompt": "Create a clean 2D illustrated mascot sticker for a children's ear-training app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and cheerful expression. Use transparent background, centered composition, and no text.",
+  "style_guide_prompt": "Create a clean 2D illustrated mascot character for a children's learning app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and clear silhouette. Use transparent background and centered composition. Do not include musical notes, letters, symbols, props, hats, or text.",
   "defaults": {
     "size": "1024x1024",
     "quality": "high",

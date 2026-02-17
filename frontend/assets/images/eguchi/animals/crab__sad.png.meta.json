@@ -1,0 +1,29 @@
+{
+  "asset_id": "crab",
+  "category": "animals",
+  "emotion": "sad",
+  "model": "gpt-image-1",
+  "size": "1024x1024",
+  "quality": "high",
+  "background": "transparent",
+  "output_format": "png",
+  "prompt": "Create a clean 2D illustrated mascot character for a children's learning app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and clear silhouette. Use transparent background and centered composition. Do not include musical notes, letters, symbols, props, hats, or text.\n\nSubject: A coral-red crab mascot facing front with friendly claws.\n\nExpression: make the animal slightly sad and disappointed, but still gentle and child-friendly.\n\nDo not add musical notes, symbols, letters, numbers, thought bubbles, hats, signs, or props.\n\nKeep composition centered with transparent background and no text.",
+  "reference_images": [
+    "/Users/adrien/projects/eguchi-ear-trainer/frontend/assets/images/eguchi/animals/crab.png",
+    "/Users/adrien/projects/eguchi-ear-trainer/frontend/assets/images/eguchi/animals/fox__sad.png"
+  ],
+  "generated_at_utc": "2026-02-17T18:37:28.407557+00:00",
+  "api": {
+    "created": 1771353448,
+    "model": "gpt-image-1",
+    "mode": "edit",
+    "size": "1024x1024",
+    "quality": "high",
+    "background": "transparent",
+    "output_format": "png",
+    "references": [
+      "/Users/adrien/projects/eguchi-ear-trainer/frontend/assets/images/eguchi/animals/crab.png",
+      "/Users/adrien/projects/eguchi-ear-trainer/frontend/assets/images/eguchi/animals/fox__sad.png"
+    ]
+  }
+}

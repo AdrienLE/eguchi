@@ -1,18 +1,19 @@
 {
   "asset_id": "frog",
   "category": "animals",
+  "emotion": "happy",
   "model": "gpt-image-1",
   "size": "1024x1024",
   "quality": "high",
   "background": "transparent",
   "output_format": "png",
-  "prompt": "Create a clean 2D illustrated mascot sticker for a children's ear-training app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and cheerful expression. Use transparent background, centered composition, and no text.\n\nSubject: A happy green frog mascot facing front with rounded body.\n\nKeep composition centered with transparent background and no text.",
+  "prompt": "Create a clean 2D illustrated mascot character for a children's learning app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and clear silhouette. Use transparent background and centered composition. Do not include musical notes, letters, symbols, props, hats, or text.\n\nSubject: A happy green frog mascot facing front with rounded body.\n\nExpression: make the animal clearly happy, warm, and friendly.\n\nDo not add musical notes, symbols, letters, numbers, thought bubbles, hats, signs, or props.\n\nKeep composition centered with transparent background and no text.",
   "reference_images": [
     "/Users/adrien/projects/eguchi-ear-trainer/frontend/assets/images/eguchi/animals/fox.png"
   ],
-  "generated_at_utc": "2026-02-17T17:31:19.748745+00:00",
+  "generated_at_utc": "2026-02-17T18:19:00.724157+00:00",
   "api": {
-    "created": 1771349479,
+    "created": 1771352340,
     "model": "gpt-image-1",
     "mode": "edit",
     "size": "1024x1024",

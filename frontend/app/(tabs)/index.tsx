@@ -21,12 +21,19 @@ import {
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
 import {
+  AUTO_ADVANCE_DEFAULT_MS,
+  AUTO_ADVANCE_TICK_MS,
+  getAutoAdvanceProgress,
+  getAutoAdvanceSeconds,
+  pickRandomChordId,
+} from '@/lib/eguchi/training-loop';
+import {
   createDefaultEguchiSessionPreferences,
   loadEguchiSessionPreferences,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
 
-const AUTO_ADVANCE_MS = 900;
+const AUTO_ADVANCE_MS = AUTO_ADVANCE_DEFAULT_MS;
 
 const getReadableTextColor = (hex: string) => {
   const normalized = hex.replace('#', '');
@@ -38,11 +45,25 @@ const getReadableTextColor = (hex: string) => {
   return luminance > 0.6 ? '#111111' : '#FFFFFF';
 };
 
-const pickRandomChordId = (ids: EguchiChordId[]) =>
-  ids[Math.floor(Math.random() * ids.length)];
-
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
+
+const ANIMAL_EMOJIS: Record<EguchiChordId, string> = {
+  'C-E-G': '🦊',
+  'F-A-C': '🐋',
+  'G-B-D': '🐸',
+  'E-G-C': '🐯',
+  'A-C-F': '🐙',
+  'B-D-G': '🐣',
+  'G-C-E': '🐰',
+  'C-F-A': '🐢',
+  'D-G-B': '🐦',
+  'A-C#-E': '🦁',
+  'D-F#-A': '🦜',
+  'E-G#-B': '🐠',
+  'Bb-D-F': '🦭',
+  'Eb-G-Bb': '🦀',
+};
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -58,6 +79,8 @@ export default function HomeScreen() {
   const [lastAnswerId, setLastAnswerId] = useState<EguchiChordId | null>(null);
   const [lastResult, setLastResult] = useState<'correct' | 'incorrect' | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const advanceTicker = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [autoAdvanceRemainingMs, setAutoAdvanceRemainingMs] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const currentChordRef = useRef<EguchiChordId | null>(null);
   const currentAudioRef = useRef<AudioEntry | null>(null);
@@ -68,6 +91,11 @@ export default function HomeScreen() {
       clearTimeout(advanceTimer.current);
       advanceTimer.current = null;
     }
+    if (advanceTicker.current) {
+      clearInterval(advanceTicker.current);
+      advanceTicker.current = null;
+    }
+    setAutoAdvanceRemainingMs(null);
   }, []);
 
   const stopSound = useCallback(async () => {
@@ -132,6 +160,7 @@ export default function HomeScreen() {
 
   const startNewTrial = useCallback(() => {
     if (!unlockedChordIds.length) {
+      clearAdvanceTimer();
       currentChordRef.current = null;
       currentAudioRef.current = null;
       setCurrentChordId(null);
@@ -214,7 +243,15 @@ export default function HomeScreen() {
       });
 
       clearAdvanceTimer();
+      const countdownStartedAt = Date.now();
+      setAutoAdvanceRemainingMs(AUTO_ADVANCE_MS);
+      advanceTicker.current = setInterval(() => {
+        const elapsed = Date.now() - countdownStartedAt;
+        const remaining = Math.max(0, AUTO_ADVANCE_MS - elapsed);
+        setAutoAdvanceRemainingMs(remaining);
+      }, AUTO_ADVANCE_TICK_MS);
       advanceTimer.current = setTimeout(() => {
+        clearAdvanceTimer();
         startNewTrial();
       }, AUTO_ADVANCE_MS);
     },
@@ -230,8 +267,18 @@ export default function HomeScreen() {
   }, [playCurrentAudio, startNewTrial]);
 
   const handleSkip = useCallback(() => {
+    clearAdvanceTimer();
     startNewTrial();
-  }, [startNewTrial]);
+  }, [clearAdvanceTimer, startNewTrial]);
+
+  const handleStayOnCard = useCallback(() => {
+    clearAdvanceTimer();
+  }, [clearAdvanceTimer]);
+
+  const handleNextCard = useCallback(() => {
+    clearAdvanceTimer();
+    startNewTrial();
+  }, [clearAdvanceTimer, startNewTrial]);
 
   const isReady = !isLoading && progress !== null;
   useEffect(() => {
@@ -277,95 +324,16 @@ export default function HomeScreen() {
           progressionStatus.perfectDayStreak / Math.max(1, progressionStatus.perfectDaysRequired)
         )
     : 0;
+  const currentChord = currentChordId ? CHORD_BY_ID[currentChordId] : null;
+  const autoAdvanceProgress =
+    autoAdvanceRemainingMs === null
+      ? 0
+      : getAutoAdvanceProgress(autoAdvanceRemainingMs, AUTO_ADVANCE_MS);
+  const autoAdvanceSeconds = getAutoAdvanceSeconds(autoAdvanceRemainingMs);
 
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            Eguchi Training
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Listen, then tap the animal you hear.
-          </ThemedText>
-        </View>
-        {progressionStatus ? (
-          <View style={styles.missionCard}>
-            <ThemedText style={styles.missionTitle}>Today's Mission</ThemedText>
-            <ThemedText style={styles.missionSubtitle}>
-              Play {progressionStatus.dailyAttemptTarget} rounds today.
-            </ThemedText>
-
-            <View style={styles.missionRow}>
-              <ThemedText style={styles.missionLabel}>Rounds</ThemedText>
-              <ThemedText style={styles.missionValue}>
-                {progressionStatus.todaySummary.attempts}/{progressionStatus.dailyAttemptTarget}
-              </ThemedText>
-            </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${missionProgress * 100}%` }]} />
-            </View>
-
-            <View style={styles.missionRow}>
-              <ThemedText style={styles.missionLabel}>Great guesses</ThemedText>
-              <ThemedText style={styles.missionValue}>
-                {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}{' '}
-                ({formatPercent(successProgress)})
-              </ThemedText>
-            </View>
-            <View style={styles.progressTrack}>
-              <View
-                style={[styles.progressFill, styles.successFill, { width: `${successProgress * 100}%` }]}
-              />
-            </View>
-
-            <View style={styles.missionRow}>
-              <ThemedText style={styles.missionLabel}>Star days</ThemedText>
-              <ThemedText style={styles.missionValue}>
-                {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
-              </ThemedText>
-            </View>
-            <View style={styles.progressTrack}>
-              <View
-                style={[styles.progressFill, styles.streakFill, { width: `${streakProgress * 100}%` }]}
-              />
-            </View>
-
-            <ThemedText style={styles.nextFriendText}>
-              {progressionStatus.nextChordAnimal
-                ? `Keep going to meet ${progressionStatus.nextChordAnimal} soon.`
-                : 'Amazing. You found all the animal sounds.'}
-            </ThemedText>
-          </View>
-        ) : null}
-        <View style={styles.controls}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleReplay}
-            disabled={isLoading}
-            style={[
-              styles.primaryButton,
-              { backgroundColor: buttonBackground },
-              isLoading && styles.buttonDisabled,
-            ]}
-          >
-            <ThemedText style={[styles.primaryButtonText, { color: buttonTextColor }]}>
-              Replay
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleSkip}
-            disabled={isLoading}
-            style={[
-              styles.secondaryButton,
-              { borderColor: outlineColor },
-              isLoading && styles.buttonDisabled,
-            ]}
-          >
-            <ThemedText style={styles.secondaryButtonText}>Skip</ThemedText>
-          </Pressable>
-        </View>
         {isLoading ? <ActivityIndicator /> : null}
         <View style={styles.grid}>
           {unlockedChords.map(chord => {
@@ -389,15 +357,127 @@ export default function HomeScreen() {
                   isLoading && styles.buttonDisabled,
                 ]}
               >
+                <ThemedText style={[styles.tileEmoji, { color: tileTextColor }]}>
+                  {ANIMAL_EMOJIS[chord.id]}
+                </ThemedText>
                 <ThemedText style={[styles.tileLabel, { color: tileTextColor }]}>
                   {chord.animal}
-                </ThemedText>
-                <ThemedText style={[styles.tileSubLabel, { color: tileTextColor }]}>
-                  {chord.color.name}
                 </ThemedText>
               </Pressable>
             );
           })}
+        </View>
+        {lastResult && currentChord ? (
+          <View style={styles.feedbackCard}>
+            <ThemedText style={styles.feedbackTitle}>
+              {lastResult === 'correct'
+                ? `✅ Nice tap! ${ANIMAL_EMOJIS[currentChord.id]}`
+                : `❌ Best move: ${ANIMAL_EMOJIS[currentChord.id]} ${currentChord.animal}`}
+            </ThemedText>
+            <ThemedText style={styles.feedbackSubtitle}>
+              {autoAdvanceSeconds === null
+                ? 'Paused on this card.'
+                : `Next card in ${autoAdvanceSeconds}s`}
+            </ThemedText>
+            <View style={styles.autoAdvanceTrack}>
+              <View style={[styles.autoAdvanceFill, { width: `${autoAdvanceProgress * 100}%` }]} />
+            </View>
+            <View style={styles.feedbackActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleStayOnCard}
+                disabled={autoAdvanceRemainingMs === null}
+                style={[
+                  styles.feedbackSecondaryButton,
+                  { borderColor: outlineColor },
+                  autoAdvanceRemainingMs === null && styles.buttonDisabled,
+                ]}
+              >
+                <ThemedText style={styles.feedbackSecondaryButtonText}>⏸ Stay</ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleNextCard}
+                style={[styles.feedbackPrimaryButton, { backgroundColor: buttonBackground }]}
+              >
+                <ThemedText style={[styles.feedbackPrimaryButtonText, { color: buttonTextColor }]}>
+                  ⏭ Next
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+        <View style={styles.bottomSection}>
+          {progressionStatus ? (
+            <View style={styles.missionCard}>
+              <ThemedText style={styles.missionTitle}>🎯 Today</ThemedText>
+              <View style={styles.missionRow}>
+                <ThemedText style={styles.missionLabel}>🧩 Rounds</ThemedText>
+                <ThemedText style={styles.missionValue}>
+                  {progressionStatus.todaySummary.attempts}/{progressionStatus.dailyAttemptTarget}
+                </ThemedText>
+              </View>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${missionProgress * 100}%` }]} />
+              </View>
+
+              <View style={styles.missionRow}>
+                <ThemedText style={styles.missionLabel}>✅ Great taps</ThemedText>
+                <ThemedText style={styles.missionValue}>{formatPercent(successProgress)}</ThemedText>
+              </View>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[styles.progressFill, styles.successFill, { width: `${successProgress * 100}%` }]}
+                />
+              </View>
+
+              <View style={styles.missionRow}>
+                <ThemedText style={styles.missionLabel}>⭐ Star days</ThemedText>
+                <ThemedText style={styles.missionValue}>
+                  {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
+                </ThemedText>
+              </View>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[styles.progressFill, styles.streakFill, { width: `${streakProgress * 100}%` }]}
+                />
+              </View>
+
+              <ThemedText style={styles.nextFriendText}>
+                {progressionStatus.nextChordAnimal
+                  ? `🪄 Keep going to meet ${progressionStatus.nextChordAnimal}.`
+                  : '🏆 All animal sounds unlocked.'}
+              </ThemedText>
+            </View>
+          ) : null}
+          <View style={styles.controls}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleReplay}
+              disabled={isLoading}
+              style={[
+                styles.primaryButton,
+                { backgroundColor: buttonBackground },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={[styles.primaryButtonText, { color: buttonTextColor }]}>
+                🔊 Replay
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleSkip}
+              disabled={isLoading}
+              style={[
+                styles.secondaryButton,
+                { borderColor: outlineColor },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={styles.secondaryButtonText}>⏭ Skip</ThemedText>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </ThemedView>
@@ -409,12 +489,13 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingVertical: 32,
-    gap: 20,
+    paddingVertical: 20,
+    gap: 14,
   },
-  header: { alignItems: 'center', gap: 8 },
-  title: { textAlign: 'center' },
-  subtitle: { fontSize: 16, lineHeight: 22, textAlign: 'center' },
+  bottomSection: {
+    gap: 12,
+    paddingBottom: 8,
+  },
   missionCard: {
     borderWidth: 1,
     borderColor: '#D0D0D0',
@@ -424,13 +505,8 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   missionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-  },
-  missionSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.85,
     marginBottom: 2,
   },
   missionRow: {
@@ -474,6 +550,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 12,
+    marginBottom: 2,
   },
   primaryButton: {
     paddingHorizontal: 20,
@@ -502,8 +579,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 12,
   },
-  tileLabel: { fontSize: 20, fontWeight: '700' },
-  tileSubLabel: { fontSize: 12, marginTop: 6, opacity: 0.8 },
+  tileEmoji: { fontSize: 48, lineHeight: 52 },
+  tileLabel: { fontSize: 20, fontWeight: '700', marginTop: 10 },
   tileCorrect: {
     borderWidth: 4,
     borderColor: '#FFFFFF',
@@ -515,5 +592,56 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  feedbackCard: {
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  feedbackTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  feedbackSubtitle: {
+    fontSize: 13,
+    opacity: 0.85,
+  },
+  autoAdvanceTrack: {
+    width: '100%',
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#E2E2E2',
+    overflow: 'hidden',
+  },
+  autoAdvanceFill: {
+    height: '100%',
+    backgroundColor: '#607D8B',
+  },
+  feedbackActions: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  feedbackPrimaryButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  feedbackPrimaryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  feedbackSecondaryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  feedbackSecondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

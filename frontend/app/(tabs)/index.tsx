@@ -151,6 +151,7 @@ export default function HomeScreen() {
   const advanceTicker = useRef<ReturnType<typeof setInterval> | null>(null);
   const [autoAdvanceRemainingMs, setAutoAdvanceRemainingMs] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const [hasStartedTraining, setHasStartedTraining] = useState(false);
   const hasPlayedAnyAudioRef = useRef(false);
   const playbackRequestIdRef = useRef(0);
   const playbackRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -272,6 +273,7 @@ export default function HomeScreen() {
       } catch (error) {
         console.warn('Failed to play chord audio', error);
         if (isAutoplayBlockedError(error)) {
+          setHasStartedTraining(false);
           setStartupAutoplayPending(true);
           return;
         }
@@ -331,6 +333,11 @@ export default function HomeScreen() {
       file: nextAudio?.fileName ?? 'missing',
     });
 
+    if (!hasStartedTraining) {
+      setStartupAutoplayPending(true);
+      return;
+    }
+
     if (!hasPlayedAnyAudioRef.current) {
       setStartupAutoplayPending(true);
       startupPlaybackWatchdogRef.current = setTimeout(() => {
@@ -355,11 +362,11 @@ export default function HomeScreen() {
       entry: nextAudio,
       origin: 'new-trial',
     });
-  }, [clearAdvanceTimer, clearStartupPlaybackWatchdog, playCurrentAudio, unlockedChordIds]);
+  }, [clearAdvanceTimer, clearStartupPlaybackWatchdog, hasStartedTraining, playCurrentAudio, unlockedChordIds]);
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
-      if (hasAnsweredCurrentTrialRef.current || isLoading) {
+      if (!hasStartedTraining || hasAnsweredCurrentTrialRef.current || isLoading) {
         return;
       }
 
@@ -429,16 +436,35 @@ export default function HomeScreen() {
         startNewTrial();
       }, autoAdvanceDurationMs);
     },
-    [clearAdvanceTimer, isLoading, playCurrentAudio, sessionPreferences, startNewTrial]
+    [clearAdvanceTimer, hasStartedTraining, isLoading, playCurrentAudio, sessionPreferences, startNewTrial]
   );
 
+  const handleStartTraining = useCallback(() => {
+    setHasStartedTraining(true);
+    setStartupAutoplayPending(false);
+    if (!currentChordRef.current || !currentAudioRef.current) {
+      startNewTrial();
+      return;
+    }
+    void playCurrentAudio({
+      chordId: currentChordRef.current,
+      entry: currentAudioRef.current,
+      origin: 'retry',
+      retryCount: 0,
+    });
+  }, [playCurrentAudio, startNewTrial]);
+
   const handleReplay = useCallback(() => {
+    if (!hasStartedTraining) {
+      handleStartTraining();
+      return;
+    }
     if (!currentChordRef.current || !currentAudioRef.current) {
       startNewTrial();
       return;
     }
     void playCurrentAudio({ origin: 'replay' });
-  }, [playCurrentAudio, startNewTrial]);
+  }, [handleStartTraining, hasStartedTraining, playCurrentAudio, startNewTrial]);
 
   const markAnimalImageFailed = useCallback((id: EguchiChordId, emotion?: AnimalEmotion) => {
     const failureKey = getAnimalImageFailureKey(id, emotion);
@@ -453,37 +479,6 @@ export default function HomeScreen() {
   }, []);
 
   const isReady = !isLoading && progress !== null;
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const handleInteraction = () => {
-      if (hasPlayedAnyAudioRef.current || hasAnsweredCurrentTrialRef.current) {
-        return;
-      }
-      if (!currentChordRef.current || !currentAudioRef.current) {
-        setStartupAutoplayPending(previous => (previous ? previous : true));
-        return;
-      }
-      void playCurrentAudio({
-        chordId: currentChordRef.current,
-        entry: currentAudioRef.current,
-        origin: 'retry',
-        retryCount: 0,
-      });
-    };
-
-    window.addEventListener('pointerdown', handleInteraction, {
-      capture: true,
-      passive: true,
-    });
-    window.addEventListener('keydown', handleInteraction, true);
-    return () => {
-      window.removeEventListener('pointerdown', handleInteraction, true);
-      window.removeEventListener('keydown', handleInteraction, true);
-    };
-  }, [playCurrentAudio]);
 
   useEffect(() => {
     if (!isReady) {
@@ -542,6 +537,7 @@ export default function HomeScreen() {
         )
     : 0;
   const currentChord = currentChordId ? CHORD_BY_ID[currentChordId] : null;
+  const showStartOverlay = !isLoading && !hasStartedTraining;
   const autoAdvanceProgress =
     autoAdvanceRemainingMs === null
       ? 0
@@ -807,6 +803,20 @@ export default function HomeScreen() {
           ) : null}
         </View>
         {showCenterFlash ? <View pointerEvents="none" style={styles.fullScreenFlashDimmer} /> : null}
+        {showStartOverlay ? (
+          <View style={styles.startOverlay}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Start training"
+              onPress={handleStartTraining}
+              style={styles.startCard}
+            >
+              <ThemedText style={styles.startEmoji}>🎵</ThemedText>
+              <ThemedText style={styles.startTitle}>Tap To Start</ThemedText>
+              <ThemedText style={styles.startSubtitle}>Let&apos;s hear the animal chord</ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
     </ThemedView>
   );
@@ -903,6 +913,52 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     opacity: 0.78,
     fontWeight: '600',
+  },
+  startOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 14, 28, 0.74)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 30,
+    paddingHorizontal: 24,
+  },
+  startCard: {
+    width: '100%',
+    maxWidth: 360,
+    minHeight: 210,
+    borderRadius: 28,
+    backgroundColor: '#FFF7D6',
+    borderWidth: 3,
+    borderColor: '#2E7D32',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 22,
+    gap: 10,
+    shadowColor: '#000000',
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  startEmoji: {
+    fontSize: 72,
+    lineHeight: 76,
+  },
+  startTitle: {
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '800',
+    color: '#153A2B',
+    textAlign: 'center',
+  },
+  startSubtitle: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: '#1D5A43',
+    textAlign: 'center',
+    opacity: 0.95,
   },
   grid: {
     flexDirection: 'row',

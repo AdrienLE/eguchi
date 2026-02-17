@@ -23,8 +23,8 @@ import {
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
 import {
-  AUTO_ADVANCE_DEFAULT_MS,
   AUTO_ADVANCE_TICK_MS,
+  getAutoAdvanceDurationMs,
   getAutoAdvanceProgress,
   pickRandomChordId,
 } from '@/lib/eguchi/training-loop';
@@ -40,7 +40,6 @@ import {
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
 
-const AUTO_ADVANCE_MS = AUTO_ADVANCE_DEFAULT_MS;
 const CONTENT_HORIZONTAL_PADDING = 24;
 const CONTENT_VERTICAL_PADDING = 20;
 const GRID_GAP = 10;
@@ -354,6 +353,7 @@ export default function HomeScreen() {
       const expectedChord = CHORD_BY_ID[expectedId];
       const isCorrect = id === expectedId;
       const activeSessionPreferences = sessionPreferences ?? defaultSessionPreferences.current;
+      const autoAdvanceDurationMs = getAutoAdvanceDurationMs(activeSessionPreferences.feedbackSeconds);
 
       setLastAnswerId(id);
       setLastResult(isCorrect ? 'correct' : 'incorrect');
@@ -397,16 +397,16 @@ export default function HomeScreen() {
 
       clearAdvanceTimer();
       const countdownStartedAt = Date.now();
-      setAutoAdvanceRemainingMs(AUTO_ADVANCE_MS);
+      setAutoAdvanceRemainingMs(autoAdvanceDurationMs);
       advanceTicker.current = setInterval(() => {
         const elapsed = Date.now() - countdownStartedAt;
-        const remaining = Math.max(0, AUTO_ADVANCE_MS - elapsed);
+        const remaining = Math.max(0, autoAdvanceDurationMs - elapsed);
         setAutoAdvanceRemainingMs(remaining);
       }, AUTO_ADVANCE_TICK_MS);
       advanceTimer.current = setTimeout(() => {
         clearAdvanceTimer();
         startNewTrial();
-      }, AUTO_ADVANCE_MS);
+      }, autoAdvanceDurationMs);
     },
     [clearAdvanceTimer, isLoading, playCurrentAudio, sessionPreferences, startNewTrial]
   );
@@ -496,6 +496,9 @@ export default function HomeScreen() {
     });
   }, [progress, sessionPreferences]);
   const buttonBackground = Colors[colorScheme ?? 'light'].tint;
+  const autoAdvanceMs = getAutoAdvanceDurationMs(
+    (sessionPreferences ?? defaultSessionPreferences.current).feedbackSeconds
+  );
   const missionProgress = progressionStatus
     ? clampProgress(
         progressionStatus.todaySummary.attempts / Math.max(1, progressionStatus.dailyAttemptTarget)
@@ -517,7 +520,7 @@ export default function HomeScreen() {
   const autoAdvanceProgress =
     autoAdvanceRemainingMs === null
       ? 0
-      : getAutoAdvanceProgress(autoAdvanceRemainingMs, AUTO_ADVANCE_MS);
+      : getAutoAdvanceProgress(autoAdvanceRemainingMs, autoAdvanceMs);
   const showCenterFlash = Boolean(currentChord && lastResult && autoAdvanceRemainingMs !== null);
   const resolveAnimalImageCandidate = useCallback(
     (chordId: EguchiChordId, emotion?: AnimalEmotion) => {
@@ -603,7 +606,13 @@ export default function HomeScreen() {
         }}
       >
         {isLoading ? <ActivityIndicator /> : null}
-        <View style={[styles.gridStage, { width: gridWidth, height: gridHeight }]}>
+        <View
+          style={[
+            styles.gridStage,
+            showCenterFlash && styles.gridStageFocused,
+            { width: gridWidth, height: gridHeight },
+          ]}
+        >
           <View style={[styles.grid, { width: gridWidth }]}>
             {unlockedChords.map(chord => {
               const showCorrect = lastResult !== null;
@@ -769,6 +778,7 @@ export default function HomeScreen() {
             </View>
           ) : null}
         </View>
+        {showCenterFlash ? <View pointerEvents="none" style={styles.fullScreenFlashDimmer} /> : null}
       </ScrollView>
     </ThemedView>
   );
@@ -781,6 +791,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: CONTENT_HORIZONTAL_PADDING,
     paddingVertical: CONTENT_VERTICAL_PADDING,
     gap: 14,
+    position: 'relative',
   },
   bottomSection: {
     gap: 12,
@@ -869,6 +880,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     position: 'relative',
   },
+  gridStageFocused: {
+    zIndex: 12,
+  },
   tile: {
     borderRadius: 16,
     alignItems: 'center',
@@ -900,8 +914,13 @@ const styles = StyleSheet.create({
   },
   gridFlashBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.24)',
+    backgroundColor: 'rgba(0, 0, 0, 0.68)',
     borderRadius: 12,
+  },
+  fullScreenFlashDimmer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.56)',
+    zIndex: 8,
   },
   overlayFeedbackStack: {
     width: '100%',

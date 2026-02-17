@@ -102,6 +102,12 @@
       "category": "ui",
       "output_path": "frontend/assets/images/eguchi/ui/star-badge.png",
       "subject_prompt": "A shiny gold star badge icon with simple sparkles."
+    },
+    {
+      "id": "app-icon",
+      "category": "ui",
+      "output_path": "frontend/assets/images/eguchi/ui/app-icon.png",
+      "subject_prompt": "A bold app icon mascot with a smiling fox face and whale wave motif fused into one clean emblem, bright teal and sunset orange palette, confident shape that reads at tiny size."
     }
   ]
 }

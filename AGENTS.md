@@ -33,6 +33,7 @@ changes so functionality can be tested early and often.
 - Workflow: after every change, run the relevant tests (or full suite) and commit the change.
 - Required cadence: do not batch unrelated edits; each completed change should be tested and committed before starting the next change.
 - Test authoring policy: every behavior change should include new or updated automated tests in the same commit unless impossible; if impossible, document the gap in the commit message or PR notes.
+- Always-test rule: do not mark work complete without running tests and reporting results; do not ship behavior changes without adding or updating tests.
 
 ## iOS Production Builds
 - Default prod API: `REPLACE_WITH_PROD_URL` (template default).

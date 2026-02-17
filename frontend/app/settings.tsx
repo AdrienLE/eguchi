@@ -34,6 +34,7 @@ import {
   saveEguchiSessionPreferences,
   setAutoUnlockEnabled,
   setDailyAttemptTarget,
+  setFeedbackSeconds,
   setPerfectDaysRequired,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
@@ -432,6 +433,37 @@ export default function SettingsScreen() {
                 onPress={() =>
                   handleSessionUpdate(previous =>
                     setDailyAttemptTarget(previous, previous.dailyAttemptTarget + 1)
+                  )
+                }
+                style={[styles.stepButton, { borderColor: iconColor }]}
+                disabled={loading}
+              >
+                <ThemedText style={styles.stepButtonText}>+</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.stepperRow}>
+            <ThemedText style={styles.controlLabel}>Answer reveal seconds</ThemedText>
+            <View style={styles.stepperControls}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() =>
+                  handleSessionUpdate(previous =>
+                    setFeedbackSeconds(previous, previous.feedbackSeconds - 1)
+                  )
+                }
+                style={[styles.stepButton, { borderColor: iconColor }]}
+                disabled={loading}
+              >
+                <ThemedText style={styles.stepButtonText}>-</ThemedText>
+              </Pressable>
+              <ThemedText style={styles.stepValue}>{sessionPreferences.feedbackSeconds}</ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() =>
+                  handleSessionUpdate(previous =>
+                    setFeedbackSeconds(previous, previous.feedbackSeconds + 1)
                   )
                 }
                 style={[styles.stepButton, { borderColor: iconColor }]}

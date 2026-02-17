@@ -46,7 +46,7 @@ const normalizeImportModes = (candidate: unknown): Record<ImportSpeed, boolean> 
 
 const normalizeFeedbackSeconds = (candidate: unknown): number => {
   if (typeof candidate !== 'number' || Number.isNaN(candidate)) {
-    return 3;
+    return 2;
   }
   return Math.min(8, Math.max(2, Math.round(candidate)));
 };
@@ -69,7 +69,7 @@ export const createDefaultEguchiSessionPreferences = (): EguchiSessionPreference
   sourcePreset: 'sunny-pond-lost',
   importModes: { ...DEFAULT_IMPORT_MODES },
   autoAdvanceEnabled: true,
-  feedbackSeconds: 3,
+  feedbackSeconds: 2,
   autoUnlockEnabled: false,
   perfectDaysRequired: 14,
   dailyAttemptTarget: 100,

@@ -38,7 +38,7 @@ describe('eguchi session preferences', () => {
     expect(defaults.importModes.blitz).toBe(true);
     expect(defaults.importModes.bullet).toBe(false);
     expect(defaults.autoAdvanceEnabled).toBe(true);
-    expect(defaults.feedbackSeconds).toBe(3);
+    expect(defaults.feedbackSeconds).toBe(2);
     expect(defaults.autoUnlockEnabled).toBe(false);
     expect(defaults.perfectDaysRequired).toBe(14);
     expect(defaults.dailyAttemptTarget).toBe(100);

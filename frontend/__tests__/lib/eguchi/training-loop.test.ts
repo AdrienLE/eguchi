@@ -1,4 +1,9 @@
-import { getAutoAdvanceProgress, getAutoAdvanceSeconds, pickRandomChordId } from '@/lib/eguchi/training-loop';
+import {
+  getAutoAdvanceDurationMs,
+  getAutoAdvanceProgress,
+  getAutoAdvanceSeconds,
+  pickRandomChordId,
+} from '@/lib/eguchi/training-loop';
 
 describe('eguchi training loop helpers', () => {
   test('pickRandomChordId chooses first and last slots deterministically', () => {
@@ -25,5 +30,14 @@ describe('eguchi training loop helpers', () => {
     expect(getAutoAdvanceSeconds(2001)).toBe(3);
     expect(getAutoAdvanceSeconds(1000)).toBe(1);
     expect(getAutoAdvanceSeconds(1)).toBe(1);
+  });
+
+  test('getAutoAdvanceDurationMs clamps feedback seconds and falls back safely', () => {
+    expect(getAutoAdvanceDurationMs(2)).toBe(2000);
+    expect(getAutoAdvanceDurationMs(8)).toBe(8000);
+    expect(getAutoAdvanceDurationMs(1)).toBe(2000);
+    expect(getAutoAdvanceDurationMs(99)).toBe(8000);
+    expect(getAutoAdvanceDurationMs(undefined, 3200)).toBe(3200);
+    expect(getAutoAdvanceDurationMs(null, 420)).toBe(500);
   });
 });

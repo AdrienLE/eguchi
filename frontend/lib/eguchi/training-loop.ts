@@ -4,6 +4,7 @@ export const AUTO_ADVANCE_DEFAULT_MS = 3200;
 export const AUTO_ADVANCE_TICK_MS = 100;
 
 const clampUnit = (value: number) => Math.max(0, Math.min(1, value));
+const clampFeedbackSeconds = (value: number) => Math.max(2, Math.min(8, Math.round(value)));
 
 export const pickRandomChordId = (
   ids: EguchiChordId[],
@@ -33,4 +34,14 @@ export const getAutoAdvanceSeconds = (remainingMs: number | null) => {
     return null;
   }
   return Math.max(1, Math.ceil(remainingMs / 1000));
+};
+
+export const getAutoAdvanceDurationMs = (
+  feedbackSeconds: number | null | undefined,
+  fallbackMs: number = AUTO_ADVANCE_DEFAULT_MS
+) => {
+  if (typeof feedbackSeconds !== 'number' || Number.isNaN(feedbackSeconds)) {
+    return Math.max(500, Math.round(fallbackMs));
+  }
+  return clampFeedbackSeconds(feedbackSeconds) * 1000;
 };

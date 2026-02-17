@@ -25,8 +25,9 @@ def test_parse_manifest_loads_repo_manifest():
 
     assert manifest.style_guide_prompt
     assert manifest.defaults["output_format"] == "png"
-    assert len(manifest.assets) >= 14
+    assert len(manifest.assets) >= 15
     assert any(asset.id == "fox" for asset in manifest.assets)
+    assert any(asset.id == "app-icon" for asset in manifest.assets)
 
 
 def test_select_assets_supports_ids_and_categories():

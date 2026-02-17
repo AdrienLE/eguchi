@@ -41,6 +41,19 @@ export const CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID: Partial<
   Record<EguchiChordId, AnimalBundleSource>
 > = {
   'C-E-G': require('../../assets/images/eguchi/animals/fox.png'),
+  'F-A-C': require('../../assets/images/eguchi/animals/whale.png'),
+  'G-B-D': require('../../assets/images/eguchi/animals/frog.png'),
+  'E-G-C': require('../../assets/images/eguchi/animals/tiger.png'),
+  'A-C-F': require('../../assets/images/eguchi/animals/octopus.png'),
+  'B-D-G': require('../../assets/images/eguchi/animals/chick.png'),
+  'G-C-E': require('../../assets/images/eguchi/animals/bunny.png'),
+  'C-F-A': require('../../assets/images/eguchi/animals/turtle.png'),
+  'D-G-B': require('../../assets/images/eguchi/animals/bluebird.png'),
+  'A-C#-E': require('../../assets/images/eguchi/animals/lion.png'),
+  'D-F#-A': require('../../assets/images/eguchi/animals/parrot.png'),
+  'E-G#-B': require('../../assets/images/eguchi/animals/fish.png'),
+  'Bb-D-F': require('../../assets/images/eguchi/animals/seal.png'),
+  'Eb-G-Bb': require('../../assets/images/eguchi/animals/crab.png'),
 };
 
 type AnimalImageSource = AnimalBundleSource | { uri: string };

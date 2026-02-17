@@ -41,6 +41,14 @@ const GRID_GAP = 10;
 const GRID_MIN_TILE_SIZE = 28;
 const GRID_MAX_COLUMNS = 6;
 const GRID_BASE_RESERVED_HEIGHT = 30;
+const INITIAL_AUDIO_RETRY_DELAY_MS = 180;
+
+type PlayCurrentAudioOptions = {
+  chordId?: EguchiChordId | null;
+  entry?: AudioEntry | null;
+  allowRetry?: boolean;
+  origin?: 'new-trial' | 'answer-feedback' | 'replay' | 'retry';
+};
 
 const getReadableTextColor = (hex: string) => {
   const normalized = hex.replace('#', '');
@@ -120,6 +128,8 @@ export default function HomeScreen() {
   const advanceTicker = useRef<ReturnType<typeof setInterval> | null>(null);
   const [autoAdvanceRemainingMs, setAutoAdvanceRemainingMs] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const playbackRequestIdRef = useRef(0);
+  const playbackRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentChordRef = useRef<EguchiChordId | null>(null);
   const currentAudioRef = useRef<AudioEntry | null>(null);
   const hasAnsweredCurrentTrialRef = useRef(false);
@@ -151,6 +161,13 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const clearPlaybackRetry = useCallback(() => {
+    if (playbackRetryTimerRef.current) {
+      clearTimeout(playbackRetryTimerRef.current);
+      playbackRetryTimerRef.current = null;
+    }
+  }, []);
+
   const loadTrainingData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -176,28 +193,65 @@ export default function HomeScreen() {
     }, [loadTrainingData])
   );
 
-  const playCurrentAudio = useCallback(async () => {
-    const chordId = currentChordRef.current;
-    const entry = currentAudioRef.current;
-    if (!chordId || !entry) {
-      console.warn('No audio available for current chord', chordId);
-      return;
-    }
-    await stopSound();
-    try {
-      console.log('[Eguchi] Playing audio', {
-        chord: chordId,
-        file: entry.fileName,
-      });
-      const { sound } = await Audio.Sound.createAsync(entry.module, {
-        shouldPlay: true,
-        volume: 1.0,
-      });
-      soundRef.current = sound;
-    } catch (error) {
-      console.warn('Failed to play chord audio', error);
-    }
-  }, [stopSound]);
+  const playCurrentAudio = useCallback(
+    async (options: PlayCurrentAudioOptions = {}) => {
+      const chordId = options.chordId ?? currentChordRef.current;
+      const entry = options.entry ?? currentAudioRef.current;
+      const allowRetry = options.allowRetry ?? true;
+      const origin = options.origin ?? 'replay';
+      const requestId = playbackRequestIdRef.current + 1;
+      playbackRequestIdRef.current = requestId;
+      clearPlaybackRetry();
+
+      if (!chordId || !entry) {
+        console.warn('No audio available for current chord', chordId);
+        return;
+      }
+
+      await stopSound();
+      if (playbackRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      try {
+        console.log('[Eguchi] Playing audio', {
+          chord: chordId,
+          file: entry.fileName,
+          origin,
+          attempt: allowRetry ? 'initial' : 'retry',
+        });
+        const { sound } = await Audio.Sound.createAsync(entry.module, {
+          shouldPlay: true,
+          volume: 1.0,
+        });
+        if (playbackRequestIdRef.current !== requestId) {
+          await sound.unloadAsync().catch(error => {
+            console.warn('Failed to unload stale sound instance', error);
+          });
+          return;
+        }
+        soundRef.current = sound;
+      } catch (error) {
+        console.warn('Failed to play chord audio', error);
+        if (!allowRetry || playbackRequestIdRef.current !== requestId) {
+          return;
+        }
+        playbackRetryTimerRef.current = setTimeout(() => {
+          playbackRetryTimerRef.current = null;
+          if (playbackRequestIdRef.current !== requestId) {
+            return;
+          }
+          void playCurrentAudio({
+            chordId,
+            entry,
+            allowRetry: false,
+            origin: 'retry',
+          });
+        }, INITIAL_AUDIO_RETRY_DELAY_MS);
+      }
+    },
+    [clearPlaybackRetry, stopSound]
+  );
 
   const startNewTrial = useCallback(() => {
     if (!unlockedChordIds.length) {
@@ -229,7 +283,11 @@ export default function HomeScreen() {
       file: nextAudio?.fileName ?? 'missing',
     });
 
-    void playCurrentAudio();
+    void playCurrentAudio({
+      chordId: nextChordId,
+      entry: nextAudio,
+      origin: 'new-trial',
+    });
   }, [clearAdvanceTimer, playCurrentAudio, unlockedChordIds]);
 
   const handleAnswer = useCallback(
@@ -240,6 +298,7 @@ export default function HomeScreen() {
 
       const expectedId = currentChordRef.current;
       if (!expectedId) return;
+      const expectedAudio = currentAudioRef.current;
 
       hasAnsweredCurrentTrialRef.current = true;
 
@@ -282,7 +341,11 @@ export default function HomeScreen() {
         expectedAnimal: expectedChord?.animal,
         correct: isCorrect,
       });
-      void playCurrentAudio();
+      void playCurrentAudio({
+        chordId: expectedId,
+        entry: expectedAudio,
+        origin: 'answer-feedback',
+      });
 
       clearAdvanceTimer();
       const countdownStartedAt = Date.now();
@@ -305,13 +368,8 @@ export default function HomeScreen() {
       startNewTrial();
       return;
     }
-    void playCurrentAudio();
+    void playCurrentAudio({ origin: 'replay' });
   }, [playCurrentAudio, startNewTrial]);
-
-  const handleSkip = useCallback(() => {
-    clearAdvanceTimer();
-    startNewTrial();
-  }, [clearAdvanceTimer, startNewTrial]);
 
   const markAnimalImageFailed = useCallback((id: EguchiChordId) => {
     setFailedAnimalImageChordIds(previous => {
@@ -333,9 +391,11 @@ export default function HomeScreen() {
     startNewTrial();
     return () => {
       clearAdvanceTimer();
+      clearPlaybackRetry();
+      playbackRequestIdRef.current += 1;
       void stopSound();
     };
-  }, [clearAdvanceTimer, isReady, startNewTrial, stopSound, unlockedChordKey]);
+  }, [clearAdvanceTimer, clearPlaybackRetry, isReady, startNewTrial, stopSound, unlockedChordKey]);
 
   const progressionStatus = useMemo(() => {
     if (!progress) {
@@ -349,8 +409,6 @@ export default function HomeScreen() {
     });
   }, [progress, sessionPreferences]);
   const buttonBackground = Colors[colorScheme ?? 'light'].tint;
-  const buttonTextColor = colorScheme === 'light' ? '#FFFFFF' : '#111111';
-  const outlineColor = Colors[colorScheme ?? 'light'].icon;
   const missionProgress = progressionStatus
     ? clampProgress(
         progressionStatus.todaySummary.attempts / Math.max(1, progressionStatus.dailyAttemptTarget)
@@ -481,6 +539,7 @@ export default function HomeScreen() {
           </View>
           {showCenterFlash && currentChord ? (
             <View pointerEvents="none" style={styles.gridFlashOverlay}>
+              <View style={styles.gridFlashBackdrop} />
               <View style={styles.overlayFeedbackStack}>
                 <View
                   style={[
@@ -533,6 +592,21 @@ export default function HomeScreen() {
             handleBottomSectionLayout(event.nativeEvent.layout.height);
           }}
         >
+          <View style={styles.replayContainer}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Replay sound"
+              onPress={handleReplay}
+              disabled={isLoading}
+              style={[
+                styles.replayButton,
+                { backgroundColor: buttonBackground },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={styles.replayEmoji}>🔊</ThemedText>
+            </Pressable>
+          </View>
           {progressionStatus ? (
             <View style={styles.missionCard}>
               <ThemedText style={styles.missionTitle}>🎯 Today</ThemedText>
@@ -575,34 +649,6 @@ export default function HomeScreen() {
               </ThemedText>
             </View>
           ) : null}
-          <View style={styles.controls}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleReplay}
-              disabled={isLoading}
-              style={[
-                styles.primaryButton,
-                { backgroundColor: buttonBackground },
-                isLoading && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText style={[styles.primaryButtonText, { color: buttonTextColor }]}>
-                🔊 Replay
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleSkip}
-              disabled={isLoading}
-              style={[
-                styles.secondaryButton,
-                { borderColor: outlineColor },
-                isLoading && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText style={styles.secondaryButtonText}>⏭ Skip</ThemedText>
-            </Pressable>
-          </View>
         </View>
       </ScrollView>
     </ThemedView>
@@ -671,25 +717,28 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     opacity: 0.85,
   },
-  controls: {
-    flexDirection: 'row',
+  replayContainer: {
+    width: '100%',
     justifyContent: 'center',
-    gap: 12,
+    alignItems: 'center',
     marginBottom: 2,
   },
-  primaryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  replayButton: {
+    width: 92,
+    height: 92,
     borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
-  primaryButtonText: { fontSize: 16, fontWeight: '600' },
-  secondaryButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
+  replayEmoji: {
+    fontSize: 50,
+    lineHeight: 54,
   },
-  secondaryButtonText: { fontSize: 16, fontWeight: '600' },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -730,11 +779,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 20,
   },
+  gridFlashBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.24)',
+    borderRadius: 12,
+  },
   overlayFeedbackStack: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+    zIndex: 1,
   },
   centerFlashCard: {
     alignItems: 'center',

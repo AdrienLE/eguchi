@@ -1,0 +1,23 @@
+{
+  "asset_id": "app-icon",
+  "category": "ui",
+  "emotion": null,
+  "model": "gpt-image-1",
+  "size": "1024x1024",
+  "quality": "high",
+  "background": "transparent",
+  "output_format": "png",
+  "prompt": "Create a clean 2D illustrated mascot character for a children's learning app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and clear silhouette. Use transparent background and centered composition. Do not include musical notes, letters, symbols, props, hats, or text.\n\nSubject: A bold app icon mascot with a smiling fox face and whale wave motif fused into one clean emblem, bright teal and sunset orange palette, confident shape that reads at tiny size.\n\nDo not add musical notes, symbols, letters, numbers, thought bubbles, hats, signs, or props.\n\nKeep composition centered with transparent background and no text.",
+  "reference_images": [],
+  "generated_at_utc": "2026-02-17T22:10:13.344361+00:00",
+  "api": {
+    "created": 1771366212,
+    "model": "gpt-image-1",
+    "mode": "generate",
+    "size": "1024x1024",
+    "quality": "high",
+    "background": "transparent",
+    "output_format": "png",
+    "references": []
+  }
+}

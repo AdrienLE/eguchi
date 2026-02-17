@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -36,6 +36,11 @@ import {
 } from '@/lib/eguchi/session-preferences';
 
 const AUTO_ADVANCE_MS = AUTO_ADVANCE_DEFAULT_MS;
+const CONTENT_HORIZONTAL_PADDING = 24;
+const GRID_GAP = 10;
+const GRID_MIN_TILE_SIZE = 28;
+const GRID_MAX_COLUMNS = 6;
+const GRID_RESERVED_HEIGHT = 310;
 
 const getReadableTextColor = (hex: string) => {
   const normalized = hex.replace('#', '');
@@ -49,6 +54,34 @@ const getReadableTextColor = (hex: string) => {
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
+
+const getGridLayout = (tileCount: number, availableWidth: number, availableHeight: number) => {
+  const safeCount = Math.max(1, tileCount);
+  const safeWidth = Math.max(100, availableWidth);
+  const safeHeight = Math.max(100, availableHeight);
+  const minColumns = safeCount === 1 ? 1 : 2;
+  const maxColumns = Math.min(GRID_MAX_COLUMNS, safeCount);
+
+  let best = {
+    columns: minColumns,
+    tileSize: GRID_MIN_TILE_SIZE,
+  };
+
+  for (let columns = minColumns; columns <= maxColumns; columns += 1) {
+    const rows = Math.ceil(safeCount / columns);
+    const widthLimited = (safeWidth - GRID_GAP * (columns - 1)) / columns;
+    const heightLimited = (safeHeight - GRID_GAP * (rows - 1)) / rows;
+    const tileSize = Math.floor(Math.min(widthLimited, heightLimited));
+    if (tileSize > best.tileSize) {
+      best = { columns, tileSize };
+    }
+  }
+
+  return {
+    columns: best.columns,
+    tileSize: Math.max(GRID_MIN_TILE_SIZE, best.tileSize),
+  };
+};
 
 const ANIMAL_EMOJIS: Record<EguchiChordId, string> = {
   'C-E-G': '🦊',
@@ -69,6 +102,7 @@ const ANIMAL_EMOJIS: Record<EguchiChordId, string> = {
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [progress, setProgress] = useState<EguchiProgress | null>(null);
   const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -352,13 +386,19 @@ export default function HomeScreen() {
     currentChord && !failedAnimalImageChordIds.has(currentChord.id)
       ? getChordAnimalImageSource(currentChord.id)
       : null;
+  const gridLayout = useMemo(() => {
+    const availableWidth = windowWidth - CONTENT_HORIZONTAL_PADDING * 2;
+    const availableHeight = windowHeight - GRID_RESERVED_HEIGHT;
+    return getGridLayout(unlockedChords.length, availableWidth, availableHeight);
+  }, [unlockedChords.length, windowHeight, windowWidth]);
+  const gridWidth = gridLayout.columns * gridLayout.tileSize + GRID_GAP * (gridLayout.columns - 1);
 
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading ? <ActivityIndicator /> : null}
         {!showCenterFlash ? (
-          <View style={styles.grid}>
+          <View style={[styles.grid, { width: gridWidth }]}>
             {unlockedChords.map(chord => {
               const showCorrect = lastResult !== null;
               const isCorrectTile = showCorrect && currentChordId === chord.id;
@@ -375,11 +415,12 @@ export default function HomeScreen() {
                   accessibilityRole="button"
                   disabled={isLoading}
                   onPress={() => handleAnswer(chord.id)}
-                  style={[
-                    styles.tile,
-                    { backgroundColor: chord.color.hex },
-                    isCorrectTile && styles.tileCorrect,
-                    isWrongSelection && styles.tileIncorrect,
+                style={[
+                  styles.tile,
+                  { width: gridLayout.tileSize, height: gridLayout.tileSize },
+                  { backgroundColor: chord.color.hex },
+                  isCorrectTile && styles.tileCorrect,
+                  isWrongSelection && styles.tileIncorrect,
                     isLoading && styles.buttonDisabled,
                   ]}
                 >
@@ -557,7 +598,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: CONTENT_HORIZONTAL_PADDING,
     paddingVertical: 20,
     gap: 14,
   },
@@ -637,19 +678,18 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+    alignSelf: 'center',
+    justifyContent: 'center',
+    gap: GRID_GAP,
   },
   feedbackGridSpacer: {
     minHeight: 20,
   },
   tile: {
-    width: '48%',
-    aspectRatio: 1,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    padding: 6,
   },
   tileImage: {
     width: '94%',

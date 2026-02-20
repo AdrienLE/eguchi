@@ -70,6 +70,10 @@ def find_missing_source_files(reference: AudioPackReference) -> list[Path]:
     return sorted({path for path in reference.referenced_files if not path.exists()})
 
 
+def find_unsafe_file_names(reference: AudioPackReference) -> list[str]:
+    return sorted({path.name for path in reference.referenced_files if "#" in path.name})
+
+
 def find_missing_chord_entries(
     reference: AudioPackReference, expected_chord_ids: Iterable[str]
 ) -> list[str]:
@@ -161,6 +165,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"... and {len(missing_source_files) - 30} more")
         return 1
     print("Source audio files: OK")
+
+    unsafe_file_names = find_unsafe_file_names(reference)
+    if unsafe_file_names:
+        print("Unsafe audio file names detected (contains '#'):")
+        for name in unsafe_file_names[:30]:
+            print(f"- {name}")
+        if len(unsafe_file_names) > 30:
+            print(f"... and {len(unsafe_file_names) - 30} more")
+        return 1
 
     if args.check_dist:
         missing_dist_files = find_missing_dist_files(reference, dist_root)

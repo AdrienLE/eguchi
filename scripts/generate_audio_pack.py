@@ -58,6 +58,11 @@ DEFAULT_CHORD_LABELS = [
 ]
 
 
+def to_safe_label(label: str) -> str:
+    """Convert chord labels into URL-safe file stems."""
+    return label.replace("#", "sharp")
+
+
 @dataclass(frozen=True)
 class RenderConfig:
     variants: int
@@ -489,10 +494,11 @@ def main() -> int:
 
     tasks: list[RenderTask] = []
     for label in chords:
+        safe_label = to_safe_label(label)
         for octave in config.octaves:
             notes = chord_to_midi_notes(label, octave)
             for variant in range(1, config.variants + 1):
-                filename = f"{label}__o-{octave}__v-{variant:02d}"
+                filename = f"{safe_label}__o-{octave}__v-{variant:02d}"
                 midi_path = midi_dir / f"{filename}.mid"
                 audio_path = audio_dir / f"{filename}.{config.output_format}"
                 seed = rng.randint(0, 2**31 - 1)

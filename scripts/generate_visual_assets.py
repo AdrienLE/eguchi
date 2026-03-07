@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import contextlib
+import concurrent.futures
 import json
 import os
 import sys
@@ -46,6 +47,19 @@ class PlannedAssetTask:
     asset: AssetDefinition
     output_path: Path
     will_generate: bool
+
+
+@dataclass(frozen=True)
+class PreparedGenerationTask:
+    planned: PlannedAssetTask
+    emotion: str | None
+    accessory_variant: AnimalAccessoryVariantDefinition | None
+    prompt: str
+    size: str | None
+    quality: str | None
+    background: str | None
+    output_format: str | None
+    reference_images: tuple[Path, ...]
 
 
 @dataclass(frozen=True)
@@ -458,6 +472,28 @@ def generate_image_bytes(
     return image_bytes, metadata
 
 
+def normalize_worker_count(candidate: int) -> int:
+    return max(1, int(candidate))
+
+
+def split_seed_task(
+    planned_tasks: Sequence[PlannedAssetTask],
+    *,
+    has_static_reference: bool,
+) -> tuple[PlannedAssetTask | None, list[PlannedAssetTask]]:
+    if has_static_reference:
+        return None, list(planned_tasks)
+
+    seed_task: PlannedAssetTask | None = None
+    parallel_tasks: list[PlannedAssetTask] = []
+    for planned in planned_tasks:
+        if seed_task is None and planned.will_generate:
+            seed_task = planned
+            continue
+        parallel_tasks.append(planned)
+    return seed_task, parallel_tasks
+
+
 def print_assets(assets: Iterable[AssetDefinition]) -> None:
     print("Available assets:")
     for asset in assets:
@@ -573,11 +609,21 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
             "as <name>__sad.png."
         ),
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help=(
+            "Number of parallel workers to use within each independent generation phase. "
+            "Dependent seed images are still generated first."
+        ),
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
+    workers = normalize_worker_count(args.workers)
     repo_root = Path(__file__).resolve().parents[1]
     manifest_path = Path(args.manifest)
     if not manifest_path.is_absolute():
@@ -776,17 +822,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     total = len(planned_assets)
     generated = 0
     skipped = 0
+    progress_counter = 0
 
-    for index, (planned, emotion, accessory_variant) in enumerate(planned_assets, start=1):
+    def prepare_task(
+        planned: PlannedAssetTask,
+        emotion: str | None,
+        accessory_variant: AnimalAccessoryVariantDefinition | None,
+        *,
+        generated_style_reference: Path | None = None,
+    ) -> PreparedGenerationTask:
         asset = planned.asset
         output_path = planned.output_path
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if not planned.will_generate:
-            skipped += 1
-            print(f"[{index}/{total}] skip {asset.id} (exists): {output_path}")
-            continue
-
         size = asset.size or manifest.defaults.get("size")
         quality = asset.quality or manifest.defaults.get("quality")
         background = asset.background or manifest.defaults.get("background")
@@ -798,9 +844,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             accessory_variant=accessory_variant,
         )
 
-        reference_images: list[Path]
         if asset.category != "animals":
-            reference_images = []
+            reference_images: list[Path] = []
         elif accessory_variant and emotion == EMOTION_HAPPY:
             base_animal_reference = resolve_animal_reference_path(
                 repo_root,
@@ -814,9 +859,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 static_accessory_reference=static_happy_accessory_reference_by_variant.get(
                     accessory_variant.id
                 ),
-                generated_accessory_reference=generated_happy_accessory_reference_by_variant.get(
-                    accessory_variant.id
-                ),
+                generated_accessory_reference=generated_style_reference,
             )
         elif accessory_variant and emotion == EMOTION_SAD:
             happy_reference = resolve_output_path(
@@ -834,105 +877,222 @@ def main(argv: Sequence[str] | None = None) -> int:
                 static_sad_reference=static_sad_accessory_reference_by_variant.get(
                     accessory_variant.id
                 ),
-                generated_sad_reference=generated_sad_accessory_reference_by_variant.get(
-                    accessory_variant.id
-                ),
+                generated_sad_reference=generated_style_reference,
             )
         elif emotion == EMOTION_SAD:
             reference_images = select_sad_reference_images(
                 output_path=output_path,
                 happy_reference=happy_output_by_asset_id.get(asset.id),
                 static_sad_reference=static_sad_animal_reference,
-                generated_sad_reference=generated_sad_animal_reference,
+                generated_sad_reference=generated_style_reference,
             )
         else:
             reference_images = select_reference_images(
                 asset=asset,
                 output_path=output_path,
                 static_animal_reference=static_happy_animal_reference,
-                generated_animal_reference=generated_happy_animal_reference,
+                generated_animal_reference=generated_style_reference,
             )
 
-        reference_labels = ", ".join(path.name for path in reference_images)
-        reference_suffix = (
-            f" [refs: {reference_labels}]"
-            if reference_images
-            else " [ref: none]" if asset.category == "animals" else ""
-        )
-
-        print(f"[{index}/{total}] generate {asset.id} -> {output_path}{reference_suffix}")
-        if args.show_prompts:
-            print(prompt)
-            print("---")
-
-        if args.dry_run:
-            generated += 1
-            if asset.category == "animals" and emotion == EMOTION_HAPPY and accessory_variant:
-                if generated_happy_accessory_reference_by_variant[accessory_variant.id] is None:
-                    generated_happy_accessory_reference_by_variant[accessory_variant.id] = output_path
-            elif asset.category == "animals" and emotion == EMOTION_HAPPY:
-                if generated_happy_animal_reference is None:
-                    generated_happy_animal_reference = output_path
-            if asset.category == "animals" and emotion == EMOTION_SAD and accessory_variant:
-                if generated_sad_accessory_reference_by_variant[accessory_variant.id] is None:
-                    generated_sad_accessory_reference_by_variant[accessory_variant.id] = output_path
-            elif asset.category == "animals" and emotion == EMOTION_SAD:
-                if generated_sad_animal_reference is None:
-                    generated_sad_animal_reference = output_path
-            continue
-
-        image_bytes, api_metadata = generate_image_bytes(
-            client,
-            model=args.model,
+        return PreparedGenerationTask(
+            planned=planned,
+            emotion=emotion,
+            accessory_variant=accessory_variant,
             prompt=prompt,
             size=size,
             quality=quality,
             background=background,
             output_format=output_format,
-            reference_image_paths=reference_images,
+            reference_images=tuple(reference_images),
         )
-        output_path.write_bytes(image_bytes)
-        if asset.category == "animals" and emotion == EMOTION_HAPPY and accessory_variant:
-            if generated_happy_accessory_reference_by_variant[accessory_variant.id] is None:
-                generated_happy_accessory_reference_by_variant[accessory_variant.id] = output_path
-        elif asset.category == "animals" and emotion == EMOTION_HAPPY:
-            if generated_happy_animal_reference is None:
-                generated_happy_animal_reference = output_path
-        if asset.category == "animals" and emotion == EMOTION_SAD and accessory_variant:
-            if generated_sad_accessory_reference_by_variant[accessory_variant.id] is None:
-                generated_sad_accessory_reference_by_variant[accessory_variant.id] = output_path
-        elif asset.category == "animals" and emotion == EMOTION_SAD:
-            if generated_sad_animal_reference is None:
-                generated_sad_animal_reference = output_path
+
+    def print_task_banner(prepared: PreparedGenerationTask) -> None:
+        nonlocal progress_counter
+        progress_counter += 1
+        asset = prepared.planned.asset
+        reference_labels = ", ".join(path.name for path in prepared.reference_images)
+        reference_suffix = (
+            f" [refs: {reference_labels}]"
+            if prepared.reference_images
+            else " [ref: none]" if asset.category == "animals" else ""
+        )
+        print(
+            f"[{progress_counter}/{total}] generate {asset.id} -> "
+            f"{prepared.planned.output_path}{reference_suffix}"
+        )
+        if args.show_prompts:
+            print(prepared.prompt)
+            print("---")
+
+    def finalize_task(
+        prepared: PreparedGenerationTask,
+        api_metadata: dict[str, Any] | None,
+    ) -> Path:
+        output_path = prepared.planned.output_path
+        asset = prepared.planned.asset
+        if api_metadata is None:
+            return output_path
 
         metadata_path = output_path.with_suffix(f"{output_path.suffix}.meta.json")
         metadata_payload = {
             "asset_id": asset.id,
             "category": asset.category,
-            "emotion": emotion,
+            "emotion": prepared.emotion,
             "accessory_variant": (
-                accessory_variant.id
-                if accessory_variant
+                prepared.accessory_variant.id
+                if prepared.accessory_variant
                 else DEFAULT_ANIMAL_ACCESSORY_VARIANT if asset.category == "animals" else None
             ),
             "base_variant": args.variant,
             "model": args.model,
-            "size": size,
-            "quality": quality,
-            "background": background,
-            "output_format": output_format,
-            "prompt": prompt,
-            "reference_images": [path.as_posix() for path in reference_images],
+            "size": prepared.size,
+            "quality": prepared.quality,
+            "background": prepared.background,
+            "output_format": prepared.output_format,
+            "prompt": prepared.prompt,
+            "reference_images": [path.as_posix() for path in prepared.reference_images],
             "generated_at_utc": datetime.now(timezone.utc).isoformat(),
             "api": api_metadata,
         }
         metadata_path.write_text(json.dumps(metadata_payload, indent=2), encoding="utf-8")
-        generated += 1
+        return output_path
+
+    def execute_prepared_task(
+        prepared: PreparedGenerationTask,
+    ) -> tuple[PreparedGenerationTask, dict[str, Any] | None]:
+        output_path = prepared.planned.output_path
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if args.dry_run:
+            return prepared, None
+        image_bytes, api_metadata = generate_image_bytes(
+            client,
+            model=args.model,
+            prompt=prepared.prompt,
+            size=prepared.size,
+            quality=prepared.quality,
+            background=prepared.background,
+            output_format=prepared.output_format,
+            reference_image_paths=prepared.reference_images,
+        )
+        output_path.write_bytes(image_bytes)
+        return prepared, api_metadata
+
+    def run_phase(
+        planned_tasks: Sequence[PlannedAssetTask],
+        *,
+        emotion: str | None,
+        accessory_variant: AnimalAccessoryVariantDefinition | None,
+        has_static_reference: bool,
+    ) -> Path | None:
+        nonlocal generated, skipped
+        seed_task, parallel_tasks = split_seed_task(
+            planned_tasks,
+            has_static_reference=has_static_reference,
+        )
+        generated_style_reference: Path | None = None
+
+        def process_one(
+            planned: PlannedAssetTask,
+            style_reference: Path | None,
+        ) -> Path | None:
+            nonlocal generated, skipped
+            if not planned.will_generate:
+                skipped += 1
+                return None
+            prepared = prepare_task(
+                planned,
+                emotion,
+                accessory_variant,
+                generated_style_reference=style_reference,
+            )
+            print_task_banner(prepared)
+            completed_prepared, api_metadata = execute_prepared_task(prepared)
+            generated += 1
+            return finalize_task(completed_prepared, api_metadata)
+
+        if seed_task is not None:
+            generated_style_reference = process_one(seed_task, None)
+
+        if workers == 1 or len(parallel_tasks) <= 1:
+            for planned in parallel_tasks:
+                process_one(planned, generated_style_reference)
+            return generated_style_reference
+
+        prepared_parallel_tasks: list[PreparedGenerationTask] = []
+        for planned in parallel_tasks:
+            if not planned.will_generate:
+                skipped += 1
+                continue
+            prepared = prepare_task(
+                planned,
+                emotion,
+                accessory_variant,
+                generated_style_reference=generated_style_reference,
+            )
+            print_task_banner(prepared)
+            prepared_parallel_tasks.append(prepared)
+
+        if not prepared_parallel_tasks:
+            return generated_style_reference
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [
+                executor.submit(execute_prepared_task, prepared)
+                for prepared in prepared_parallel_tasks
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                completed_prepared, api_metadata = future.result()
+                generated += 1
+                finalize_task(completed_prepared, api_metadata)
+
+        return generated_style_reference
+
+    run_phase(
+        planned_non_animal_assets,
+        emotion=None,
+        accessory_variant=None,
+        has_static_reference=True,
+    )
+    generated_happy_animal_reference = run_phase(
+        planned_happy_animals,
+        emotion=EMOTION_HAPPY,
+        accessory_variant=None,
+        has_static_reference=static_happy_animal_reference is not None,
+    )
+    if args.animal_emotions:
+        generated_sad_animal_reference = run_phase(
+            planned_sad_animals,
+            emotion=EMOTION_SAD,
+            accessory_variant=None,
+            has_static_reference=static_sad_animal_reference is not None,
+        )
+
+    for accessory_variant in selected_animal_accessory_variants:
+        generated_happy_accessory_reference_by_variant[accessory_variant.id] = run_phase(
+            planned_accessory_happy_animals_by_variant[accessory_variant.id],
+            emotion=EMOTION_HAPPY,
+            accessory_variant=accessory_variant,
+            has_static_reference=(
+                static_happy_accessory_reference_by_variant.get(accessory_variant.id)
+                is not None
+            ),
+        )
+        if args.animal_emotions:
+            generated_sad_accessory_reference_by_variant[accessory_variant.id] = run_phase(
+                planned_accessory_sad_animals_by_variant.get(accessory_variant.id, []),
+                emotion=EMOTION_SAD,
+                accessory_variant=accessory_variant,
+                has_static_reference=(
+                    static_sad_accessory_reference_by_variant.get(accessory_variant.id)
+                    is not None
+                ),
+            )
 
     print(
         f"Done. AssetSelections={len(selected_assets)} Tasks={total} Generated={generated} "
         f"Skipped={skipped} AnimalEmotions={'yes' if args.animal_emotions else 'no'} "
         f"AnimalAccessoryVariants={len(selected_animal_accessory_variants)} "
+        f"Workers={workers} "
         f"Force={'yes' if args.force else 'no'} DryRun={'yes' if args.dry_run else 'no'}"
     )
     return 0

@@ -74,6 +74,13 @@ def test_resolve_output_path_and_force_behavior(tmp_path: Path):
     assert module.should_generate(output, force=True)
 
 
+def test_normalize_worker_count_clamps_to_one():
+    module = load_module()
+    assert module.normalize_worker_count(1) == 1
+    assert module.normalize_worker_count(4) == 4
+    assert module.normalize_worker_count(0) == 1
+
+
 def test_build_prompt_contains_style_and_subject():
     module = load_module()
     manifest_payload = {
@@ -208,6 +215,49 @@ def test_find_static_animal_reference_uses_non_overwritten_asset(tmp_path: Path)
         force=False,
     )
     assert reference == fox_path
+
+
+def test_split_seed_task_uses_first_generating_task_without_static_reference():
+    module = load_module()
+    asset = module.AssetDefinition(
+        id="fox",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/fox.png",
+        subject_prompt="Fox",
+    )
+    planned_tasks = [
+        module.PlannedAssetTask(asset=asset, output_path=Path("skip.png"), will_generate=False),
+        module.PlannedAssetTask(asset=asset, output_path=Path("seed.png"), will_generate=True),
+        module.PlannedAssetTask(asset=asset, output_path=Path("rest.png"), will_generate=True),
+    ]
+
+    seed_task, parallel_tasks = module.split_seed_task(
+        planned_tasks,
+        has_static_reference=False,
+    )
+    assert seed_task == planned_tasks[1]
+    assert parallel_tasks == [planned_tasks[0], planned_tasks[2]]
+
+
+def test_split_seed_task_skips_seed_when_static_reference_exists():
+    module = load_module()
+    asset = module.AssetDefinition(
+        id="fox",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/fox.png",
+        subject_prompt="Fox",
+    )
+    planned_tasks = [
+        module.PlannedAssetTask(asset=asset, output_path=Path("a.png"), will_generate=True),
+        module.PlannedAssetTask(asset=asset, output_path=Path("b.png"), will_generate=True),
+    ]
+
+    seed_task, parallel_tasks = module.split_seed_task(
+        planned_tasks,
+        has_static_reference=True,
+    )
+    assert seed_task is None
+    assert parallel_tasks == planned_tasks
 
 
 def test_force_mode_disables_static_animal_reference(tmp_path: Path):

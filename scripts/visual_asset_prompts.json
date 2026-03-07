@@ -1,5 +1,5 @@
 {
-  "style_guide_prompt": "Create a clean 2D illustrated mascot character for a children's learning app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and clear silhouette. Use transparent background and centered composition. Do not include musical notes, letters, symbols, props, hats, or text.",
+  "style_guide_prompt": "Create a clean 2D illustrated mascot character for a children's learning app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and clear silhouette. Use transparent background and centered composition. Do not include musical notes, letters, symbols, or text. Only include accessories when the prompt explicitly asks for one.",
   "defaults": {
     "size": "1024x1024",
     "quality": "high",

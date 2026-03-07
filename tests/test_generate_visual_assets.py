@@ -98,6 +98,7 @@ def test_build_prompt_contains_style_and_subject():
         assert "happy" in prompt.lower()
         assert "musical notes" in prompt.lower()
         assert "no text" in prompt.lower()
+        assert "no hats" in prompt.lower()
     finally:
         manifest_path.unlink(missing_ok=True)
 
@@ -115,12 +116,64 @@ def test_build_prompt_supports_sad_expression():
     assert "musical notes" in prompt.lower()
 
 
+def test_build_prompt_supports_accessory_variant():
+    module = load_module()
+    accessory_variant = module.ANIMAL_ACCESSORY_VARIANT_BY_ID["top-hat"]
+    asset = module.AssetDefinition(
+        id="fox",
+        category="animals",
+        output_path="frontend/assets/images/eguchi/animals/fox.png",
+        subject_prompt="A fox mascot.",
+    )
+    prompt = module.build_prompt(
+        "Base style",
+        asset,
+        emotion=module.EMOTION_HAPPY,
+        accessory_variant=accessory_variant,
+    )
+    assert "top hat" in prompt.lower()
+    assert "same character identity" in prompt.lower()
+    assert "only the requested accessory" in prompt.lower()
+
+
 def test_get_animal_variant_uses_sad_suffix():
     module = load_module()
     assert module.get_animal_variant(None, module.EMOTION_HAPPY) is None
     assert module.get_animal_variant("v2", module.EMOTION_HAPPY) == "v2"
     assert module.get_animal_variant(None, module.EMOTION_SAD) == "sad"
     assert module.get_animal_variant("v2", module.EMOTION_SAD) == "sad__v2"
+
+
+def test_get_animal_accessory_variant_builds_happy_and_sad_names():
+    module = load_module()
+    assert (
+        module.get_animal_accessory_variant("top-hat", module.EMOTION_HAPPY)
+        == "top-hat"
+    )
+    assert (
+        module.get_animal_accessory_variant("top-hat", module.EMOTION_SAD)
+        == "sad__top-hat"
+    )
+    assert (
+        module.get_animal_accessory_variant(
+            "top-hat", module.EMOTION_SAD, base_variant="v2"
+        )
+        == "sad__top-hat__v2"
+    )
+
+
+def test_select_animal_accessory_variants_validates_ids():
+    module = load_module()
+    selected = module.select_animal_accessory_variants(
+        ["top-hat,bow-tie"], all_variants=False
+    )
+    assert [variant.id for variant in selected] == ["top-hat", "bow-tie"]
+
+    all_selected = module.select_animal_accessory_variants([], all_variants=True)
+    assert len(all_selected) == len(module.ANIMAL_ACCESSORY_VARIANTS) - 1
+
+    with pytest.raises(ValueError, match="Unknown animal accessory variant id"):
+        module.select_animal_accessory_variants(["missing"], all_variants=False)
 
 
 def test_find_static_animal_reference_uses_non_overwritten_asset(tmp_path: Path):
@@ -228,6 +281,29 @@ def test_select_reference_images_prefers_static_then_generated(tmp_path: Path):
         generated_animal_reference=generated_reference,
     )
     assert references_non_animal == []
+
+
+def test_select_accessory_reference_images_prefers_base_then_style_refs(tmp_path: Path):
+    module = load_module()
+    output = tmp_path / "fox__top-hat.png"
+    base_reference = tmp_path / "fox.png"
+    base_reference.write_bytes(b"base")
+    static_style_reference = tmp_path / "whale__top-hat.png"
+    static_style_reference.write_bytes(b"static-style")
+    generated_style_reference = tmp_path / "frog__top-hat.png"
+    generated_style_reference.write_bytes(b"generated-style")
+
+    references = module.select_accessory_reference_images(
+        output_path=output,
+        base_animal_reference=base_reference,
+        static_accessory_reference=static_style_reference,
+        generated_accessory_reference=generated_style_reference,
+    )
+    assert references == [
+        base_reference,
+        static_style_reference,
+        generated_style_reference,
+    ]
 
 
 def test_select_sad_reference_images_includes_happy_and_sad_style_refs(tmp_path: Path):

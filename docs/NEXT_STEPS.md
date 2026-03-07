@@ -9,10 +9,12 @@
 - Caregiver settings now include audio pack cache management (download all, clear cache, progress UI, and cache metadata) via `frontend/lib/eguchi/audio-cache.ts` and `frontend/app/settings.tsx`.
 - Next-level progression status is now visible (current level, next chord, streak, days remaining), with subtle manual controls and auto-unlock settings (`frontend/lib/eguchi/progression.ts`, `frontend/app/settings.tsx`, `frontend/app/(tabs)/index.tsx`).
 - Visual-asset generation tooling now exists via OpenAI with selective regeneration (`scripts/generate_visual_assets.py`, `scripts/visual_asset_prompts.json`).
+- Animal image generation now supports fixed accessory variant sets (for example top hat, bow tie, flower crown, glasses, scarf) with matching happy/sad outputs and reference chaining from the plain animal plus first generated variant image.
 - Backend APIs are template defaults (nugget + profile settings) and not tied to Eguchi data (`backend/main.py`).
 - Eguchi chord order + default mappings live in `frontend/lib/eguchi/chords.ts`.
 - Audio pack generator script added at `scripts/generate_audio_pack.py` (requires `fluidsynth` + a piano .sf2, and `ffmpeg` for MP3 output).
 - Audio playback wired to the training UI using the generated pack (`frontend/lib/eguchi/audio-pack.ts`).
+- The training UI now supports per-animal accessory assignments, child-facing shuffle/reset controls, and a caregiver option to force plain animals (`frontend/app/(tabs)/index.tsx`, `frontend/app/settings.tsx`, `frontend/lib/eguchi/animal-variants.ts`).
 
 ## Decisions To Confirm
 - **Spec source of truth:** `SPEC.md` is canonical.
@@ -29,7 +31,9 @@
 - [x] **Add tests** for chord selection randomness and training UI transitions.
 - [x] **Add tests** for progress state transitions and unlock persistence.
 - [x] **Add OpenAI image generation script** with manifest-driven assets, category filters, and non-overwrite defaults.
-- [ ] **Generate and integrate animal illustrations** from the manifest into training tiles (replace emoji-only fallback where available).
+- [x] **Generate and integrate animal illustrations** from the manifest into training tiles (replace emoji-only fallback where available).
+- [x] **Add animal accessory variants** with generator support, child shuffle/reset controls, and caregiver force-plain mode.
+- [ ] **Generate the accessory variant image files** and verify coverage so shuffle mode always shows artwork instead of falling back to the plain animal.
 
 ## Later Phases
 - **v2:** refine auto-unlock tuning + notifications (core streak logic and visuals now scaffolded).

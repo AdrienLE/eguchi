@@ -10,6 +10,15 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
 import { getChordAnimalImageSource, type AnimalEmotion } from '@/lib/eguchi/animal-assets';
 import {
+  createDefaultEguchiAnimalVariantAssignments,
+  loadEguchiAnimalVariantAssignments,
+  resetEguchiAnimalVariantAssignments,
+  saveEguchiAnimalVariantAssignments,
+  shuffleEguchiAnimalVariantAssignments,
+  type AnimalAccessoryVariantId,
+  type EguchiAnimalVariantAssignments,
+} from '@/lib/eguchi/animal-variants';
+import {
   CHORD_BY_ID,
   DEFAULT_UNLOCKED_CHORD_IDS,
   type EguchiChordId,
@@ -55,6 +64,12 @@ type PlayCurrentAudioOptions = {
   retryLimit?: number;
 };
 
+type AnimalImageCandidate = {
+  source: ReturnType<typeof getChordAnimalImageSource>;
+  emotion: AnimalEmotion;
+  variant: AnimalAccessoryVariantId;
+};
+
 const getReadableTextColor = (hex: string) => {
   const normalized = hex.replace('#', '');
   if (normalized.length !== 6) return '#111111';
@@ -67,8 +82,11 @@ const getReadableTextColor = (hex: string) => {
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
-const getAnimalImageFailureKey = (chordId: EguchiChordId, emotion?: AnimalEmotion) =>
-  `${chordId}__${emotion ?? 'default'}`;
+const getAnimalImageFailureKey = (
+  chordId: EguchiChordId,
+  variant: AnimalAccessoryVariantId,
+  emotion?: AnimalEmotion
+) => `${chordId}__${variant}__${emotion ?? 'default'}`;
 
 const isAutoplayBlockedError = (error: unknown) => {
   if (!error) {
@@ -138,8 +156,11 @@ export default function HomeScreen() {
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
   const [progress, setProgress] = useState<EguchiProgress | null>(null);
   const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences | null>(null);
+  const [animalVariantAssignments, setAnimalVariantAssignments] =
+    useState<EguchiAnimalVariantAssignments | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const defaultSessionPreferences = useRef(createDefaultEguchiSessionPreferences());
+  const defaultAnimalVariantAssignments = useRef(createDefaultEguchiAnimalVariantAssignments());
   const unlockedChordIds =
     progress?.unlockedChordIds.length ? progress.unlockedChordIds : DEFAULT_UNLOCKED_CHORD_IDS;
   const unlockedChords = unlockedChordIds.map(id => CHORD_BY_ID[id]);
@@ -203,16 +224,20 @@ export default function HomeScreen() {
   const loadTrainingData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [loadedProgress, loadedSessionPreferences] = await Promise.all([
-        loadEguchiProgress(),
-        loadEguchiSessionPreferences(),
-      ]);
+      const [loadedProgress, loadedSessionPreferences, loadedAnimalVariantAssignments] =
+        await Promise.all([
+          loadEguchiProgress(),
+          loadEguchiSessionPreferences(),
+          loadEguchiAnimalVariantAssignments(),
+        ]);
       setProgress(loadedProgress);
       setSessionPreferences(loadedSessionPreferences);
+      setAnimalVariantAssignments(loadedAnimalVariantAssignments);
     } catch (error) {
       console.warn('Failed to load Eguchi training data', error);
       setProgress(createDefaultEguchiProgress());
       setSessionPreferences(createDefaultEguchiSessionPreferences());
+      setAnimalVariantAssignments(createDefaultEguchiAnimalVariantAssignments());
     } finally {
       setIsLoading(false);
     }
@@ -466,19 +491,50 @@ export default function HomeScreen() {
     void playCurrentAudio({ origin: 'replay' });
   }, [handleStartTraining, hasStartedTraining, playCurrentAudio, startNewTrial]);
 
-  const markAnimalImageFailed = useCallback((id: EguchiChordId, emotion?: AnimalEmotion) => {
-    const failureKey = getAnimalImageFailureKey(id, emotion);
-    setFailedAnimalImageKeys(previous => {
-      if (previous.has(failureKey)) {
-        return previous;
-      }
-      const next = new Set(previous);
-      next.add(failureKey);
-      return next;
-    });
-  }, []);
+  const markAnimalImageFailed = useCallback(
+    (id: EguchiChordId, variant: AnimalAccessoryVariantId, emotion?: AnimalEmotion) => {
+      const failureKey = getAnimalImageFailureKey(id, variant, emotion);
+      setFailedAnimalImageKeys(previous => {
+        if (previous.has(failureKey)) {
+          return previous;
+        }
+        const next = new Set(previous);
+        next.add(failureKey);
+        return next;
+      });
+    },
+    []
+  );
 
-  const isReady = !isLoading && progress !== null;
+  const handleAnimalVariantAssignmentsUpdate = useCallback(
+    (updater: (previous: EguchiAnimalVariantAssignments) => EguchiAnimalVariantAssignments) => {
+      setAnimalVariantAssignments(previous => {
+        const baseAssignments = previous ?? defaultAnimalVariantAssignments.current;
+        const next = updater(baseAssignments);
+        void saveEguchiAnimalVariantAssignments(next).catch(error => {
+          console.warn('Failed to save Eguchi animal variant assignments', error);
+        });
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleShuffleAccessories = useCallback(() => {
+    handleAnimalVariantAssignmentsUpdate(previous =>
+      shuffleEguchiAnimalVariantAssignments(previous)
+    );
+  }, [handleAnimalVariantAssignmentsUpdate]);
+
+  const handleResetAccessories = useCallback(() => {
+    handleAnimalVariantAssignmentsUpdate(() => resetEguchiAnimalVariantAssignments());
+  }, [handleAnimalVariantAssignmentsUpdate]);
+
+  const isReady =
+    !isLoading &&
+    progress !== null &&
+    sessionPreferences !== null &&
+    animalVariantAssignments !== null;
 
   useEffect(() => {
     if (!isReady) {
@@ -517,6 +573,10 @@ export default function HomeScreen() {
   }, [progress, sessionPreferences]);
   const isDarkMode = colorScheme === 'dark';
   const buttonBackground = Colors[colorScheme ?? 'light'].tint;
+  const accessoryPrimaryBackground = isDarkMode ? '#3A2F18' : '#FFF4D8';
+  const accessoryPrimaryBorder = isDarkMode ? '#B89A42' : '#E8C977';
+  const accessorySecondaryBackground = isDarkMode ? '#26303A' : '#F1F4F8';
+  const accessorySecondaryBorder = isDarkMode ? '#6F8198' : '#CFD8E3';
   const startCardBackground = isDarkMode ? '#242628' : '#FFFFFF';
   const startCardBorderColor = isDarkMode ? '#3E4448' : '#D0D0D0';
   const startTitleColor = Colors[colorScheme ?? 'light'].text;
@@ -549,27 +609,59 @@ export default function HomeScreen() {
       ? 0
       : getAutoAdvanceProgress(autoAdvanceRemainingMs, autoAdvanceMs);
   const showCenterFlash = Boolean(currentChord && lastResult && autoAdvanceRemainingMs !== null);
-  const resolveAnimalImageCandidate = useCallback(
-    (chordId: EguchiChordId, emotion?: AnimalEmotion) => {
-      const emotionCandidates: Array<AnimalEmotion | undefined> = [];
-      if (emotion) {
-        emotionCandidates.push(emotion);
+  const getDisplayedAnimalVariant = useCallback(
+    (chordId: EguchiChordId): AnimalAccessoryVariantId => {
+      if (sessionPreferences?.forceDefaultAnimalVariants) {
+        return 'default';
       }
-      emotionCandidates.push(undefined);
+      return (
+        animalVariantAssignments?.[chordId] ??
+        defaultAnimalVariantAssignments.current[chordId] ??
+        'default'
+      );
+    },
+    [animalVariantAssignments, sessionPreferences?.forceDefaultAnimalVariants]
+  );
+  const resolveAnimalImageCandidate = useCallback(
+    (
+      chordId: EguchiChordId,
+      options: {
+        emotion?: AnimalEmotion;
+        variant?: AnimalAccessoryVariantId;
+      } = {}
+    ): AnimalImageCandidate | null => {
+      const requestedEmotion = options.emotion ?? 'happy';
+      const requestedVariant = options.variant ?? 'default';
+      const candidates: Array<{ emotion: AnimalEmotion; variant: AnimalAccessoryVariantId }> = [
+        { emotion: requestedEmotion, variant: requestedVariant },
+      ];
 
-      for (const candidateEmotion of emotionCandidates) {
-        const failureKey = getAnimalImageFailureKey(chordId, candidateEmotion);
+      if (requestedVariant !== 'default') {
+        candidates.push({ emotion: requestedEmotion, variant: 'default' });
+      }
+      if (requestedEmotion !== 'happy') {
+        candidates.push({ emotion: 'happy', variant: requestedVariant });
+        if (requestedVariant !== 'default') {
+          candidates.push({ emotion: 'happy', variant: 'default' });
+        }
+      }
+
+      for (const candidate of candidates) {
+        const failureKey = getAnimalImageFailureKey(
+          chordId,
+          candidate.variant,
+          candidate.emotion
+        );
         if (failedAnimalImageKeys.has(failureKey)) {
           continue;
         }
 
-        const source = candidateEmotion
-          ? getChordAnimalImageSource(chordId, undefined, { emotion: candidateEmotion })
-          : getChordAnimalImageSource(chordId);
+        const source = getChordAnimalImageSource(chordId, undefined, candidate);
         if (source) {
           return {
             source,
-            emotion: candidateEmotion,
+            emotion: candidate.emotion,
+            variant: candidate.variant,
           };
         }
       }
@@ -581,7 +673,10 @@ export default function HomeScreen() {
     lastResult === 'correct' ? 'happy' : lastResult === 'incorrect' ? 'sad' : undefined;
   const currentChordImageCandidate =
     currentChord && showCenterFlash
-      ? resolveAnimalImageCandidate(currentChord.id, feedbackEmotion)
+      ? resolveAnimalImageCandidate(currentChord.id, {
+          emotion: feedbackEmotion,
+          variant: getDisplayedAnimalVariant(currentChord.id),
+        })
       : null;
   const currentChordImageSource = currentChordImageCandidate?.source ?? null;
   const handleViewportLayout = useCallback(
@@ -647,7 +742,10 @@ export default function HomeScreen() {
               const isWrongSelection =
                 lastResult === 'incorrect' && lastAnswerId === chord.id && !isCorrectTile;
               const tileTextColor = getReadableTextColor(chord.color.hex);
-              const animalImageCandidate = resolveAnimalImageCandidate(chord.id);
+              const animalVariant = getDisplayedAnimalVariant(chord.id);
+              const animalImageCandidate = resolveAnimalImageCandidate(chord.id, {
+                variant: animalVariant,
+              });
               const animalImageSource = animalImageCandidate?.source ?? null;
 
               return (
@@ -673,13 +771,18 @@ export default function HomeScreen() {
                       onError={() => {
                         console.log('[Eguchi] Animal image missing, using emoji fallback', {
                           chord: chord.id,
+                          variant: animalImageCandidate?.variant ?? animalVariant,
                           emotion: animalImageCandidate?.emotion ?? 'default',
                           uri:
                             typeof animalImageSource === 'number'
                               ? 'bundle'
                               : animalImageSource.uri,
                         });
-                        markAnimalImageFailed(chord.id, animalImageCandidate?.emotion);
+                        markAnimalImageFailed(
+                          chord.id,
+                          animalImageCandidate?.variant ?? animalVariant,
+                          animalImageCandidate?.emotion
+                        );
                       }}
                     />
                   ) : (
@@ -714,13 +817,21 @@ export default function HomeScreen() {
                       onError={() => {
                         console.log('[Eguchi] Center flash image missing, using emoji fallback', {
                           chord: currentChord.id,
+                          variant:
+                            currentChordImageCandidate?.variant ??
+                            getDisplayedAnimalVariant(currentChord.id),
                           emotion: currentChordImageCandidate?.emotion ?? 'default',
                           uri:
                             typeof currentChordImageSource === 'number'
                               ? 'bundle'
                               : currentChordImageSource.uri,
                         });
-                        markAnimalImageFailed(currentChord.id, currentChordImageCandidate?.emotion);
+                        markAnimalImageFailed(
+                          currentChord.id,
+                          currentChordImageCandidate?.variant ??
+                            getDisplayedAnimalVariant(currentChord.id),
+                          currentChordImageCandidate?.emotion
+                        );
                       }}
                     />
                   ) : (
@@ -765,6 +876,42 @@ export default function HomeScreen() {
               <ThemedText style={styles.startupHint}>Tap to start sound</ThemedText>
             ) : null}
           </View>
+          {!sessionPreferences?.forceDefaultAnimalVariants ? (
+            <View style={styles.variantButtonRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Shuffle accessories"
+                onPress={handleShuffleAccessories}
+                disabled={isLoading}
+                style={[
+                  styles.variantButton,
+                  {
+                    backgroundColor: accessoryPrimaryBackground,
+                    borderColor: accessoryPrimaryBorder,
+                  },
+                  isLoading && styles.buttonDisabled,
+                ]}
+              >
+                <ThemedText style={styles.variantButtonText}>🪄 Shuffle Looks</ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Reset to plain animals"
+                onPress={handleResetAccessories}
+                disabled={isLoading}
+                style={[
+                  styles.variantButton,
+                  {
+                    backgroundColor: accessorySecondaryBackground,
+                    borderColor: accessorySecondaryBorder,
+                  },
+                  isLoading && styles.buttonDisabled,
+                ]}
+              >
+                <ThemedText style={styles.variantButtonText}>🙂 Plain Animals</ThemedText>
+              </Pressable>
+            </View>
+          ) : null}
           {progressionStatus ? (
             <View style={styles.missionCard}>
               <ThemedText style={styles.missionTitle}>🎯 Today</ThemedText>
@@ -929,6 +1076,26 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     opacity: 0.78,
     fontWeight: '600',
+  },
+  variantButtonRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  variantButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+  },
+  variantButtonText: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   startOverlay: {
     ...StyleSheet.absoluteFillObject,

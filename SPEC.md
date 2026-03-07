@@ -50,6 +50,7 @@ The app defines a fixed **unlock order**. Conceptually, the first 9 form “Stag
   - Background **color** (from the mapping).
   - A cute **animal** icon/emoji/illustration matching that chord.
 - **Replay** button to replay the current chord (optional limit, e.g., up to 2 replays).
+- **Accessory variety:** each animal can also have a matching set of accessory variants (for example top hat, bow tie, flower crown, glasses, scarf). The child can shuffle these looks without changing the chord mapping.
 - The child **taps** a tile to answer.
   - **Correct:** brief positive sound; animate the tile (animal smiles/happy).
   - **Incorrect:** show which tile was correct (e.g., pulse/shine), optionally show the correct animal with a sad-to-happy transition; then continue.
@@ -111,6 +112,7 @@ Add a separate **Stage 3** mode after the main chord set is mastered:
 - **Start set:** pick the initial 2 chords (defaults provided).
 - **Auto unlock:** on/off; configure streak length (e.g., 3–14 days) and daily target attempts.
 - **Color/animal mapping:** optional customization; reset-to-default button.
+- **Animal looks:** caregiver can force plain/default animals, or allow the child-facing screen to shuffle accessory variants and reset back to plain animals.
 - **Audio packs:** download/delete, show disk usage, “download all for offline.”
 - **Notifications:** daily gentle reminders (on/off; select times).
 - **Data:** reset progress; export/import simple JSON of progress.
@@ -142,6 +144,7 @@ No PIN gate; Settings are a secondary screen reachable via a small gear icon.
 - Tiles are large, colorful, and tappable; grid expands as more chords unlock.
 - Each chord tile shows **color background + animal** icon/illustration.
 - Animal images can be generated separately and swapped without code changes (e.g., runtime asset pack).
+- Animal illustrations should support a plain/default set plus multiple consistent accessory variants for every animal, with matching happy and sad versions for each chosen look.
 - Use simple celebratory animations on correct answers; neutral/gentle on mistakes.
 
 ---

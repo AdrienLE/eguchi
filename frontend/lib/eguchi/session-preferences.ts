@@ -17,6 +17,7 @@ export type EguchiSessionPreferences = {
   autoUnlockEnabled: boolean;
   perfectDaysRequired: number;
   dailyAttemptTarget: number;
+  forceDefaultAnimalVariants: boolean;
 };
 
 const DEFAULT_IMPORT_MODES: Record<ImportSpeed, boolean> = {
@@ -74,6 +75,7 @@ export const createDefaultEguchiSessionPreferences = (): EguchiSessionPreference
   autoUnlockEnabled: false,
   perfectDaysRequired: 14,
   dailyAttemptTarget: 100,
+  forceDefaultAnimalVariants: false,
 });
 
 export const loadEguchiSessionPreferences = async (
@@ -96,6 +98,10 @@ export const loadEguchiSessionPreferences = async (
       typeof stored.autoUnlockEnabled === 'boolean' ? stored.autoUnlockEnabled : false,
     perfectDaysRequired: normalizePerfectDaysRequired(stored.perfectDaysRequired),
     dailyAttemptTarget: normalizeDailyAttemptTarget(stored.dailyAttemptTarget),
+    forceDefaultAnimalVariants:
+      typeof stored.forceDefaultAnimalVariants === 'boolean'
+        ? stored.forceDefaultAnimalVariants
+        : false,
   };
 };
 
@@ -165,6 +171,14 @@ export const setDailyAttemptTarget = (
 ): EguchiSessionPreferences => ({
   ...preferences,
   dailyAttemptTarget: normalizeDailyAttemptTarget(dailyAttemptTarget),
+});
+
+export const setForceDefaultAnimalVariants = (
+  preferences: EguchiSessionPreferences,
+  enabled: boolean
+): EguchiSessionPreferences => ({
+  ...preferences,
+  forceDefaultAnimalVariants: enabled,
 });
 
 export const getEnabledImportModes = (preferences: EguchiSessionPreferences): ImportSpeed[] =>

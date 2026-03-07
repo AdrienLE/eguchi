@@ -1,4 +1,5 @@
 import { Platform, type PlatformOSType } from 'react-native';
+import type { AnimalAccessoryVariantId } from './animal-variants';
 import type { EguchiChordId } from './chords';
 
 export type AnimalEmotion = 'happy' | 'sad';
@@ -80,15 +81,18 @@ export const CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID: Partial<
 type AnimalImageSource = AnimalBundleSource | { uri: string };
 type AnimalImageOptions = {
   emotion?: AnimalEmotion;
+  variant?: AnimalAccessoryVariantId;
 };
 
 export const getChordAnimalWebPath = (
   chordId: EguchiChordId,
-  emotion: AnimalEmotion = 'happy'
+  emotion: AnimalEmotion = 'happy',
+  variant: AnimalAccessoryVariantId = 'default'
 ): string => {
   const slug = CHORD_ANIMAL_WEB_SLUG_BY_ID[chordId];
-  const suffix = emotion === 'sad' ? '__sad' : '';
-  return `/assets/images/eguchi/animals/${slug}${suffix}.png`;
+  const emotionSuffix = emotion === 'sad' ? '__sad' : '';
+  const variantSuffix = variant === 'default' ? '' : `__${variant}`;
+  return `/assets/images/eguchi/animals/${slug}${emotionSuffix}${variantSuffix}.png`;
 };
 
 export const getChordAnimalImageSource = (
@@ -97,18 +101,27 @@ export const getChordAnimalImageSource = (
   options: AnimalImageOptions = {}
 ): AnimalImageSource | null => {
   const emotion = options.emotion ?? 'happy';
+  const variant = options.variant ?? 'default';
   const sadBundledSource = CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID[chordId];
   const bundledSource = CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID[chordId];
+  if (variant === 'default' && emotion === 'sad' && sadBundledSource) {
+    return sadBundledSource;
+  }
+
+  if (variant === 'default' && bundledSource) {
+    return bundledSource;
+  }
+
+  if (platform === 'web') {
+    return { uri: getChordAnimalWebPath(chordId, emotion, variant) };
+  }
+
   if (emotion === 'sad' && sadBundledSource) {
     return sadBundledSource;
   }
 
   if (bundledSource) {
     return bundledSource;
-  }
-
-  if (platform === 'web') {
-    return { uri: getChordAnimalWebPath(chordId, 'happy') };
   }
 
   // Native falls back to emoji when no bundled source exists for this chord.

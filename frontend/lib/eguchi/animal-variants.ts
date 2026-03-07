@@ -4,10 +4,25 @@ import { ORDERED_CHORD_IDS, type EguchiChordId } from './chords';
 export const ANIMAL_ACCESSORY_VARIANTS = [
   { id: 'default', label: 'Plain' },
   { id: 'top-hat', label: 'Top Hat' },
+  { id: 'party-hat', label: 'Party Hat' },
+  { id: 'wizard-hat', label: 'Wizard Hat' },
+  { id: 'baseball-cap', label: 'Baseball Cap' },
+  { id: 'rain-hat', label: 'Rain Hat' },
+  { id: 'crown', label: 'Crown' },
   { id: 'bow-tie', label: 'Bow Tie' },
   { id: 'flower-crown', label: 'Flower Crown' },
+  { id: 'butterfly-bow', label: 'Butterfly Bow' },
   { id: 'round-glasses', label: 'Round Glasses' },
+  { id: 'heart-glasses', label: 'Heart Glasses' },
+  { id: 'star-glasses', label: 'Star Glasses' },
+  { id: 'aviators', label: 'Aviators' },
+  { id: 'monocle', label: 'Monocle' },
+  { id: 'sleep-mask', label: 'Sleep Mask' },
+  { id: 'necktie', label: 'Necktie' },
   { id: 'scarf', label: 'Scarf' },
+  { id: 'medal', label: 'Medal' },
+  { id: 'sparkles', label: 'Sparkles' },
+  { id: 'headphones', label: 'Headphones' },
 ] as const;
 
 export type AnimalAccessoryVariantId = (typeof ANIMAL_ACCESSORY_VARIANTS)[number]['id'];

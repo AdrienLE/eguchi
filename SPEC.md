@@ -50,7 +50,7 @@ The app defines a fixed **unlock order**. Conceptually, the first 9 form “Stag
   - Background **color** (from the mapping).
   - A cute **animal** icon/emoji/illustration matching that chord.
 - **Replay** button to replay the current chord (optional limit, e.g., up to 2 replays).
-- **Accessory variety:** each animal can also have a matching set of accessory variants (for example top hat, bow tie, flower crown, glasses, scarf). The child can shuffle these looks without changing the chord mapping.
+- **Accessory variety:** each animal can also have a matching set of accessory looks (for example top hat, bow tie, flower crown, glasses, scarf, sparkles, headphones). These should be produced from reusable accessory sprites composited onto the base animal art, with separate happy/sad placement support where needed. The child can shuffle these looks without changing the chord mapping.
 - The child **taps** a tile to answer.
   - **Correct:** brief positive sound; animate the tile (animal smiles/happy).
   - **Incorrect:** show which tile was correct (e.g., pulse/shine), optionally show the correct animal with a sad-to-happy transition; then continue.
@@ -144,7 +144,12 @@ No PIN gate; Settings are a secondary screen reachable via a small gear icon.
 - Tiles are large, colorful, and tappable; grid expands as more chords unlock.
 - Each chord tile shows **color background + animal** icon/illustration.
 - Animal images can be generated separately and swapped without code changes (e.g., runtime asset pack).
-- Animal illustrations should support a plain/default set plus multiple consistent accessory variants for every animal, with matching happy and sad versions for each chosen look.
+- Animal illustrations should support a plain/default set plus multiple consistent accessory looks for every animal, with matching happy and sad versions for each chosen look.
+- Accessory rendering should use:
+  - A sprite catalog (OpenAI-generated transparent accessory assets).
+  - Per-category placement defaults (headwear, facewear, neckwear, aura, etc.).
+  - Per-animal placement overrides, including separate happy and sad adjustments where necessary.
+  - A local pre-render utility that composites final `animal__variant.png` files so the app runtime stays simple.
 - Use simple celebratory animations on correct answers; neutral/gentle on mistakes.
 
 ---

@@ -200,6 +200,17 @@ class TestHealthAndSPA:
         # Should be JSON 404, not HTML fallback
         assert r.headers.get("content-type", "").startswith("application/json")
 
+    def test_eguchi_source_asset_route_serves_animals(self, client):
+        c, _ = client
+        r = c.get("/assets/images/eguchi/animals/fox.png")
+        assert r.status_code == 200
+        assert r.headers.get("content-type", "").startswith("image/")
+
+    def test_eguchi_source_asset_route_returns_404_for_missing_file(self, client):
+        c, _ = client
+        r = c.get("/assets/images/eguchi/animals/does-not-exist.png")
+        assert r.status_code == 404
+
 
 class TestSettingsMerging:
     def test_user_overrides_preserved(self, client, monkeypatch):

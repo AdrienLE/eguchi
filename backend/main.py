@@ -404,7 +404,33 @@ def update_settings(
 
 # Mount frontend static files AFTER all API routes are defined
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+frontend_eguchi_assets_path = os.path.realpath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "frontend",
+        "assets",
+        "images",
+        "eguchi",
+    )
+)
 if os.path.isdir(frontend_path):
+    if os.path.isdir(frontend_eguchi_assets_path):
+
+        @app.get("/assets/images/eguchi/{asset_path:path}")
+        async def serve_eguchi_source_asset(asset_path: str):
+            resolved_path = os.path.realpath(
+                os.path.join(frontend_eguchi_assets_path, asset_path)
+            )
+            if (
+                os.path.commonpath([resolved_path, frontend_eguchi_assets_path])
+                != frontend_eguchi_assets_path
+            ):
+                raise HTTPException(status_code=404, detail="Not Found")
+            if not os.path.isfile(resolved_path):
+                raise HTTPException(status_code=404, detail="Not Found")
+            return FileResponse(resolved_path)
+
     assets_dir = os.path.join(frontend_path, "assets")
     expo_static_dir = os.path.join(frontend_path, "_expo", "static")
     if os.path.isdir(assets_dir):

@@ -30,3 +30,16 @@ def test_layout_file_covers_happy_and_sad_defaults():
         assert "facewear" in payload["defaults"][emotion]
         assert "neckwear" in payload["defaults"][emotion]
         assert "aura" in payload["defaults"][emotion]
+
+
+def test_facewear_prompts_require_front_facing_symmetry():
+    catalog_path = (
+        Path(__file__).resolve().parents[1] / "scripts" / "eguchi_accessory_sprite_prompts.json"
+    )
+    payload = json.loads(catalog_path.read_text(encoding="utf-8"))
+    asset_by_id = {entry["id"]: entry for entry in payload["assets"]}
+
+    assert "mirrored" in payload["style_guide_prompt"].lower()
+    assert "extending left and one extending right" in asset_by_id["round-glasses"][
+        "subject_prompt"
+    ].lower()

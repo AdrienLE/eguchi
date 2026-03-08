@@ -16,6 +16,7 @@
 - Audio playback wired to the training UI using the generated pack (`frontend/lib/eguchi/audio-pack.ts`).
 - The training UI now supports per-animal accessory assignments, child-facing shuffle/reset controls, and a caregiver option to force plain animals (`frontend/app/(tabs)/index.tsx`, `frontend/app/settings.tsx`, `frontend/lib/eguchi/animal-variants.ts`).
 - Accessory rendering and iteration tooling now exist via `scripts/eguchi_accessory_sprite_prompts.json`, `scripts/eguchi_accessory_layouts.json`, and `scripts/render_animal_accessory_variants.py`.
+- A visual anchor editor now exists via `scripts/edit_accessory_layouts.py`, so per-animal happy/sad headwear/facewear/neckwear/aura anchors can be adjusted by dragging a reference accessory instead of hand-editing JSON.
 
 ## Decisions To Confirm
 - **Spec source of truth:** `SPEC.md` is canonical.
@@ -36,7 +37,7 @@
 - [x] **Add animal accessory variants** with generator support, child shuffle/reset controls, and caregiver force-plain mode.
 - [x] **Switch accessory rendering to sprite overlays** with a reusable accessory catalog, per-animal happy/sad placement config, and a pre-render compositor workflow.
 - [ ] **Generate the accessory sprite files** from the new sprite manifest and render the full animal/accessory matrix so shuffle mode always shows artwork instead of falling back to the plain animal.
-- [ ] **Tune accessory placements** by iterating on `scripts/eguchi_accessory_layouts.json` with targeted render runs and contact sheets until the common accessories look right across all animals.
+- [ ] **Tune accessory placements** by iterating with `scripts/edit_accessory_layouts.py` and then re-running targeted renders until the common accessories look right across all animals.
 
 ## Later Phases
 - **v2:** refine auto-unlock tuning + notifications (core streak logic and visuals now scaffolded).

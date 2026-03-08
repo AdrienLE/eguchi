@@ -32,6 +32,11 @@ def test_build_editor_state_uses_reference_accessories(tmp_path: Path):
         {
             "assets": [
                 {
+                    "id": "whale",
+                    "category": "animals",
+                    "output_path": "frontend/assets/images/eguchi/animals/whale.png",
+                },
+                {
                     "id": "fox",
                     "category": "animals",
                     "output_path": "frontend/assets/images/eguchi/animals/fox.png",
@@ -78,8 +83,9 @@ def test_build_editor_state_uses_reference_accessories(tmp_path: Path):
     )
 
     state = module.build_editor_state(repo_root, manifest_path, catalog_path, layout_path)
-    assert state["animals"][0]["happy_path"].endswith("fox.png")
-    assert state["animals"][0]["sad_path"].endswith("fox__sad.png")
+    assert [animal["id"] for animal in state["animals"]] == ["whale", "fox"]
+    assert state["animals"][1]["happy_path"].endswith("fox.png")
+    assert state["animals"][1]["sad_path"].endswith("fox__sad.png")
     assert state["reference_accessories"]["headwear"]["id"] == "top-hat"
     assert state["reference_accessories"]["facewear"]["id"] == "round-glasses"
 
@@ -127,3 +133,31 @@ def test_resolve_safe_path_blocks_escape(tmp_path: Path):
         assert "escapes" in str(error)
     else:
         raise AssertionError("Expected resolve_safe_path to reject escaping paths")
+
+
+def test_get_next_editor_selection_advances_in_learning_flow():
+    module = load_module()
+    animals = [{"id": "fox"}, {"id": "whale"}]
+    categories = ["headwear", "facewear", "neckwear"]
+
+    assert module.get_next_editor_selection(
+        animals,
+        categories,
+        animal_id="fox",
+        emotion="happy",
+        category="headwear",
+    ) == {"animal_id": "fox", "emotion": "happy", "category": "facewear"}
+    assert module.get_next_editor_selection(
+        animals,
+        categories,
+        animal_id="fox",
+        emotion="happy",
+        category="neckwear",
+    ) == {"animal_id": "fox", "emotion": "sad", "category": "headwear"}
+    assert module.get_next_editor_selection(
+        animals,
+        categories,
+        animal_id="fox",
+        emotion="sad",
+        category="neckwear",
+    ) == {"animal_id": "whale", "emotion": "happy", "category": "headwear"}

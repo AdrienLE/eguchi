@@ -44,7 +44,7 @@ def build_animals(manifest_payload: dict[str, Any]) -> list[dict[str, str]]:
                 "sad_path": (output_path.parent / f"{stem}__sad{suffix}").as_posix(),
             }
         )
-    return sorted(animals, key=lambda animal: animal["id"])
+    return animals
 
 
 def build_accessories(catalog_payload: dict[str, Any]) -> dict[str, dict[str, str]]:
@@ -82,6 +82,44 @@ def build_editor_state(
         "reference_accessories": reference_accessories,
         "categories": list(REFERENCE_ACCESSORY_BY_CATEGORY.keys()),
         "repo_root": repo_root.as_posix(),
+    }
+
+
+def get_next_editor_selection(
+    animals: list[dict[str, str]],
+    categories: list[str],
+    *,
+    animal_id: str,
+    emotion: str,
+    category: str,
+) -> dict[str, str]:
+    animal_ids = [animal["id"] for animal in animals]
+    if animal_id not in animal_ids:
+        raise ValueError(f"Unknown animal id: {animal_id}")
+    if emotion not in {"happy", "sad"}:
+        raise ValueError(f"Unknown emotion: {emotion}")
+    if category not in categories:
+        raise ValueError(f"Unknown category: {category}")
+
+    animal_index = animal_ids.index(animal_id)
+    category_index = categories.index(category)
+    if category_index < len(categories) - 1:
+        return {
+            "animal_id": animal_id,
+            "emotion": emotion,
+            "category": categories[category_index + 1],
+        }
+    if emotion == "happy":
+        return {
+            "animal_id": animal_id,
+            "emotion": "sad",
+            "category": categories[0],
+        }
+    next_animal_index = (animal_index + 1) % len(animal_ids)
+    return {
+        "animal_id": animal_ids[next_animal_index],
+        "emotion": "happy",
+        "category": categories[0],
     }
 
 
@@ -185,7 +223,7 @@ HTML = """<!DOCTYPE html>
       }
       .stats {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 10px;
         margin-bottom: 14px;
       }
@@ -278,6 +316,10 @@ HTML = """<!DOCTYPE html>
             <div class="muted">Placement</div>
             <div class="value mono" id="anchor-readout">-</div>
           </div>
+          <div class="stat">
+            <div class="muted">Step</div>
+            <div class="value" id="step-readout">-</div>
+          </div>
         </div>
 
         <div class="field">
@@ -294,7 +336,10 @@ HTML = """<!DOCTYPE html>
           <button id="reloadState">Reload File</button>
         </div>
         <div style="height:10px"></div>
-        <button class="primary" id="saveLayout">Save Layout</button>
+        <div class="row">
+          <button id="saveLayout">Save</button>
+          <button class="primary" id="saveAndNext">Save &amp; Next</button>
+        </div>
         <p class="muted" id="status">Loading…</p>
       </aside>
 
@@ -324,11 +369,13 @@ HTML = """<!DOCTYPE html>
         widthRatio: document.getElementById('widthRatio'),
         rotation: document.getElementById('rotation'),
         saveLayout: document.getElementById('saveLayout'),
+        saveAndNext: document.getElementById('saveAndNext'),
         resetDefault: document.getElementById('resetDefault'),
         reloadState: document.getElementById('reloadState'),
         status: document.getElementById('status'),
         accessoryName: document.getElementById('accessory-name'),
         anchorReadout: document.getElementById('anchor-readout'),
+        stepReadout: document.getElementById('step-readout'),
         stage: document.getElementById('stage')
       };
 
@@ -365,6 +412,11 @@ HTML = """<!DOCTYPE html>
         return state.payload.reference_accessories[elements.category.value];
       }
 
+      function getStepLabel() {
+        const animalIndex = state.payload.animals.findIndex(animal => animal.id === elements.animal.value);
+        return `${animalIndex + 1}/${state.payload.animals.length}`;
+      }
+
       function getDefaultAnchor() {
         return state.payload.layout.defaults[elements.emotion.value][elements.category.value];
       }
@@ -392,6 +444,7 @@ HTML = """<!DOCTYPE html>
         const animal = getSelectedAnimal();
         const accessory = getReferenceAccessory();
         elements.accessoryName.textContent = accessory ? accessory.label : '-';
+        elements.stepReadout.textContent = getStepLabel();
         state.currentAnchor = cloneAnchor(getEffectiveAnchor());
         elements.widthRatio.value = state.currentAnchor.width_ratio;
         elements.rotation.value = state.currentAnchor.rotation_degrees || 0;
@@ -497,6 +550,37 @@ HTML = """<!DOCTYPE html>
         }
       }
 
+      async function saveLayout() {
+        const response = await fetch('/layout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            animal_id: elements.animal.value,
+            emotion: elements.emotion.value,
+            category: elements.category.value,
+            anchor: state.currentAnchor
+          })
+        });
+        state.payload.layout = await response.json();
+      }
+
+      async function moveToNextStep() {
+        const response = await fetch('/next-selection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            animal_id: elements.animal.value,
+            emotion: elements.emotion.value,
+            category: elements.category.value
+          })
+        });
+        const next = await response.json();
+        elements.animal.value = next.animal_id;
+        elements.emotion.value = next.emotion;
+        elements.category.value = next.category;
+        await refreshPreview();
+      }
+
       elements.animal.addEventListener('change', refreshPreview);
       elements.emotion.addEventListener('change', refreshPreview);
       elements.category.addEventListener('change', refreshPreview);
@@ -516,18 +600,15 @@ HTML = """<!DOCTYPE html>
 
       elements.saveLayout.addEventListener('click', async () => {
         setStatus('Saving…');
-        const response = await fetch('/layout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            animal_id: elements.animal.value,
-            emotion: elements.emotion.value,
-            category: elements.category.value,
-            anchor: state.currentAnchor
-          })
-        });
-        state.payload.layout = await response.json();
+        await saveLayout();
         setStatus('Saved to layout file.');
+      });
+
+      elements.saveAndNext.addEventListener('click', async () => {
+        setStatus('Saving and moving…');
+        await saveLayout();
+        await moveToNextStep();
+        setStatus('Saved. Ready for the next step.');
       });
 
       fetchState().catch(error => {
@@ -603,19 +684,30 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
-            if parsed.path != "/layout":
-                self.send_error(HTTPStatus.NOT_FOUND, "Not found")
-                return
             content_length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(content_length) or b"{}")
-            updated = update_layout_anchor(
-                layout_path,
-                animal_id=str(payload["animal_id"]),
-                emotion=str(payload["emotion"]),
-                category=str(payload["category"]),
-                anchor=payload["anchor"],
-            )
-            self._send_json(updated)
+            if parsed.path == "/layout":
+                updated = update_layout_anchor(
+                    layout_path,
+                    animal_id=str(payload["animal_id"]),
+                    emotion=str(payload["emotion"]),
+                    category=str(payload["category"]),
+                    anchor=payload["anchor"],
+                )
+                self._send_json(updated)
+                return
+            if parsed.path == "/next-selection":
+                state = build_editor_state(repo_root, manifest_path, catalog_path, layout_path)
+                next_selection = get_next_editor_selection(
+                    state["animals"],
+                    state["categories"],
+                    animal_id=str(payload["animal_id"]),
+                    emotion=str(payload["emotion"]),
+                    category=str(payload["category"]),
+                )
+                self._send_json(next_selection)
+                return
+            self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
             print(format % args)

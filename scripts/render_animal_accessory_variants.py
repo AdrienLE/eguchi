@@ -482,7 +482,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = parse_args(argv or [])
+    args = parse_args(list(argv) if argv is not None else sys.argv[1:])
     repo_root = Path(__file__).resolve().parents[1]
     manifest_path = (repo_root / args.manifest).resolve()
     accessory_catalog_path = (repo_root / args.accessory_catalog).resolve()

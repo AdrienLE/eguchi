@@ -222,3 +222,23 @@ def test_make_contact_sheet_writes_output(temp_repo: Path):
     output = temp_repo / "sheet.png"
     module.make_contact_sheet([first, second], output)
     assert output.exists()
+
+
+def test_main_honors_cli_arguments_for_list_mode(temp_repo: Path):
+    module = load_module()
+    manifest_path = temp_repo / "scripts" / "visual_asset_prompts.json"
+    make_manifest(manifest_path)
+    catalog_path = temp_repo / "scripts" / "accessories.json"
+    make_catalog(catalog_path)
+
+    result = module.main(
+        [
+            "--manifest",
+            str(manifest_path),
+            "--accessory-catalog",
+            str(catalog_path),
+            "--list-animals",
+        ]
+    )
+
+    assert result == 0

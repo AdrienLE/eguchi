@@ -7,7 +7,6 @@ import {
   setAutoUnlockEnabled,
   setDailyAttemptTarget,
   setFeedbackSeconds,
-  setForceDefaultAnimalVariants,
   setImportModeEnabled,
   setPerfectDaysRequired,
   type EguchiSessionPreferences,
@@ -43,7 +42,6 @@ describe('eguchi session preferences', () => {
     expect(defaults.autoUnlockEnabled).toBe(false);
     expect(defaults.perfectDaysRequired).toBe(14);
     expect(defaults.dailyAttemptTarget).toBe(100);
-    expect(defaults.forceDefaultAnimalVariants).toBe(false);
   });
 
   test('load sanitizes invalid values', async () => {
@@ -54,7 +52,6 @@ describe('eguchi session preferences', () => {
       autoUnlockEnabled: 'yes',
       perfectDaysRequired: 0,
       dailyAttemptTarget: 200,
-      forceDefaultAnimalVariants: 'yes',
     });
 
     const loaded = await loadEguchiSessionPreferences(storage);
@@ -66,7 +63,6 @@ describe('eguchi session preferences', () => {
     expect(loaded.autoUnlockEnabled).toBe(false);
     expect(loaded.perfectDaysRequired).toBe(1);
     expect(loaded.dailyAttemptTarget).toBe(100);
-    expect(loaded.forceDefaultAnimalVariants).toBe(false);
   });
 
   test('setImportModeEnabled keeps at least one mode enabled', () => {
@@ -103,12 +99,6 @@ describe('eguchi session preferences', () => {
     expect(enabled.autoUnlockEnabled).toBe(true);
     expect(days.perfectDaysRequired).toBe(30);
     expect(attempts.dailyAttemptTarget).toBe(1);
-  });
-
-  test('force default animal variants setter updates setting', () => {
-    const defaults = createDefaultEguchiSessionPreferences();
-    const forced = setForceDefaultAnimalVariants(defaults, true);
-    expect(forced.forceDefaultAnimalVariants).toBe(true);
   });
 
   test('save writes to expected storage key', async () => {

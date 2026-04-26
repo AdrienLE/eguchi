@@ -50,7 +50,7 @@ The app defines a fixed **unlock order**. Conceptually, the first 9 form “Stag
   - Background **color** (from the mapping).
   - A cute **animal** icon/emoji/illustration matching that chord.
 - **Replay** button to replay the current chord (optional limit, e.g., up to 2 replays).
-- **Accessory variety:** each animal can also have a matching set of accessory looks (for example top hat, bow tie, flower crown, glasses, scarf, sparkles, headphones). These should be produced from reusable accessory sprites composited onto the base animal art, with separate happy/sad placement support where needed. The child can shuffle these looks without changing the chord mapping.
+- Animal art is currently a clean plain happy/sad set only. Accessory looks are deferred to a later feature and are not active in the app.
 - The child **taps** a tile to answer.
   - **Correct:** brief positive sound; animate the tile (animal smiles/happy).
   - **Incorrect:** show which tile was correct (e.g., pulse/shine), optionally show the correct animal with a sad-to-happy transition; then continue.
@@ -112,7 +112,7 @@ Add a separate **Stage 3** mode after the main chord set is mastered:
 - **Start set:** pick the initial 2 chords (defaults provided).
 - **Auto unlock:** on/off; configure streak length (e.g., 3–14 days) and daily target attempts.
 - **Color/animal mapping:** optional customization; reset-to-default button.
-- **Animal looks:** caregiver can force plain/default animals, or allow the child-facing screen to shuffle accessory variants and reset back to plain animals.
+- **Animal looks:** plain happy/sad animal art only. Accessory controls are deferred.
 - **Audio packs:** download/delete, show disk usage, “download all for offline.”
 - **Notifications:** daily gentle reminders (on/off; select times).
 - **Data:** reset progress; export/import simple JSON of progress.
@@ -144,12 +144,8 @@ No PIN gate; Settings are a secondary screen reachable via a small gear icon.
 - Tiles are large, colorful, and tappable; grid expands as more chords unlock.
 - Each chord tile shows **color background + animal** icon/illustration.
 - Animal images can be generated separately and swapped without code changes (e.g., runtime asset pack).
-- Animal illustrations should support a plain/default set plus multiple consistent accessory looks for every animal, with matching happy and sad versions for each chosen look.
-- Accessory rendering should use:
-  - A sprite catalog (OpenAI-generated transparent accessory assets).
-  - Per-category placement defaults (headwear, facewear, neckwear, aura, etc.).
-  - Per-animal placement overrides, including separate happy and sad adjustments where necessary.
-  - A local pre-render utility that composites final `animal__variant.png` files so the app runtime stays simple.
+- Animal illustrations should support a plain/default happy and sad image for every animal.
+- Accessories are deferred. Any future accessory system should remain inactive until it can generate clean production art without debug anchors, boxes, or runtime fallback complexity.
 - Use simple celebratory animations on correct answers; neutral/gentle on mistakes.
 
 ---
@@ -159,6 +155,7 @@ No PIN gate; Settings are a secondary screen reachable via a small gear icon.
 - **v1 (Manual progression):** random chord selection within unlocked set; replay button; Settings with unlock toggles; offline packs.
 - **v2 (Auto progression):** streak-based unlock; daily reminders; simple progress visualization.
 - **v3 (Stage 3):** chord decomposition and single-note mode.
+- **Later:** optional animal accessory looks, implemented only after the image pipeline is production-ready.
 
 ---
 

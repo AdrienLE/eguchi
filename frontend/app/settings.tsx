@@ -36,7 +36,6 @@ import {
   setAutoUnlockEnabled,
   setDailyAttemptTarget,
   setFeedbackSeconds,
-  setForceDefaultAnimalVariants,
   setPerfectDaysRequired,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
@@ -499,19 +498,6 @@ export default function SettingsScreen() {
               }
               trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
               thumbColor={sessionPreferences.autoUnlockEnabled ? tintColor : iconColor}
-              disabled={loading}
-            />
-          </View>
-
-          <View style={styles.controlRow}>
-            <ThemedText style={styles.controlLabel}>Force plain animals</ThemedText>
-            <Switch
-              value={sessionPreferences.forceDefaultAnimalVariants}
-              onValueChange={enabled =>
-                handleSessionUpdate(previous => setForceDefaultAnimalVariants(previous, enabled))
-              }
-              trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
-              thumbColor={sessionPreferences.forceDefaultAnimalVariants ? tintColor : iconColor}
               disabled={loading}
             />
           </View>

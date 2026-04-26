@@ -38,24 +38,10 @@ describe('eguchi animal assets', () => {
     );
   });
 
-  test('web accessory variants use the expected url pattern', () => {
-    expect(getChordAnimalWebPath('C-E-G', 'happy', 'top-hat')).toBe(
-      '/assets/images/eguchi/animals/fox__top-hat.png'
-    );
-    expect(getChordAnimalWebPath('C-E-G', 'sad', 'top-hat')).toBe(
-      '/assets/images/eguchi/animals/fox__sad__top-hat.png'
-    );
-    expect(getChordAnimalImageSource('C-E-G', 'web', { variant: 'top-hat' })).toEqual({
-      uri: '/assets/images/eguchi/animals/fox__top-hat.png',
-    });
-  });
-
-  test('native accessory variants fall back to bundled default art', () => {
-    expect(getChordAnimalImageSource('C-E-G', 'ios', { variant: 'top-hat' })).toBe(
-      CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['C-E-G']
-    );
-    expect(getChordAnimalImageSource('C-E-G', 'ios', { emotion: 'sad', variant: 'top-hat' })).toBe(
-      CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID['C-E-G']
+  test('web paths only expose base happy and sad animal art', () => {
+    expect(getChordAnimalWebPath('C-E-G')).toBe('/assets/images/eguchi/animals/fox.png');
+    expect(getChordAnimalWebPath('C-E-G', 'sad')).toBe(
+      '/assets/images/eguchi/animals/fox__sad.png'
     );
   });
 });

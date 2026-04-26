@@ -8,15 +8,13 @@
 - Auth-gated routing for app entry has been removed in the UI shell (`frontend/app/_layout.tsx`), while auth modules remain in repo for now.
 - Caregiver settings now include audio pack cache management (download all, clear cache, progress UI, and cache metadata) via `frontend/lib/eguchi/audio-cache.ts` and `frontend/app/settings.tsx`.
 - Next-level progression status is now visible (current level, next chord, streak, days remaining), with subtle manual controls and auto-unlock settings (`frontend/lib/eguchi/progression.ts`, `frontend/app/settings.tsx`, `frontend/app/(tabs)/index.tsx`).
-- Visual-asset generation tooling now exists via OpenAI with selective regeneration (`scripts/generate_visual_assets.py`, `scripts/visual_asset_prompts.json`).
-- Animal image generation now supports a sprite-overlay accessory pipeline: accessory sprites are generated separately, then composited onto happy/sad animal art using per-category defaults plus per-animal layout overrides.
+- Visual assets are currently checked in as plain happy/sad animal PNGs under `frontend/assets/images/eguchi/animals/`.
+- The accessory image pipeline has been removed from the active app and deferred until it can produce clean production art.
 - Backend APIs are template defaults (nugget + profile settings) and not tied to Eguchi data (`backend/main.py`).
 - Eguchi chord order + default mappings live in `frontend/lib/eguchi/chords.ts`.
 - Audio pack generator script added at `scripts/generate_audio_pack.py` (requires `fluidsynth` + a piano .sf2, and `ffmpeg` for MP3 output).
 - Audio playback wired to the training UI using the generated pack (`frontend/lib/eguchi/audio-pack.ts`).
-- The training UI now supports per-animal accessory assignments, child-facing shuffle/reset controls, and a caregiver option to force plain animals (`frontend/app/(tabs)/index.tsx`, `frontend/app/settings.tsx`, `frontend/lib/eguchi/animal-variants.ts`).
-- Accessory rendering and iteration tooling now exist via `scripts/eguchi_accessory_sprite_prompts.json`, `scripts/eguchi_accessory_layouts.json`, and `scripts/render_animal_accessory_variants.py`.
-- A visual anchor editor now exists via `scripts/edit_accessory_layouts.py`, so per-animal happy/sad headwear/facewear/neckwear/aura anchors can be adjusted by dragging a reference accessory instead of hand-editing JSON.
+- The training UI uses only base animal art; accessory shuffle/reset controls and caregiver force-plain settings are not active.
 
 ## Decisions To Confirm
 - **Spec source of truth:** `SPEC.md` is canonical.
@@ -32,12 +30,8 @@
 - [x] **Simplify navigation** to main training + Settings gear and remove unused tab shell.
 - [x] **Add tests** for chord selection randomness and training UI transitions.
 - [x] **Add tests** for progress state transitions and unlock persistence.
-- [x] **Add OpenAI image generation script** with manifest-driven assets, category filters, and non-overwrite defaults.
 - [x] **Generate and integrate animal illustrations** from the manifest into training tiles (replace emoji-only fallback where available).
-- [x] **Add animal accessory variants** with generator support, child shuffle/reset controls, and caregiver force-plain mode.
-- [x] **Switch accessory rendering to sprite overlays** with a reusable accessory catalog, per-animal happy/sad placement config, and a pre-render compositor workflow.
-- [ ] **Generate the accessory sprite files** from the new sprite manifest and render the full animal/accessory matrix so shuffle mode always shows artwork instead of falling back to the plain animal.
-- [ ] **Tune accessory placements** by iterating with `scripts/edit_accessory_layouts.py` and then re-running targeted renders until the common accessories look right across all animals.
+- [ ] **Defer animal accessory variants** until a clean production image pipeline is designed and tested.
 
 ## Later Phases
 - **v2:** refine auto-unlock tuning + notifications (core streak logic and visuals now scaffolded).

@@ -2,26 +2,12 @@
   "asset_id": "octopus",
   "category": "animals",
   "emotion": "happy",
-  "model": "gpt-image-1",
-  "size": "1024x1024",
-  "quality": "high",
-  "background": "transparent",
+  "generation_mode": "built-in image_gen",
+  "source_image_index": "037",
+  "source_image_path": "/Users/adrien/.codex/generated_images/019dc624-3f1d-7fe3-a97d-1540ac8d4151/ig_034e4d3aa22ab7c50169ed2b9d690c81918897a41c4985a3d8.png",
+  "post_processing": "local chroma-key removal, debug-color residue scrub, resized to 1024x1024 RGBA",
   "output_format": "png",
-  "prompt": "Create a clean 2D illustrated mascot character for a children's learning app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and clear silhouette. Use transparent background and centered composition. Do not include musical notes, letters, symbols, props, hats, or text.\n\nSubject: A playful purple octopus mascot facing front with short rounded tentacles.\n\nExpression: make the animal clearly happy, warm, and friendly.\n\nDo not add musical notes, symbols, letters, numbers, thought bubbles, hats, signs, or props.\n\nKeep composition centered with transparent background and no text.",
-  "reference_images": [
-    "/Users/adrien/projects/eguchi-ear-trainer/frontend/assets/images/eguchi/animals/fox.png"
-  ],
-  "generated_at_utc": "2026-02-17T18:20:22.075782+00:00",
-  "api": {
-    "created": 1771352421,
-    "model": "gpt-image-1",
-    "mode": "edit",
-    "size": "1024x1024",
-    "quality": "high",
-    "background": "transparent",
-    "output_format": "png",
-    "references": [
-      "/Users/adrien/projects/eguchi-ear-trainer/frontend/assets/images/eguchi/animals/fox.png"
-    ]
-  }
+  "background": "transparent",
+  "generated_at_utc": "2026-04-25T22:56:12.338646+00:00",
+  "style_notes": "plain front-facing compact rounded animal art; no accessories, text, symbols, cyan crosses, or magenta debug boxes"
 }

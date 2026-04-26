@@ -3,11 +3,11 @@
   "category": "animals",
   "emotion": "sad",
   "generation_mode": "built-in image_gen",
-  "source_image_index": "057",
-  "source_image_path": "/Users/adrien/.codex/generated_images/019dc624-3f1d-7fe3-a97d-1540ac8d4151/ig_04cc5a0024f9f3a90169ed58b857cc8191acb06e113efc6508.png",
-  "post_processing": "local chroma-key removal, split matched happy/sad sheet, debug-color residue scrub, resized to 1024x1024 RGBA",
+  "source_image_index": "061",
+  "source_image_path": "/Users/adrien/.codex/generated_images/019dc624-3f1d-7fe3-a97d-1540ac8d4151/ig_04cc5a0024f9f3a90169ed5f992d008191a38d84a56e611ddc.png",
+  "post_processing": "local chroma-key removal, matched to current happy bluebird scale/center, debug-color residue scrub, resized to 1024x1024 RGBA",
   "output_format": "png",
   "background": "transparent",
-  "generated_at_utc": "2026-04-26T00:19:40.727337+00:00",
-  "style_notes": "matched plain compact rounded animal pair; same pose, scale, palette, and markings across happy/sad; no accessories, text, symbols, cyan crosses, or magenta debug boxes"
+  "generated_at_utc": "2026-04-26T00:45:41.509633+00:00",
+  "style_notes": "sad bluebird matched to happy bluebird silhouette, cobalt-blue body, and white-to-warm-cream cheek and belly plumage; no accessories, text, symbols, cyan crosses, or magenta debug boxes"
 }

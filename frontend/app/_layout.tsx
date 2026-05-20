@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '@/auth/AuthContext';
+import { getRootContentFrameStyle, getSettingsPresentation } from '@/lib/platform-layout';
 
 export default function RootLayout() {
   return (
@@ -34,10 +35,13 @@ function RootLayoutNav() {
           backgroundColor: colorScheme === 'dark' ? '#0a0b0c' : '#f5f5f5',
         }}
       >
-        <View style={{ flex: 1, width: '100%', maxWidth: 800 }}>
+        <View style={getRootContentFrameStyle()}>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="settings" options={{ presentation: 'modal', headerShown: true }} />
+            <Stack.Screen
+              name="settings"
+              options={{ presentation: getSettingsPresentation(), headerShown: true }}
+            />
             <Stack.Screen name="+not-found" />
           </Stack>
         </View>

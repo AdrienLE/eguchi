@@ -1,9 +1,10 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AUDIO_PACK_NAME } from '@/lib/eguchi/audio-pack';
@@ -62,8 +63,7 @@ const STEP_REPEAT_START_DELAY_MS = 300;
 const STEP_REPEAT_INTERVAL_MS = 90;
 const FEEDBACK_STEP_SECONDS = 0.25;
 
-const formatFeedbackSeconds = (value: number) =>
-  value.toFixed(2).replace(/\.?0+$/, '');
+const formatFeedbackSeconds = (value: number) => value.toFixed(2).replace(/\.?0+$/, '');
 
 const sanitizeIntegerInput = (value: string) => value.replace(/[^0-9]/g, '');
 
@@ -78,6 +78,7 @@ const sanitizeDecimalInput = (value: string) => {
 };
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const [progress, setProgress] = useState<EguchiProgress>(createDefaultEguchiProgress());
   const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences>(
@@ -150,16 +151,19 @@ export default function SettingsScreen() {
     }
   }, []);
 
-  const persistSessionPreferences = useCallback(async (nextPreferences: EguchiSessionPreferences) => {
-    setSavingSession(true);
-    try {
-      await saveEguchiSessionPreferences(nextPreferences);
-    } catch (error) {
-      console.warn('Failed to save Eguchi session preferences', error);
-    } finally {
-      setSavingSession(false);
-    }
-  }, []);
+  const persistSessionPreferences = useCallback(
+    async (nextPreferences: EguchiSessionPreferences) => {
+      setSavingSession(true);
+      try {
+        await saveEguchiSessionPreferences(nextPreferences);
+      } catch (error) {
+        console.warn('Failed to save Eguchi session preferences', error);
+      } finally {
+        setSavingSession(false);
+      }
+    },
+    []
+  );
 
   const handleToggleChord = useCallback(
     (chordId: EguchiChordId, enabled: boolean) => {
@@ -410,352 +414,397 @@ export default function SettingsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: 'Caregiver Settings' }} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            Caregiver Settings
-          </ThemedText>
-          <ThemedText style={styles.subtitle}>
-            Manage level progression, unlocked chords, offline audio, and local data.
-          </ThemedText>
-          <ThemedText style={styles.subtitleNote}>
-            No login is required. These settings are saved on this device.
-          </ThemedText>
-        </View>
-
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Unlocked chords</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {snapshot.unlockedCount}/{ORDERED_CHORD_IDS.length}
-            </ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Today</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {snapshot.todayCorrect}/{snapshot.todayAttempts} ({formatPercent(snapshot.todayAccuracy)})
-            </ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Total</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {snapshot.totalCorrect}/{snapshot.totalAttempts} ({formatPercent(snapshot.totalAccuracy)})
-            </ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Next Level</ThemedText>
-          {savingSession ? <ActivityIndicator size="small" color={tintColor} /> : null}
-        </View>
-
-        <View style={styles.progressionCard}>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Current level</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {progressionStatus.currentLevel}/{progressionStatus.totalLevels}
-            </ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Next chord</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {progressionStatus.nextChordId
-                ? `${progressionStatus.nextChordAnimal} (${progressionStatus.nextChordId})`
-                : 'Complete'}
-            </ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Perfect-day streak</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
-            </ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Today toward streak</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}(
-              target {progressionStatus.dailyAttemptTarget})
-            </ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Days to next unlock</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {progressionStatus.isMaxLevel ? '0' : progressionStatus.daysRemaining}
-            </ThemedText>
-          </View>
-
-          <View style={styles.streakTrack}>
-            <View style={[styles.streakFill, { width: `${streakProgress * 100}%` }]} />
-          </View>
-
-          <View style={styles.controlRow}>
-            <ThemedText style={styles.controlLabel}>Auto unlock</ThemedText>
-            <Switch
-              value={sessionPreferences.autoUnlockEnabled}
-              onValueChange={enabled =>
-                handleSessionUpdate(previous => setAutoUnlockEnabled(previous, enabled))
-              }
-              trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
-              thumbColor={sessionPreferences.autoUnlockEnabled ? tintColor : iconColor}
-              disabled={loading}
-            />
-          </View>
-
-          <View style={styles.stepperRow}>
-            <ThemedText style={styles.controlLabel}>Perfect days needed</ThemedText>
-            <View style={styles.stepperControls}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => applyPerfectDaysDelta(-1)}
-                onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(-1))}
-                onPressOut={clearStepRepeater}
-                style={[styles.stepButton, { borderColor: iconColor }]}
-                disabled={loading}
-              >
-                <ThemedText style={styles.stepButtonText}>-</ThemedText>
-              </Pressable>
-              <ThemedTextInput
-                value={perfectDaysDraft}
-                onChangeText={value => setPerfectDaysDraft(sanitizeIntegerInput(value))}
-                onBlur={commitPerfectDaysDraft}
-                onSubmitEditing={commitPerfectDaysDraft}
-                keyboardType="number-pad"
-                returnKeyType="done"
-                selectTextOnFocus
-                editable={!loading}
-                style={[styles.stepInput, { borderColor: iconColor }]}
-              />
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => applyPerfectDaysDelta(1)}
-                onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(1))}
-                onPressOut={clearStepRepeater}
-                style={[styles.stepButton, { borderColor: iconColor }]}
-                disabled={loading}
-              >
-                <ThemedText style={styles.stepButtonText}>+</ThemedText>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.stepperRow}>
-            <ThemedText style={styles.controlLabel}>Daily attempts target</ThemedText>
-            <View style={styles.stepperControls}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => applyDailyAttemptsDelta(-1)}
-                onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(-1))}
-                onPressOut={clearStepRepeater}
-                style={[styles.stepButton, { borderColor: iconColor }]}
-                disabled={loading}
-              >
-                <ThemedText style={styles.stepButtonText}>-</ThemedText>
-              </Pressable>
-              <ThemedTextInput
-                value={dailyAttemptsDraft}
-                onChangeText={value => setDailyAttemptsDraft(sanitizeIntegerInput(value))}
-                onBlur={commitDailyAttemptsDraft}
-                onSubmitEditing={commitDailyAttemptsDraft}
-                keyboardType="number-pad"
-                returnKeyType="done"
-                selectTextOnFocus
-                editable={!loading}
-                style={[styles.stepInput, { borderColor: iconColor }]}
-              />
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => applyDailyAttemptsDelta(1)}
-                onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(1))}
-                onPressOut={clearStepRepeater}
-                style={[styles.stepButton, { borderColor: iconColor }]}
-                disabled={loading}
-              >
-                <ThemedText style={styles.stepButtonText}>+</ThemedText>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.stepperRow}>
-            <ThemedText style={styles.controlLabel}>Answer reveal seconds</ThemedText>
-            <View style={styles.stepperControls}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS)}
-                onPressIn={() =>
-                  startRepeatingStep(() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS))
-                }
-                onPressOut={clearStepRepeater}
-                style={[styles.stepButton, { borderColor: iconColor }]}
-                disabled={loading}
-              >
-                <ThemedText style={styles.stepButtonText}>-</ThemedText>
-              </Pressable>
-              <ThemedTextInput
-                value={feedbackSecondsDraft}
-                onChangeText={value => setFeedbackSecondsDraft(sanitizeDecimalInput(value))}
-                onBlur={commitFeedbackSecondsDraft}
-                onSubmitEditing={commitFeedbackSecondsDraft}
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-                selectTextOnFocus
-                editable={!loading}
-                style={[styles.stepInput, { borderColor: iconColor }]}
-              />
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS)}
-                onPressIn={() =>
-                  startRepeatingStep(() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS))
-                }
-                onPressOut={clearStepRepeater}
-                style={[styles.stepButton, { borderColor: iconColor }]}
-                disabled={loading}
-              >
-                <ThemedText style={styles.stepButtonText}>+</ThemedText>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.manualRow}>
+      <Stack.Screen
+        options={{
+          title: 'Caregiver Settings',
+          headerRight: () => (
             <Pressable
               accessibilityRole="button"
-              onPress={handleManualUnlockNext}
-              disabled={loading || savingProgress}
-              style={[styles.manualButton, { borderColor: iconColor }]}
+              accessibilityLabel="Close settings"
+              onPress={() => router.back()}
+              hitSlop={8}
+              style={[
+                styles.closeButton,
+                {
+                  backgroundColor: colorScheme === 'dark' ? '#2F3438' : '#EFF3F6',
+                  borderColor: colorScheme === 'dark' ? '#4A5157' : '#D2D9DE',
+                },
+              ]}
             >
-              <ThemedText style={styles.manualButtonText}>Unlock Next (Manual)</ThemedText>
+              <IconSymbol size={18} name="xmark" color={iconColor} />
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleManualLockLast}
-              disabled={loading || savingProgress}
-              style={[styles.manualButton, { borderColor: iconColor }]}
-            >
-              <ThemedText style={styles.manualButtonText}>Lock Last (Manual)</ThemedText>
-            </Pressable>
-          </View>
-
-          {progressionMessage ? <ThemedText style={styles.progressionMessage}>{progressionMessage}</ThemedText> : null}
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Unlocked Chords</ThemedText>
-          {savingProgress ? <ActivityIndicator size="small" color={tintColor} /> : null}
-        </View>
-
-        {loading ? (
-          <ActivityIndicator size="small" color={tintColor} />
-        ) : (
-          ORDERED_CHORD_IDS.map(chordId => {
-            const chord = CHORD_BY_ID[chordId];
-            const isEnabled = progress.unlockedChordIds.includes(chordId);
-
-            return (
-              <View key={chordId} style={styles.chordRow}>
-                <View style={styles.chordMeta}>
-                  <View style={[styles.colorDot, { backgroundColor: chord.color.hex }]} />
-                  <View>
-                    <ThemedText style={styles.chordAnimal}>{chord.animal}</ThemedText>
-                    <ThemedText style={styles.chordLabel}>
-                      {chord.label} · {chord.color.name}
-                    </ThemedText>
-                  </View>
-                </View>
-                <Switch
-                  value={isEnabled}
-                  onValueChange={enabled => handleToggleChord(chordId, enabled)}
-                  trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
-                  thumbColor={isEnabled ? tintColor : iconColor}
-                  disabled={loading}
-                />
-              </View>
-            );
-          })
-        )}
-
-        <Pressable
-          onPress={handleResetProgress}
-          accessibilityRole="button"
-          style={[styles.resetButton, { borderColor: iconColor }]}
-          disabled={savingProgress || audioBusy}
-        >
-          <ThemedText style={styles.resetText}>Reset Progress</ThemedText>
-        </Pressable>
-
-        <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Audio Pack</ThemedText>
-          {audioBusy ? <ActivityIndicator size="small" color={tintColor} /> : null}
-        </View>
-
-        <View style={styles.audioCard}>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Pack</ThemedText>
-            <ThemedText style={styles.summaryValue}>{AUDIO_PACK_NAME}</ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Cached files</ThemedText>
-            <ThemedText style={styles.summaryValue}>
-              {audioMeta.cachedFiles}/{audioMeta.totalFiles}
+          ),
+        }}
+      />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <ThemedText type="title" style={styles.title}>
+              Caregiver Settings
+            </ThemedText>
+            <ThemedText style={styles.subtitle}>
+              Manage level progression, unlocked chords, offline audio, and local data.
+            </ThemedText>
+            <ThemedText style={styles.subtitleNote}>
+              No login is required. These settings are saved on this device.
             </ThemedText>
           </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Disk usage</ThemedText>
-            <ThemedText style={styles.summaryValue}>{formatBytes(audioMeta.cachedBytes)}</ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Last cached</ThemedText>
-            <ThemedText style={styles.summaryValue}>{formatTimestamp(audioMeta.lastCachedAt)}</ThemedText>
-          </View>
-          <View style={styles.summaryRow}>
-            <ThemedText style={styles.summaryLabel}>Last cleared</ThemedText>
-            <ThemedText style={styles.summaryValue}>{formatTimestamp(audioMeta.lastClearedAt)}</ThemedText>
-          </View>
 
-          {audioProgress ? (
-            <View style={styles.audioProgressContainer}>
-              <ThemedText style={styles.audioProgressText}>
-                {audioProgress.completed}/{audioProgress.total} · {audioProgress.fileName}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Unlocked chords</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {snapshot.unlockedCount}/{ORDERED_CHORD_IDS.length}
               </ThemedText>
-              <View style={styles.audioProgressTrack}>
-                <View style={[styles.audioProgressFill, { width: `${audioProgressPercent * 100}%` }]} />
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Today</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {snapshot.todayCorrect}/{snapshot.todayAttempts} (
+                {formatPercent(snapshot.todayAccuracy)})
+              </ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Total</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {snapshot.totalCorrect}/{snapshot.totalAttempts} (
+                {formatPercent(snapshot.totalAccuracy)})
+              </ThemedText>
+            </View>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Next Level</ThemedText>
+            {savingSession ? <ActivityIndicator size="small" color={tintColor} /> : null}
+          </View>
+
+          <View style={styles.progressionCard}>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Current level</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {progressionStatus.currentLevel}/{progressionStatus.totalLevels}
+              </ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Next chord</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {progressionStatus.nextChordId
+                  ? `${progressionStatus.nextChordAnimal} (${progressionStatus.nextChordId})`
+                  : 'Complete'}
+              </ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Perfect-day streak</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
+              </ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Today toward streak</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}(
+                target {progressionStatus.dailyAttemptTarget})
+              </ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Days to next unlock</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {progressionStatus.isMaxLevel ? '0' : progressionStatus.daysRemaining}
+              </ThemedText>
+            </View>
+
+            <View style={styles.streakTrack}>
+              <View style={[styles.streakFill, { width: `${streakProgress * 100}%` }]} />
+            </View>
+
+            <View style={styles.controlRow}>
+              <ThemedText style={styles.controlLabel}>Auto unlock</ThemedText>
+              <Switch
+                value={sessionPreferences.autoUnlockEnabled}
+                onValueChange={enabled =>
+                  handleSessionUpdate(previous => setAutoUnlockEnabled(previous, enabled))
+                }
+                trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
+                thumbColor={sessionPreferences.autoUnlockEnabled ? tintColor : iconColor}
+                disabled={loading}
+              />
+            </View>
+
+            <View style={styles.stepperRow}>
+              <ThemedText style={styles.controlLabel}>Perfect days needed</ThemedText>
+              <View style={styles.stepperControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyPerfectDaysDelta(-1)}
+                  onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(-1))}
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
+                </Pressable>
+                <ThemedTextInput
+                  value={perfectDaysDraft}
+                  onChangeText={value => setPerfectDaysDraft(sanitizeIntegerInput(value))}
+                  onBlur={commitPerfectDaysDraft}
+                  onSubmitEditing={commitPerfectDaysDraft}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  selectTextOnFocus
+                  editable={!loading}
+                  style={[styles.stepInput, { borderColor: iconColor }]}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyPerfectDaysDelta(1)}
+                  onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(1))}
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
+                </Pressable>
               </View>
             </View>
-          ) : null}
 
-          {audioMessage ? <ThemedText style={styles.audioMessage}>{audioMessage}</ThemedText> : null}
+            <View style={styles.stepperRow}>
+              <ThemedText style={styles.controlLabel}>Daily attempts target</ThemedText>
+              <View style={styles.stepperControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyDailyAttemptsDelta(-1)}
+                  onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(-1))}
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
+                </Pressable>
+                <ThemedTextInput
+                  value={dailyAttemptsDraft}
+                  onChangeText={value => setDailyAttemptsDraft(sanitizeIntegerInput(value))}
+                  onBlur={commitDailyAttemptsDraft}
+                  onSubmitEditing={commitDailyAttemptsDraft}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  selectTextOnFocus
+                  editable={!loading}
+                  style={[styles.stepInput, { borderColor: iconColor }]}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyDailyAttemptsDelta(1)}
+                  onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(1))}
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
+                </Pressable>
+              </View>
+            </View>
 
-          <View style={styles.audioButtonRow}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleCacheAudioPack}
-              disabled={audioBusy || loading}
-              style={[
-                styles.audioPrimaryButton,
-                { backgroundColor: tintColor },
-                (audioBusy || loading) && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText style={styles.audioPrimaryButtonText}>Download All for Offline</ThemedText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleClearAudioCache}
-              disabled={audioBusy || loading}
-              style={[
-                styles.audioSecondaryButton,
-                { borderColor: iconColor },
-                (audioBusy || loading) && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText style={styles.audioSecondaryButtonText}>Clear Cached Audio</ThemedText>
-            </Pressable>
+            <View style={styles.stepperRow}>
+              <ThemedText style={styles.controlLabel}>Answer reveal seconds</ThemedText>
+              <View style={styles.stepperControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS)}
+                  onPressIn={() =>
+                    startRepeatingStep(() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS))
+                  }
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
+                </Pressable>
+                <ThemedTextInput
+                  value={feedbackSecondsDraft}
+                  onChangeText={value => setFeedbackSecondsDraft(sanitizeDecimalInput(value))}
+                  onBlur={commitFeedbackSecondsDraft}
+                  onSubmitEditing={commitFeedbackSecondsDraft}
+                  keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  selectTextOnFocus
+                  editable={!loading}
+                  style={[styles.stepInput, { borderColor: iconColor }]}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS)}
+                  onPressIn={() =>
+                    startRepeatingStep(() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS))
+                  }
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.manualRow}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleManualUnlockNext}
+                disabled={loading || savingProgress}
+                style={[styles.manualButton, { borderColor: iconColor }]}
+              >
+                <ThemedText style={styles.manualButtonText}>Unlock Next (Manual)</ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleManualLockLast}
+                disabled={loading || savingProgress}
+                style={[styles.manualButton, { borderColor: iconColor }]}
+              >
+                <ThemedText style={styles.manualButtonText}>Lock Last (Manual)</ThemedText>
+              </Pressable>
+            </View>
+
+            {progressionMessage ? (
+              <ThemedText style={styles.progressionMessage}>{progressionMessage}</ThemedText>
+            ) : null}
           </View>
-        </View>
 
-        <ThemedText style={styles.note}>
-          Manual controls are intentionally subtle for caregiver-only use while keeping child flow simple.
-        </ThemedText>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Unlocked Chords</ThemedText>
+            {savingProgress ? <ActivityIndicator size="small" color={tintColor} /> : null}
+          </View>
+
+          {loading ? (
+            <ActivityIndicator size="small" color={tintColor} />
+          ) : (
+            ORDERED_CHORD_IDS.map(chordId => {
+              const chord = CHORD_BY_ID[chordId];
+              const isEnabled = progress.unlockedChordIds.includes(chordId);
+
+              return (
+                <View key={chordId} style={styles.chordRow}>
+                  <View style={styles.chordMeta}>
+                    <View style={[styles.colorDot, { backgroundColor: chord.color.hex }]} />
+                    <View>
+                      <ThemedText style={styles.chordAnimal}>{chord.animal}</ThemedText>
+                      <ThemedText style={styles.chordLabel}>
+                        {chord.label} · {chord.color.name}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <Switch
+                    value={isEnabled}
+                    onValueChange={enabled => handleToggleChord(chordId, enabled)}
+                    trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
+                    thumbColor={isEnabled ? tintColor : iconColor}
+                    disabled={loading}
+                  />
+                </View>
+              );
+            })
+          )}
+
+          <Pressable
+            onPress={handleResetProgress}
+            accessibilityRole="button"
+            style={[styles.resetButton, { borderColor: iconColor }]}
+            disabled={savingProgress || audioBusy}
+          >
+            <ThemedText style={styles.resetText}>Reset Progress</ThemedText>
+          </Pressable>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Audio Pack</ThemedText>
+            {audioBusy ? <ActivityIndicator size="small" color={tintColor} /> : null}
+          </View>
+
+          <View style={styles.audioCard}>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Pack</ThemedText>
+              <ThemedText style={styles.summaryValue}>{AUDIO_PACK_NAME}</ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Cached files</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {audioMeta.cachedFiles}/{audioMeta.totalFiles}
+              </ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Disk usage</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {formatBytes(audioMeta.cachedBytes)}
+              </ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Last cached</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {formatTimestamp(audioMeta.lastCachedAt)}
+              </ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Last cleared</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {formatTimestamp(audioMeta.lastClearedAt)}
+              </ThemedText>
+            </View>
+
+            {audioProgress ? (
+              <View style={styles.audioProgressContainer}>
+                <ThemedText style={styles.audioProgressText}>
+                  {audioProgress.completed}/{audioProgress.total} · {audioProgress.fileName}
+                </ThemedText>
+                <View style={styles.audioProgressTrack}>
+                  <View
+                    style={[styles.audioProgressFill, { width: `${audioProgressPercent * 100}%` }]}
+                  />
+                </View>
+              </View>
+            ) : null}
+
+            {audioMessage ? (
+              <ThemedText style={styles.audioMessage}>{audioMessage}</ThemedText>
+            ) : null}
+
+            <View style={styles.audioButtonRow}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleCacheAudioPack}
+                disabled={audioBusy || loading}
+                style={[
+                  styles.audioPrimaryButton,
+                  { backgroundColor: tintColor },
+                  (audioBusy || loading) && styles.buttonDisabled,
+                ]}
+              >
+                <ThemedText style={styles.audioPrimaryButtonText}>
+                  Download All for Offline
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleClearAudioCache}
+                disabled={audioBusy || loading}
+                style={[
+                  styles.audioSecondaryButton,
+                  { borderColor: iconColor },
+                  (audioBusy || loading) && styles.buttonDisabled,
+                ]}
+              >
+                <ThemedText style={styles.audioSecondaryButtonText}>Clear Cached Audio</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+
+          <ThemedText style={styles.note}>
+            Manual controls are intentionally subtle for caregiver-only use while keeping child flow
+            simple.
+          </ThemedText>
+        </View>
       </ScrollView>
     </ThemedView>
   );
@@ -763,10 +812,28 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: {
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 28,
+    paddingBottom: 56,
+  },
+  content: {
+    width: '100%',
+    maxWidth: 760,
     gap: 16,
+  },
+  closeButton: {
+    marginRight: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',

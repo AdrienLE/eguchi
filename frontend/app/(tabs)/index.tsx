@@ -2,18 +2,22 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Audio } from 'expo-av';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
 import { getChordAnimalImageSource, type AnimalEmotion } from '@/lib/eguchi/animal-assets';
-import {
-  CHORD_BY_ID,
-  DEFAULT_UNLOCKED_CHORD_IDS,
-  type EguchiChordId,
-} from '@/lib/eguchi/chords';
+import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
 import { getNextLevelProgress, maybeApplyAutoUnlock } from '@/lib/eguchi/progression';
 import {
   createDefaultEguchiProgress,
@@ -142,11 +146,14 @@ export default function HomeScreen() {
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
   const [progress, setProgress] = useState<EguchiProgress | null>(null);
-  const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences | null>(null);
+  const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(true);
   const defaultSessionPreferences = useRef(createDefaultEguchiSessionPreferences());
-  const unlockedChordIds =
-    progress?.unlockedChordIds.length ? progress.unlockedChordIds : DEFAULT_UNLOCKED_CHORD_IDS;
+  const unlockedChordIds = progress?.unlockedChordIds.length
+    ? progress.unlockedChordIds
+    : DEFAULT_UNLOCKED_CHORD_IDS;
   const unlockedChords = unlockedChordIds.map(id => CHORD_BY_ID[id]);
   const unlockedChordKey = unlockedChordIds.join('|');
   const [currentChordId, setCurrentChordId] = useState<EguchiChordId | null>(null);
@@ -367,7 +374,13 @@ export default function HomeScreen() {
       entry: nextAudio,
       origin: 'new-trial',
     });
-  }, [clearAdvanceTimer, clearStartupPlaybackWatchdog, hasStartedTraining, playCurrentAudio, unlockedChordIds]);
+  }, [
+    clearAdvanceTimer,
+    clearStartupPlaybackWatchdog,
+    hasStartedTraining,
+    playCurrentAudio,
+    unlockedChordIds,
+  ]);
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
@@ -386,7 +399,9 @@ export default function HomeScreen() {
       const expectedChord = CHORD_BY_ID[expectedId];
       const isCorrect = id === expectedId;
       const activeSessionPreferences = sessionPreferences ?? defaultSessionPreferences.current;
-      const autoAdvanceDurationMs = getAutoAdvanceDurationMs(activeSessionPreferences.feedbackSeconds);
+      const autoAdvanceDurationMs = getAutoAdvanceDurationMs(
+        activeSessionPreferences.feedbackSeconds
+      );
 
       setLastAnswerId(id);
       setLastResult(isCorrect ? 'correct' : 'incorrect');
@@ -441,7 +456,14 @@ export default function HomeScreen() {
         startNewTrial();
       }, autoAdvanceDurationMs);
     },
-    [clearAdvanceTimer, hasStartedTraining, isLoading, playCurrentAudio, sessionPreferences, startNewTrial]
+    [
+      clearAdvanceTimer,
+      hasStartedTraining,
+      isLoading,
+      playCurrentAudio,
+      sessionPreferences,
+      startNewTrial,
+    ]
   );
 
   const handleStartTraining = useCallback(() => {
@@ -537,7 +559,8 @@ export default function HomeScreen() {
     : 0;
   const successProgress = progressionStatus
     ? clampProgress(
-        progressionStatus.todaySummary.correct / Math.max(1, progressionStatus.todaySummary.attempts)
+        progressionStatus.todaySummary.correct /
+          Math.max(1, progressionStatus.todaySummary.attempts)
       )
     : 0;
   const streakProgress = progressionStatus
@@ -630,7 +653,10 @@ export default function HomeScreen() {
   const gridWidth = gridLayout.columns * gridLayout.tileSize + GRID_GAP * (gridLayout.columns - 1);
   const gridRows = Math.max(1, Math.ceil(unlockedChords.length / Math.max(1, gridLayout.columns)));
   const gridHeight = gridRows * gridLayout.tileSize + GRID_GAP * (gridRows - 1);
-  const centerCardSize = Math.max(120, Math.min(340, Math.max(120, Math.min(gridWidth, gridHeight) - 8)));
+  const centerCardSize = Math.max(
+    120,
+    Math.min(340, Math.max(120, Math.min(gridWidth, gridHeight) - 8))
+  );
   const centerEmojiSize = Math.floor(centerCardSize * 0.58);
 
   return (
@@ -644,13 +670,7 @@ export default function HomeScreen() {
         }}
       >
         {isLoading ? <ActivityIndicator /> : null}
-        <View
-          style={[
-            styles.gridStage,
-            showCenterFlash && styles.gridStageFocused,
-            { width: gridWidth, height: gridHeight },
-          ]}
-        >
+        <View style={[styles.gridStage, { width: gridWidth, height: gridHeight }]}>
           <View style={[styles.grid, { width: gridWidth }]}>
             {unlockedChords.map(chord => {
               const showCorrect = lastResult !== null;
@@ -690,10 +710,7 @@ export default function HomeScreen() {
                               ? 'bundle'
                               : animalImageSource.uri,
                         });
-                        markAnimalImageFailed(
-                          chord.id,
-                          animalImageCandidate?.emotion
-                        );
+                        markAnimalImageFailed(chord.id, animalImageCandidate?.emotion);
                       }}
                     />
                   ) : (
@@ -705,58 +722,6 @@ export default function HomeScreen() {
               );
             })}
           </View>
-          {showCenterFlash && currentChord ? (
-            <View pointerEvents="none" style={styles.gridFlashOverlay}>
-              <View style={styles.gridFlashBackdrop} />
-              <View style={styles.overlayFeedbackStack}>
-                <View
-                  style={[
-                    styles.centerFlashCard,
-                    {
-                      backgroundColor: currentChord.color.hex,
-                      width: centerCardSize,
-                      height: centerCardSize,
-                      borderRadius: Math.floor(centerCardSize * 0.12),
-                    },
-                  ]}
-                >
-                  {currentChordImageSource ? (
-                    <Image
-                      source={currentChordImageSource}
-                      style={styles.centerFlashImage}
-                      contentFit="contain"
-                      onError={() => {
-                        console.log('[Eguchi] Center flash image missing, using emoji fallback', {
-                          chord: currentChord.id,
-                          emotion: currentChordImageCandidate?.emotion ?? 'default',
-                          uri:
-                            typeof currentChordImageSource === 'number'
-                              ? 'bundle'
-                              : currentChordImageSource.uri,
-                        });
-                        markAnimalImageFailed(
-                          currentChord.id,
-                          currentChordImageCandidate?.emotion
-                        );
-                      }}
-                    />
-                  ) : (
-                    <ThemedText
-                      style={[
-                        styles.centerFlashEmoji,
-                        { fontSize: centerEmojiSize, lineHeight: Math.round(centerEmojiSize * 1.06) },
-                      ]}
-                    >
-                      {ANIMAL_EMOJIS[currentChord.id]}
-                    </ThemedText>
-                  )}
-                </View>
-                <View style={styles.overlayProgressTrack}>
-                  <View style={[styles.overlayProgressFill, { width: `${autoAdvanceProgress * 100}%` }]} />
-                </View>
-              </View>
-            </View>
-          ) : null}
         </View>
         <View
           style={styles.bottomSection}
@@ -797,11 +762,17 @@ export default function HomeScreen() {
 
               <View style={styles.missionRow}>
                 <ThemedText style={styles.missionLabel}>✅ Great taps</ThemedText>
-                <ThemedText style={styles.missionValue}>{formatPercent(successProgress)}</ThemedText>
+                <ThemedText style={styles.missionValue}>
+                  {formatPercent(successProgress)}
+                </ThemedText>
               </View>
               <View style={styles.progressTrack}>
                 <View
-                  style={[styles.progressFill, styles.successFill, { width: `${successProgress * 100}%` }]}
+                  style={[
+                    styles.progressFill,
+                    styles.successFill,
+                    { width: `${successProgress * 100}%` },
+                  ]}
                 />
               </View>
 
@@ -813,7 +784,11 @@ export default function HomeScreen() {
               </View>
               <View style={styles.progressTrack}>
                 <View
-                  style={[styles.progressFill, styles.streakFill, { width: `${streakProgress * 100}%` }]}
+                  style={[
+                    styles.progressFill,
+                    styles.streakFill,
+                    { width: `${streakProgress * 100}%` },
+                  ]}
                 />
               </View>
 
@@ -825,32 +800,99 @@ export default function HomeScreen() {
             </View>
           ) : null}
         </View>
-        {showCenterFlash ? <View pointerEvents="none" style={styles.fullScreenFlashDimmer} /> : null}
-        {showStartOverlay ? (
-          <View style={styles.startOverlay}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Start training"
-              onPress={handleStartTraining}
-              style={[
-                styles.startCard,
-                {
-                  backgroundColor: startCardBackground,
-                  borderColor: startCardBorderColor,
-                },
-              ]}
-            >
-              <View style={[styles.startEmojiBadge, { backgroundColor: buttonBackground }]}>
-                <ThemedText style={[styles.startEmoji, { color: startBadgeTextColor }]}>🔊</ThemedText>
-              </View>
-              <ThemedText style={[styles.startTitle, { color: startTitleColor }]}>Tap To Start</ThemedText>
-              <ThemedText style={[styles.startSubtitle, { color: startSubtitleColor }]}>
-                Listen, then tap the matching animal
-              </ThemedText>
-            </Pressable>
-          </View>
-        ) : null}
       </ScrollView>
+      <Modal
+        visible={showCenterFlash && Boolean(currentChord)}
+        transparent
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+      >
+        <View style={styles.feedbackOverlay}>
+          {currentChord ? (
+            <View style={styles.overlayFeedbackStack}>
+              <View
+                style={[
+                  styles.centerFlashCard,
+                  {
+                    backgroundColor: currentChord.color.hex,
+                    width: centerCardSize,
+                    height: centerCardSize,
+                    borderRadius: Math.floor(centerCardSize * 0.12),
+                  },
+                ]}
+              >
+                {currentChordImageSource ? (
+                  <Image
+                    source={currentChordImageSource}
+                    style={styles.centerFlashImage}
+                    contentFit="contain"
+                    onError={() => {
+                      console.log('[Eguchi] Center flash image missing, using emoji fallback', {
+                        chord: currentChord.id,
+                        emotion: currentChordImageCandidate?.emotion ?? 'default',
+                        uri:
+                          typeof currentChordImageSource === 'number'
+                            ? 'bundle'
+                            : currentChordImageSource.uri,
+                      });
+                      markAnimalImageFailed(currentChord.id, currentChordImageCandidate?.emotion);
+                    }}
+                  />
+                ) : (
+                  <ThemedText
+                    style={[
+                      styles.centerFlashEmoji,
+                      { fontSize: centerEmojiSize, lineHeight: Math.round(centerEmojiSize * 1.06) },
+                    ]}
+                  >
+                    {ANIMAL_EMOJIS[currentChord.id]}
+                  </ThemedText>
+                )}
+              </View>
+              <View style={styles.overlayProgressTrack}>
+                <View
+                  style={[styles.overlayProgressFill, { width: `${autoAdvanceProgress * 100}%` }]}
+                />
+              </View>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
+      <Modal
+        visible={showStartOverlay}
+        transparent
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+      >
+        <View style={styles.startOverlay}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Start training"
+            onPress={handleStartTraining}
+            style={[
+              styles.startCard,
+              {
+                backgroundColor: startCardBackground,
+                borderColor: startCardBorderColor,
+              },
+            ]}
+          >
+            <View style={[styles.startEmojiBadge, { backgroundColor: buttonBackground }]}>
+              <ThemedText style={[styles.startEmoji, { color: startBadgeTextColor }]}>
+                🔊
+              </ThemedText>
+            </View>
+            <ThemedText style={[styles.startTitle, { color: startTitleColor }]}>
+              Tap To Start
+            </ThemedText>
+            <ThemedText style={[styles.startSubtitle, { color: startSubtitleColor }]}>
+              Listen, then tap the matching animal
+            </ThemedText>
+          </Pressable>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -948,11 +990,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   startOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: 'rgba(8, 10, 14, 0.68)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 30,
+    paddingHorizontal: 24,
+  },
+  feedbackOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(8, 10, 14, 0.62)',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 24,
   },
   startCard: {
@@ -1012,9 +1061,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     position: 'relative',
   },
-  gridStageFocused: {
-    zIndex: 12,
-  },
   tile: {
     borderRadius: 16,
     alignItems: 'center',
@@ -1037,22 +1083,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
-  },
-  gridFlashOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-  gridFlashBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.68)',
-    borderRadius: 12,
-  },
-  fullScreenFlashDimmer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.56)',
-    zIndex: 8,
   },
   overlayFeedbackStack: {
     width: '100%',

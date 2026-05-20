@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -31,6 +32,12 @@
         "EXPO_PUBLIC_AUTH0_CLIENT_ID": "anmRxoN5x2uWiXdjAyXe33kW4d8N81Vj",
         "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://eguchi-api-production.up.railway.app/api",
         "EXPO_PUBLIC_URL_SCHEME": "eguchieartrainer"
+      }
+    },
+    "production-simulator": {
+      "extends": "production",
+      "ios": {
+        "simulator": true
       }
     },
     "app-store": {

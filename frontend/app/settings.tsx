@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -47,6 +48,11 @@ import {
   setPerfectDaysRequired,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
+import {
+  ANIMAL_GRID_GAP,
+  SETTINGS_CONTENT_MAX_WIDTH,
+  getSettingsAnimalGridLayout,
+} from '@/lib/eguchi/settings-layout';
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 const formatTimestamp = (isoTime: string | null) =>
@@ -69,10 +75,6 @@ const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
 const STEP_REPEAT_START_DELAY_MS = 300;
 const STEP_REPEAT_INTERVAL_MS = 90;
 const FEEDBACK_STEP_SECONDS = 0.25;
-const SETTINGS_CONTENT_MAX_WIDTH = 760;
-const SETTINGS_HORIZONTAL_PADDING = 40;
-const LEVEL_CARD_HORIZONTAL_PADDING = 28;
-const ANIMAL_GRID_GAP = 10;
 
 const formatFeedbackSeconds = (value: number) => value.toFixed(2).replace(/\.?0+$/, '');
 
@@ -102,6 +104,7 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [savingProgress, setSavingProgress] = useState(false);
   const [savingSession, setSavingSession] = useState(false);
+  const [resetConfirmVisible, setResetConfirmVisible] = useState(false);
   const [progressionMessage, setProgressionMessage] = useState<string | null>(null);
   const [audioBusy, setAudioBusy] = useState(false);
   const [audioProgress, setAudioProgress] = useState<{
@@ -210,6 +213,11 @@ export default function SettingsScreen() {
       setSavingProgress(false);
     }
   }, []);
+
+  const handleConfirmResetProgress = useCallback(async () => {
+    setResetConfirmVisible(false);
+    await handleResetProgress();
+  }, [handleResetProgress]);
 
   const handleSessionUpdate = useCallback(
     (updater: (previous: EguchiSessionPreferences) => EguchiSessionPreferences) => {
@@ -383,15 +391,8 @@ export default function SettingsScreen() {
 
   const snapshot = getProgressSnapshot(progress);
   const currentLevel = progress.unlockedChordIds.length;
-  const settingsContentWidth = Math.min(
-    SETTINGS_CONTENT_MAX_WIDTH,
-    Math.max(320, windowWidth - SETTINGS_HORIZONTAL_PADDING)
-  );
-  const animalGridInnerWidth = settingsContentWidth - LEVEL_CARD_HORIZONTAL_PADDING;
-  const animalGridColumns = animalGridInnerWidth >= 660 ? 4 : animalGridInnerWidth >= 460 ? 3 : 2;
-  const animalGridCardWidth = Math.floor(
-    (animalGridInnerWidth - ANIMAL_GRID_GAP * (animalGridColumns - 1)) / animalGridColumns
-  );
+  const animalGridLayout = getSettingsAnimalGridLayout(windowWidth);
+  const animalGridCardWidth = animalGridLayout.cardWidth;
   const levelProgress = clampProgress(
     (currentLevel - MIN_UNLOCKED_CHORD_COUNT) /
       Math.max(1, ORDERED_CHORD_IDS.length - MIN_UNLOCKED_CHORD_COUNT)
@@ -460,26 +461,179 @@ export default function SettingsScreen() {
             </ThemedText>
           </View>
 
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Active animals</ThemedText>
-              <ThemedText style={styles.summaryValue}>
-                {snapshot.unlockedCount}/{ORDERED_CHORD_IDS.length}
-              </ThemedText>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Practice Progress</ThemedText>
+            {savingSession ? <ActivityIndicator size="small" color={tintColor} /> : null}
+          </View>
+
+          <View style={styles.progressionCard}>
+            <View style={styles.metricGrid}>
+              <View style={styles.metricTile}>
+                <ThemedText style={styles.metricLabel}>Today</ThemedText>
+                <ThemedText style={styles.metricValue}>
+                  {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}
+                </ThemedText>
+                <ThemedText style={styles.metricDetail}>
+                  target {progressionStatus.dailyAttemptTarget}
+                </ThemedText>
+              </View>
+              <View style={styles.metricTile}>
+                <ThemedText style={styles.metricLabel}>Perfect-day streak</ThemedText>
+                <ThemedText style={styles.metricValue}>
+                  {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
+                </ThemedText>
+                <ThemedText style={styles.metricDetail}>
+                  {progressionStatus.isTodayPerfect ? 'today is perfect' : 'today in progress'}
+                </ThemedText>
+              </View>
+              <View style={styles.metricTile}>
+                <ThemedText style={styles.metricLabel}>Days to unlock</ThemedText>
+                <ThemedText style={styles.metricValue}>
+                  {progressionStatus.isMaxLevel ? '0' : progressionStatus.daysRemaining}
+                </ThemedText>
+                <ThemedText style={styles.metricDetail}>
+                  {progressionStatus.isMaxLevel ? 'all animals active' : 'until next animal'}
+                </ThemedText>
+              </View>
+              <View style={styles.metricTile}>
+                <ThemedText style={styles.metricLabel}>Total accuracy</ThemedText>
+                <ThemedText style={styles.metricValue}>
+                  {formatPercent(snapshot.totalAccuracy)}
+                </ThemedText>
+                <ThemedText style={styles.metricDetail}>{snapshot.totalAttempts} rounds</ThemedText>
+              </View>
             </View>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Today</ThemedText>
-              <ThemedText style={styles.summaryValue}>
-                {snapshot.todayCorrect}/{snapshot.todayAttempts} (
-                {formatPercent(snapshot.todayAccuracy)})
-              </ThemedText>
+
+            <View style={styles.streakTrack}>
+              <View style={[styles.streakFill, { width: `${streakProgress * 100}%` }]} />
             </View>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Total</ThemedText>
-              <ThemedText style={styles.summaryValue}>
-                {snapshot.totalCorrect}/{snapshot.totalAttempts} (
-                {formatPercent(snapshot.totalAccuracy)})
-              </ThemedText>
+
+            <View style={styles.controlRow}>
+              <ThemedText style={styles.controlLabel}>Auto unlock</ThemedText>
+              <Switch
+                value={sessionPreferences.autoUnlockEnabled}
+                onValueChange={enabled =>
+                  handleSessionUpdate(previous => setAutoUnlockEnabled(previous, enabled))
+                }
+                trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
+                thumbColor={sessionPreferences.autoUnlockEnabled ? tintColor : iconColor}
+                disabled={loading}
+              />
+            </View>
+
+            <View style={styles.stepperRow}>
+              <ThemedText style={styles.controlLabel}>Perfect days needed</ThemedText>
+              <View style={styles.stepperControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyPerfectDaysDelta(-1)}
+                  onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(-1))}
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
+                </Pressable>
+                <ThemedTextInput
+                  value={perfectDaysDraft}
+                  onChangeText={value => setPerfectDaysDraft(sanitizeIntegerInput(value))}
+                  onBlur={commitPerfectDaysDraft}
+                  onSubmitEditing={commitPerfectDaysDraft}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  selectTextOnFocus
+                  editable={!loading}
+                  style={[styles.stepInput, { borderColor: iconColor }]}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyPerfectDaysDelta(1)}
+                  onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(1))}
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.stepperRow}>
+              <ThemedText style={styles.controlLabel}>Daily attempts target</ThemedText>
+              <View style={styles.stepperControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyDailyAttemptsDelta(-1)}
+                  onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(-1))}
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
+                </Pressable>
+                <ThemedTextInput
+                  value={dailyAttemptsDraft}
+                  onChangeText={value => setDailyAttemptsDraft(sanitizeIntegerInput(value))}
+                  onBlur={commitDailyAttemptsDraft}
+                  onSubmitEditing={commitDailyAttemptsDraft}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  selectTextOnFocus
+                  editable={!loading}
+                  style={[styles.stepInput, { borderColor: iconColor }]}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyDailyAttemptsDelta(1)}
+                  onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(1))}
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.stepperRow}>
+              <ThemedText style={styles.controlLabel}>Answer reveal seconds</ThemedText>
+              <View style={styles.stepperControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS)}
+                  onPressIn={() =>
+                    startRepeatingStep(() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS))
+                  }
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
+                </Pressable>
+                <ThemedTextInput
+                  value={feedbackSecondsDraft}
+                  onChangeText={value => setFeedbackSecondsDraft(sanitizeDecimalInput(value))}
+                  onBlur={commitFeedbackSecondsDraft}
+                  onSubmitEditing={commitFeedbackSecondsDraft}
+                  keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  selectTextOnFocus
+                  editable={!loading}
+                  style={[styles.stepInput, { borderColor: iconColor }]}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS)}
+                  onPressIn={() =>
+                    startRepeatingStep(() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS))
+                  }
+                  onPressOut={clearStepRepeater}
+                  style={[styles.stepButton, { borderColor: iconColor }]}
+                  disabled={loading}
+                >
+                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
+                </Pressable>
+              </View>
             </View>
           </View>
 
@@ -651,188 +805,6 @@ export default function SettingsScreen() {
           </View>
 
           <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">Next Level</ThemedText>
-            {savingSession ? <ActivityIndicator size="small" color={tintColor} /> : null}
-          </View>
-
-          <View style={styles.progressionCard}>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Current level</ThemedText>
-              <ThemedText style={styles.summaryValue}>
-                {progressionStatus.currentLevel}/{progressionStatus.totalLevels}
-              </ThemedText>
-            </View>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Next chord</ThemedText>
-              <ThemedText style={styles.summaryValue}>
-                {progressionStatus.nextChordId
-                  ? `${progressionStatus.nextChordAnimal} (${progressionStatus.nextChordId})`
-                  : 'Complete'}
-              </ThemedText>
-            </View>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Perfect-day streak</ThemedText>
-              <ThemedText style={styles.summaryValue}>
-                {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
-              </ThemedText>
-            </View>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Today toward streak</ThemedText>
-              <ThemedText style={styles.summaryValue}>
-                {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}{' '}
-                (target {progressionStatus.dailyAttemptTarget})
-              </ThemedText>
-            </View>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Days to next unlock</ThemedText>
-              <ThemedText style={styles.summaryValue}>
-                {progressionStatus.isMaxLevel ? '0' : progressionStatus.daysRemaining}
-              </ThemedText>
-            </View>
-
-            <View style={styles.streakTrack}>
-              <View style={[styles.streakFill, { width: `${streakProgress * 100}%` }]} />
-            </View>
-
-            <View style={styles.controlRow}>
-              <ThemedText style={styles.controlLabel}>Auto unlock</ThemedText>
-              <Switch
-                value={sessionPreferences.autoUnlockEnabled}
-                onValueChange={enabled =>
-                  handleSessionUpdate(previous => setAutoUnlockEnabled(previous, enabled))
-                }
-                trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
-                thumbColor={sessionPreferences.autoUnlockEnabled ? tintColor : iconColor}
-                disabled={loading}
-              />
-            </View>
-
-            <View style={styles.stepperRow}>
-              <ThemedText style={styles.controlLabel}>Perfect days needed</ThemedText>
-              <View style={styles.stepperControls}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyPerfectDaysDelta(-1)}
-                  onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(-1))}
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
-                </Pressable>
-                <ThemedTextInput
-                  value={perfectDaysDraft}
-                  onChangeText={value => setPerfectDaysDraft(sanitizeIntegerInput(value))}
-                  onBlur={commitPerfectDaysDraft}
-                  onSubmitEditing={commitPerfectDaysDraft}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  selectTextOnFocus
-                  editable={!loading}
-                  style={[styles.stepInput, { borderColor: iconColor }]}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyPerfectDaysDelta(1)}
-                  onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(1))}
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.stepperRow}>
-              <ThemedText style={styles.controlLabel}>Daily attempts target</ThemedText>
-              <View style={styles.stepperControls}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyDailyAttemptsDelta(-1)}
-                  onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(-1))}
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
-                </Pressable>
-                <ThemedTextInput
-                  value={dailyAttemptsDraft}
-                  onChangeText={value => setDailyAttemptsDraft(sanitizeIntegerInput(value))}
-                  onBlur={commitDailyAttemptsDraft}
-                  onSubmitEditing={commitDailyAttemptsDraft}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  selectTextOnFocus
-                  editable={!loading}
-                  style={[styles.stepInput, { borderColor: iconColor }]}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyDailyAttemptsDelta(1)}
-                  onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(1))}
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.stepperRow}>
-              <ThemedText style={styles.controlLabel}>Answer reveal seconds</ThemedText>
-              <View style={styles.stepperControls}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS)}
-                  onPressIn={() =>
-                    startRepeatingStep(() => applyFeedbackSecondsDelta(-FEEDBACK_STEP_SECONDS))
-                  }
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
-                </Pressable>
-                <ThemedTextInput
-                  value={feedbackSecondsDraft}
-                  onChangeText={value => setFeedbackSecondsDraft(sanitizeDecimalInput(value))}
-                  onBlur={commitFeedbackSecondsDraft}
-                  onSubmitEditing={commitFeedbackSecondsDraft}
-                  keyboardType="decimal-pad"
-                  returnKeyType="done"
-                  selectTextOnFocus
-                  editable={!loading}
-                  style={[styles.stepInput, { borderColor: iconColor }]}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS)}
-                  onPressIn={() =>
-                    startRepeatingStep(() => applyFeedbackSecondsDelta(FEEDBACK_STEP_SECONDS))
-                  }
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-
-          <Pressable
-            onPress={handleResetProgress}
-            accessibilityRole="button"
-            style={[styles.resetButton, { borderColor: iconColor }]}
-            disabled={savingProgress || audioBusy}
-          >
-            <ThemedText style={styles.resetText}>Reset Progress</ThemedText>
-          </Pressable>
-
-          <View style={styles.sectionHeader}>
             <ThemedText type="subtitle">Audio Pack</ThemedText>
             {audioBusy ? <ActivityIndicator size="small" color={tintColor} /> : null}
           </View>
@@ -914,11 +886,61 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <ThemedText style={styles.note}>
-            Training level controls are for caregiver setup while the child flow stays simple.
-          </ThemedText>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Danger Zone</ThemedText>
+            {savingProgress ? <ActivityIndicator size="small" color="#B42318" /> : null}
+          </View>
+
+          <View style={styles.dangerCard}>
+            <ThemedText style={styles.dangerText}>
+              Reset removes local training history, streaks, and unlocked animals on this device.
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Reset progress"
+              onPress={() => setResetConfirmVisible(true)}
+              disabled={loading || savingProgress}
+              style={[styles.dangerButton, (loading || savingProgress) && styles.buttonDisabled]}
+            >
+              <ThemedText style={styles.dangerButtonText}>Reset Progress</ThemedText>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
+      <Modal
+        visible={resetConfirmVisible}
+        transparent
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        onRequestClose={() => setResetConfirmVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.resetModal}>
+            <ThemedText style={styles.resetModalTitle}>Reset progress?</ThemedText>
+            <ThemedText style={styles.resetModalBody}>
+              This clears training history, streaks, and unlocked animals on this device. This
+              cannot be undone.
+            </ThemedText>
+            <View style={styles.resetModalActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setResetConfirmVisible(false)}
+                style={styles.resetCancelButton}
+              >
+                <ThemedText style={styles.resetCancelText}>Cancel</ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleConfirmResetProgress}
+                disabled={savingProgress}
+                style={[styles.resetConfirmButton, savingProgress && styles.buttonDisabled]}
+              >
+                <ThemedText style={styles.resetConfirmText}>Reset</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -965,14 +987,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.75,
     lineHeight: 18,
-  },
-  summaryCard: {
-    borderWidth: 1,
-    borderColor: '#D3D3D3',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 8,
   },
   progressionCard: {
     borderWidth: 1,
@@ -1033,20 +1047,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#1B8B4D',
   },
   animalLevelGrid: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: ANIMAL_GRID_GAP,
   },
   animalLevelCard: {
-    minHeight: 158,
-    borderRadius: 12,
+    minHeight: 132,
+    borderRadius: 10,
     borderWidth: 1,
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 12,
-    gap: 4,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 9,
+    gap: 3,
   },
   animalLevelCardCurrent: {
     borderWidth: 2,
@@ -1059,7 +1074,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 5,
+    height: 4,
   },
   animalLevelTopRow: {
     flexDirection: 'row',
@@ -1068,14 +1083,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   animalLevelNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   animalLevelNumberText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     color: '#45515A',
   },
@@ -1085,35 +1100,35 @@ const styles = StyleSheet.create({
   animalLevelStatus: {
     borderRadius: 999,
     backgroundColor: '#E1E5E8',
-    paddingHorizontal: 7,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
   animalLevelStatusText: {
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 9,
+    lineHeight: 11,
     fontWeight: '800',
     color: '#5B6670',
   },
   animalLevelImage: {
     width: '100%',
-    height: 66,
-    marginTop: 2,
+    height: 48,
+    marginTop: 1,
   },
   animalLevelImageLocked: {
     opacity: 0.28,
   },
   animalLevelImageFallback: {
-    height: 66,
+    height: 48,
   },
   animalLevelAnimal: {
-    fontSize: 15,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 16,
     fontWeight: '800',
     textAlign: 'center',
   },
   animalLevelChord: {
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 11,
+    lineHeight: 13,
     fontWeight: '700',
     opacity: 0.82,
     textAlign: 'center',
@@ -1126,8 +1141,8 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   animalLevelColorText: {
-    fontSize: 11,
-    lineHeight: 13,
+    fontSize: 10,
+    lineHeight: 12,
     fontWeight: '700',
     opacity: 0.78,
   },
@@ -1157,6 +1172,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  metricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  metricTile: {
+    flexGrow: 1,
+    flexBasis: 150,
+    minWidth: 142,
+    borderWidth: 1,
+    borderColor: '#E1E5E8',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    backgroundColor: '#F8FAFA',
+    gap: 2,
+  },
+  metricLabel: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+    opacity: 0.68,
+  },
+  metricValue: {
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: '800',
+  },
+  metricDetail: {
+    fontSize: 11,
+    lineHeight: 14,
+    opacity: 0.72,
   },
   streakTrack: {
     width: '100%',
@@ -1222,20 +1270,9 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   colorDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-  },
-  resetButton: {
-    borderWidth: 1,
-    borderRadius: 999,
-    alignItems: 'center',
-    paddingVertical: 10,
-    marginTop: 8,
-  },
-  resetText: {
-    fontSize: 15,
-    fontWeight: '600',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
   },
   audioCard: {
     borderWidth: 1,
@@ -1301,10 +1338,86 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.5,
   },
-  note: {
-    textAlign: 'center',
-    fontSize: 12,
-    opacity: 0.75,
+  dangerCard: {
+    borderWidth: 1,
+    borderColor: '#FDA29B',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: '#FEF3F2',
+  },
+  dangerText: {
+    fontSize: 13,
     lineHeight: 18,
+    color: '#7A271A',
+  },
+  dangerButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#B42318',
+  },
+  dangerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(16, 24, 40, 0.58)',
+  },
+  resetModal: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 16,
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    gap: 14,
+  },
+  resetModalTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '800',
+    color: '#101828',
+  },
+  resetModalBody: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: '#344054',
+  },
+  resetModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 2,
+  },
+  resetCancelButton: {
+    borderWidth: 1,
+    borderColor: '#D0D5DD',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  resetCancelText: {
+    color: '#344054',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  resetConfirmButton: {
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#B42318',
+  },
+  resetConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

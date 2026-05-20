@@ -4,6 +4,7 @@ import {
   getPlaybackRetryLimit,
   INITIAL_AUDIO_RETRY_BACKOFF_MS,
   INITIAL_AUDIO_RETRY_DELAY_MS,
+  NEW_TRIAL_PLAYBACK_RETRY_LIMIT,
   STANDARD_PLAYBACK_RETRY_LIMIT,
   STARTUP_PLAYBACK_RETRY_LIMIT,
   STARTUP_PLAYBACK_WATCHDOG_DELAY_MS,
@@ -26,8 +27,8 @@ describe('eguchi audio playback policy', () => {
     expect(getPlaybackRetryLimit('replay', false)).toBe(STANDARD_PLAYBACK_RETRY_LIMIT);
   });
 
-  test('uses standard retry limit for new-trial after playback has succeeded once', () => {
-    expect(getPlaybackRetryLimit('new-trial', true)).toBe(STANDARD_PLAYBACK_RETRY_LIMIT);
+  test('keeps new-trial playback resilient after playback has succeeded once', () => {
+    expect(getPlaybackRetryLimit('new-trial', true)).toBe(NEW_TRIAL_PLAYBACK_RETRY_LIMIT);
   });
 
   test('uses standard retry limit for retry origin after playback has succeeded once', () => {

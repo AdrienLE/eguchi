@@ -41,6 +41,7 @@ import {
 } from '@/lib/eguchi/audio-playback';
 import {
   getAnimalImageRecyclingKey,
+  getCountdownVisibleSegmentCount,
   getFeedbackAnimalEmotion,
 } from '@/lib/eguchi/training-feedback';
 import {
@@ -56,6 +57,12 @@ const GRID_MIN_TILE_SIZE = 28;
 const GRID_MAX_COLUMNS = 6;
 const GRID_BASE_RESERVED_HEIGHT = 30;
 const PLAYBACK_START_CONFIRMATION_TIMEOUT_MS = 650;
+const FEEDBACK_TO_TRIAL_AUDIO_SETTLE_MS = 220;
+const COUNTDOWN_RING_SIZE = 58;
+const COUNTDOWN_RING_SEGMENT_COUNT = 40;
+const COUNTDOWN_RING_SEGMENT_WIDTH = 3;
+const COUNTDOWN_RING_SEGMENT_HEIGHT = 8;
+const COUNTDOWN_RING_SEGMENT_RADIUS = 23;
 
 type PlayCurrentAudioOptions = {
   chordId?: EguchiChordId | null;
@@ -106,6 +113,11 @@ const waitForSoundToStart = (sound: Audio.Sound) =>
       sound.setOnPlaybackStatusUpdate(null);
       resolve(true);
     });
+  });
+
+const wait = (durationMs: number) =>
+  new Promise(resolve => {
+    setTimeout(resolve, durationMs);
   });
 
 const isAutoplayBlockedError = (error: unknown) => {
@@ -191,6 +203,11 @@ export default function HomeScreen() {
   const advanceTicker = useRef<ReturnType<typeof setInterval> | null>(null);
   const [autoAdvanceRemainingMs, setAutoAdvanceRemainingMs] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const activeSoundOriginRef = useRef<PlaybackOrigin | null>(null);
+  const pendingPlaybackRequestRef = useRef<{
+    id: number;
+    origin: PlaybackOrigin;
+  } | null>(null);
   const audioModePromiseRef = useRef<Promise<void> | null>(null);
   const [hasStartedTraining, setHasStartedTraining] = useState(false);
   const hasPlayedAnyAudioRef = useRef(false);
@@ -227,6 +244,7 @@ export default function HomeScreen() {
         console.warn('Failed to unload audio', error);
       } finally {
         soundRef.current = null;
+        activeSoundOriginRef.current = null;
       }
     }
   }, []);
@@ -303,10 +321,20 @@ export default function HomeScreen() {
       const retryLimit =
         options.retryLimit ?? getPlaybackRetryLimit(origin, hasPlayedAnyAudioRef.current);
       const requestId = playbackRequestIdRef.current + 1;
+      const previousPlaybackOrigin =
+        activeSoundOriginRef.current ?? pendingPlaybackRequestRef.current?.origin ?? null;
       playbackRequestIdRef.current = requestId;
+      pendingPlaybackRequestRef.current = { id: requestId, origin };
       clearPlaybackRetry();
 
+      const clearPendingPlaybackRequest = () => {
+        if (pendingPlaybackRequestRef.current?.id === requestId) {
+          pendingPlaybackRequestRef.current = null;
+        }
+      };
+
       if (!chordId || !entry) {
+        clearPendingPlaybackRequest();
         console.warn('No audio available for current chord', chordId);
         return;
       }
@@ -320,6 +348,15 @@ export default function HomeScreen() {
       if (soundRef.current) {
         await stopSound();
         if (playbackRequestIdRef.current !== requestId) {
+          clearPendingPlaybackRequest();
+          return;
+        }
+      }
+
+      if (previousPlaybackOrigin === 'answer-feedback' && origin === 'new-trial') {
+        await wait(FEEDBACK_TO_TRIAL_AUDIO_SETTLE_MS);
+        if (playbackRequestIdRef.current !== requestId) {
+          clearPendingPlaybackRequest();
           return;
         }
       }
@@ -340,16 +377,20 @@ export default function HomeScreen() {
         });
         createdSound = sound;
         if (playbackRequestIdRef.current !== requestId) {
+          clearPendingPlaybackRequest();
           await sound.unloadAsync().catch(unloadError => {
             console.warn('Failed to unload stale sound instance', unloadError);
           });
           return;
         }
         soundRef.current = sound;
+        activeSoundOriginRef.current = origin;
+        clearPendingPlaybackRequest();
         let playbackStatus = await sound.playFromPositionAsync(0);
         if (playbackRequestIdRef.current !== requestId) {
           if (soundRef.current === sound) {
             soundRef.current = null;
+            activeSoundOriginRef.current = null;
           }
           await sound.unloadAsync().catch(unloadError => {
             console.warn('Failed to unload stale sound instance', unloadError);
@@ -370,6 +411,7 @@ export default function HomeScreen() {
         if (!playbackStarted) {
           if (soundRef.current === sound) {
             soundRef.current = null;
+            activeSoundOriginRef.current = null;
           }
           await sound.unloadAsync().catch(unloadError => {
             console.warn('Failed to unload silent sound instance', unloadError);
@@ -380,8 +422,10 @@ export default function HomeScreen() {
         setStartupAutoplayPending(false);
         clearStartupPlaybackWatchdog();
       } catch (error) {
+        clearPendingPlaybackRequest();
         if (createdSound && soundRef.current === createdSound) {
           soundRef.current = null;
+          activeSoundOriginRef.current = null;
           await createdSound.unloadAsync().catch(unloadError => {
             console.warn('Failed to unload failed sound instance', unloadError);
           });
@@ -405,7 +449,7 @@ export default function HomeScreen() {
           void playCurrentAudio({
             chordId,
             entry,
-            origin: 'retry',
+            origin,
             retryCount: nextRetryCount,
             retryLimit,
           });
@@ -497,6 +541,8 @@ export default function HomeScreen() {
 
       hasAnsweredCurrentTrialRef.current = true;
       clearStartupPlaybackWatchdog();
+      clearPlaybackRetry();
+      playbackRequestIdRef.current += 1;
 
       const selectedChord = CHORD_BY_ID[id];
       const expectedChord = CHORD_BY_ID[expectedId];
@@ -570,6 +616,7 @@ export default function HomeScreen() {
     },
     [
       clearAdvanceTimer,
+      clearPlaybackRetry,
       hasStartedTraining,
       isLoading,
       playCurrentAudio,
@@ -626,6 +673,7 @@ export default function HomeScreen() {
       clearStartupPlaybackWatchdog();
       setStartupAutoplayPending(false);
       playbackRequestIdRef.current += 1;
+      pendingPlaybackRequestRef.current = null;
       void stopSound();
     };
   }, [clearAdvanceTimer, clearPlaybackRetry, clearStartupPlaybackWatchdog, stopSound]);
@@ -804,9 +852,31 @@ export default function HomeScreen() {
   );
   const centerCardSize = Math.max(170, Math.min(430, Math.floor(feedbackViewportShortSide * 0.52)));
   const centerEmojiSize = Math.floor(centerCardSize * 0.58);
-  const countdownSeconds =
-    autoAdvanceRemainingMs === null ? 0 : Math.max(1, Math.ceil(autoAdvanceRemainingMs / 1000));
-  const countdownFillScale = Math.max(0.18, 1 - autoAdvanceProgress * 0.72);
+  const countdownVisibleSegmentCount = getCountdownVisibleSegmentCount(
+    autoAdvanceProgress,
+    COUNTDOWN_RING_SEGMENT_COUNT
+  );
+  const countdownRingSegments = useMemo(
+    () =>
+      Array.from({ length: COUNTDOWN_RING_SEGMENT_COUNT }, (_, index) => {
+        const angleDeg = (index / COUNTDOWN_RING_SEGMENT_COUNT) * 360;
+        const angleRad = (angleDeg * Math.PI) / 180;
+        return {
+          index,
+          isVisible: index < countdownVisibleSegmentCount,
+          left:
+            COUNTDOWN_RING_SIZE / 2 -
+            COUNTDOWN_RING_SEGMENT_WIDTH / 2 +
+            Math.sin(angleRad) * COUNTDOWN_RING_SEGMENT_RADIUS,
+          top:
+            COUNTDOWN_RING_SIZE / 2 -
+            COUNTDOWN_RING_SEGMENT_HEIGHT / 2 -
+            Math.cos(angleRad) * COUNTDOWN_RING_SEGMENT_RADIUS,
+          transform: [{ rotate: `${angleDeg}deg` }],
+        };
+      }),
+    [countdownVisibleSegmentCount]
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -1007,16 +1077,21 @@ export default function HomeScreen() {
                   </ThemedText>
                 )}
               </View>
-              <View style={styles.overlayCountdownCircle}>
-                <View
-                  style={[
-                    styles.overlayCountdownFill,
-                    {
-                      transform: [{ scale: countdownFillScale }],
-                    },
-                  ]}
-                />
-                <ThemedText style={styles.overlayCountdownText}>{countdownSeconds}</ThemedText>
+              <View style={styles.overlayCountdownRing}>
+                {countdownRingSegments.map(segment => (
+                  <View
+                    key={segment.index}
+                    style={[
+                      styles.overlayCountdownSegment,
+                      {
+                        left: segment.left,
+                        top: segment.top,
+                        opacity: segment.isVisible ? 0.9 : 0.12,
+                        transform: segment.transform,
+                      },
+                    ]}
+                  />
+                ))}
               </View>
             </View>
           ) : null}
@@ -1275,29 +1350,16 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '90%',
   },
-  overlayCountdownCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+  overlayCountdownRing: {
+    width: COUNTDOWN_RING_SIZE,
+    height: COUNTDOWN_RING_SIZE,
   },
-  overlayCountdownFill: {
+  overlayCountdownSegment: {
     position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: 29,
-    backgroundColor: 'rgba(255, 255, 255, 0.28)',
-  },
-  overlayCountdownText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '800',
+    width: COUNTDOWN_RING_SEGMENT_WIDTH,
+    height: COUNTDOWN_RING_SEGMENT_HEIGHT,
+    borderRadius: COUNTDOWN_RING_SEGMENT_WIDTH,
+    backgroundColor: '#FFFFFF',
   },
   centerFlashEmoji: {
     fontSize: 182,

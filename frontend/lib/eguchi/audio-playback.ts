@@ -3,6 +3,7 @@ export type PlaybackOrigin = 'new-trial' | 'answer-feedback' | 'replay' | 'retry
 export const INITIAL_AUDIO_RETRY_DELAY_MS = 180;
 export const INITIAL_AUDIO_RETRY_BACKOFF_MS = 120;
 export const STANDARD_PLAYBACK_RETRY_LIMIT = 1;
+export const NEW_TRIAL_PLAYBACK_RETRY_LIMIT = 4;
 export const STARTUP_PLAYBACK_RETRY_LIMIT = 6;
 export const STARTUP_PLAYBACK_WATCHDOG_DELAY_MS = 900;
 
@@ -12,6 +13,9 @@ export const getPlaybackRetryLimit = (
 ) => {
   if (!hasPlayedAudioAtLeastOnce && (origin === 'new-trial' || origin === 'retry')) {
     return STARTUP_PLAYBACK_RETRY_LIMIT;
+  }
+  if (origin === 'new-trial') {
+    return NEW_TRIAL_PLAYBACK_RETRY_LIMIT;
   }
   return STANDARD_PLAYBACK_RETRY_LIMIT;
 };

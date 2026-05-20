@@ -20,3 +20,15 @@ export const getAnimalImageRecyclingKey = (
   chordId: EguchiChordId,
   emotion: AnimalEmotion
 ) => `${scope}:${chordId}:${emotion}`;
+
+export const getCountdownVisibleSegmentCount = (
+  remainingProgress: number,
+  segmentCount: number
+) => {
+  const safeSegmentCount = Math.max(0, Math.round(segmentCount));
+  if (!safeSegmentCount || !Number.isFinite(remainingProgress)) {
+    return 0;
+  }
+  const clampedProgress = Math.max(0, Math.min(1, remainingProgress));
+  return Math.min(safeSegmentCount, Math.ceil(clampedProgress * safeSegmentCount));
+};

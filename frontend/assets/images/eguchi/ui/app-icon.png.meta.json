@@ -2,22 +2,12 @@
   "asset_id": "app-icon",
   "category": "ui",
   "emotion": null,
-  "model": "gpt-image-1",
-  "size": "1024x1024",
-  "quality": "high",
-  "background": "transparent",
+  "generation_mode": "built-in image_gen",
+  "source_image_path": "/Users/adrien/.codex/generated_images/019e437f-655d-7393-9eeb-4628b40ca071/ig_08c5034977f4bdb6016a0d311094ac8197a23b6189055502d8.png",
+  "post_processing": "local chroma-key removal, resized to 1024x1024 RGBA, derived platform icons regenerated",
   "output_format": "png",
-  "prompt": "Create a clean 2D illustrated mascot character for a children's learning app. Keep a soft rounded cartoon style, consistent line weight, gentle shading, and clear silhouette. Use transparent background and centered composition. Do not include musical notes, letters, symbols, props, hats, or text.\n\nSubject: A bold app icon mascot with a smiling fox face and whale wave motif fused into one clean emblem, bright teal and sunset orange palette, confident shape that reads at tiny size.\n\nDo not add musical notes, symbols, letters, numbers, thought bubbles, hats, signs, or props.\n\nKeep composition centered with transparent background and no text.",
-  "reference_images": [],
-  "generated_at_utc": "2026-02-17T22:10:13.344361+00:00",
-  "api": {
-    "created": 1771366212,
-    "model": "gpt-image-1",
-    "mode": "generate",
-    "size": "1024x1024",
-    "quality": "high",
-    "background": "transparent",
-    "output_format": "png",
-    "references": []
-  }
+  "background": "transparent",
+  "generated_at_utc": "2026-05-20T04:07:14Z",
+  "prompt": "Generate a refined version of the current fox-whale app logo. Keep the first new logo's composition: fox face on top, whale body facing left on the bottom, small single whale eye on the left-facing whale, whale tail curling up on the right, and the fox and whale fused into one cute emblem. Most important change: make the whale portion match the in-app whale mascot colors better, with a richer bright royal blue body, pale cool white-to-light-blue belly, glossy blue highlights, slightly darker blue shadowing, a rounded flipper, right-side tail, and subtle vertical belly rib lines. Keep the fox close to the first new logo and app fox: rounded orange head, pointed ears with dark tips, cream inner ears and cheek/muzzle band, big glossy brown eyes, small black nose, and gentle happy smile. No front-facing whale, two large faces, text, musical notes, props, hats, signs, watermarks, or extra animals.",
+  "style_notes": "fox-whale fusion mascot using the preferred left-facing whale composition with whale colors corrected toward the in-app whale asset"
 }

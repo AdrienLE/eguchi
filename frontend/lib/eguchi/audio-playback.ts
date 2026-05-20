@@ -17,4 +17,14 @@ export const getPlaybackRetryLimit = (
 };
 
 export const getPlaybackRetryDelayMs = (retryCount: number) =>
-  INITIAL_AUDIO_RETRY_DELAY_MS + Math.max(0, Math.round(retryCount)) * INITIAL_AUDIO_RETRY_BACKOFF_MS;
+  INITIAL_AUDIO_RETRY_DELAY_MS +
+  Math.max(0, Math.round(retryCount)) * INITIAL_AUDIO_RETRY_BACKOFF_MS;
+
+export type PlaybackStatusLike = {
+  isLoaded: boolean;
+  didJustFinish?: boolean;
+  isPlaying?: boolean;
+};
+
+export const didPlaybackStart = (status: PlaybackStatusLike | null | undefined) =>
+  Boolean(status?.isLoaded && (status.isPlaying || status.didJustFinish));

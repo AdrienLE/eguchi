@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -33,11 +33,16 @@ import {
   pickRandomChordId,
 } from '@/lib/eguchi/training-loop';
 import {
+  didPlaybackStart,
   getPlaybackRetryDelayMs,
   getPlaybackRetryLimit,
   STARTUP_PLAYBACK_WATCHDOG_DELAY_MS,
   type PlaybackOrigin,
 } from '@/lib/eguchi/audio-playback';
+import {
+  getAnimalImageRecyclingKey,
+  getFeedbackAnimalEmotion,
+} from '@/lib/eguchi/training-feedback';
 import {
   createDefaultEguchiSessionPreferences,
   loadEguchiSessionPreferences,
@@ -50,6 +55,7 @@ const GRID_GAP = 10;
 const GRID_MIN_TILE_SIZE = 28;
 const GRID_MAX_COLUMNS = 6;
 const GRID_BASE_RESERVED_HEIGHT = 30;
+const PLAYBACK_START_CONFIRMATION_TIMEOUT_MS = 650;
 
 type PlayCurrentAudioOptions = {
   chordId?: EguchiChordId | null;
@@ -78,6 +84,29 @@ const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
 const getAnimalImageFailureKey = (chordId: EguchiChordId, emotion?: AnimalEmotion) =>
   `${chordId}__${emotion ?? 'default'}`;
+
+const waitForSoundToStart = (sound: Audio.Sound) =>
+  new Promise<boolean>(resolve => {
+    let didResolve = false;
+    const timeout = setTimeout(() => {
+      if (didResolve) {
+        return;
+      }
+      didResolve = true;
+      sound.setOnPlaybackStatusUpdate(null);
+      resolve(false);
+    }, PLAYBACK_START_CONFIRMATION_TIMEOUT_MS);
+
+    sound.setOnPlaybackStatusUpdate(status => {
+      if (!didPlaybackStart(status) || didResolve) {
+        return;
+      }
+      didResolve = true;
+      clearTimeout(timeout);
+      sound.setOnPlaybackStatusUpdate(null);
+      resolve(true);
+    });
+  });
 
 const isAutoplayBlockedError = (error: unknown) => {
   if (!error) {
@@ -156,13 +185,13 @@ export default function HomeScreen() {
     : DEFAULT_UNLOCKED_CHORD_IDS;
   const unlockedChords = unlockedChordIds.map(id => CHORD_BY_ID[id]);
   const unlockedChordKey = unlockedChordIds.join('|');
-  const [currentChordId, setCurrentChordId] = useState<EguchiChordId | null>(null);
-  const [lastAnswerId, setLastAnswerId] = useState<EguchiChordId | null>(null);
+  const [feedbackChordId, setFeedbackChordId] = useState<EguchiChordId | null>(null);
   const [lastResult, setLastResult] = useState<'correct' | 'incorrect' | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const advanceTicker = useRef<ReturnType<typeof setInterval> | null>(null);
   const [autoAdvanceRemainingMs, setAutoAdvanceRemainingMs] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const audioModePromiseRef = useRef<Promise<void> | null>(null);
   const [hasStartedTraining, setHasStartedTraining] = useState(false);
   const hasPlayedAnyAudioRef = useRef(false);
   const playbackRequestIdRef = useRef(0);
@@ -216,6 +245,30 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const ensureTrainingAudioMode = useCallback(() => {
+    if (!audioModePromiseRef.current) {
+      audioModePromiseRef.current = Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      }).catch(error => {
+        audioModePromiseRef.current = null;
+        throw error;
+      });
+    }
+    return audioModePromiseRef.current;
+  }, []);
+
+  useEffect(() => {
+    void ensureTrainingAudioMode().catch(error => {
+      console.warn('Failed to configure Eguchi training audio mode', error);
+    });
+  }, [ensureTrainingAudioMode]);
+
   const loadTrainingData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -258,6 +311,12 @@ export default function HomeScreen() {
         return;
       }
 
+      try {
+        await ensureTrainingAudioMode();
+      } catch (error) {
+        console.warn('Failed to configure Eguchi training audio mode', error);
+      }
+
       if (soundRef.current) {
         await stopSound();
         if (playbackRequestIdRef.current !== requestId) {
@@ -265,6 +324,7 @@ export default function HomeScreen() {
         }
       }
 
+      let createdSound: Audio.Sound | null = null;
       try {
         console.log('[Eguchi] Playing audio', {
           chord: chordId,
@@ -273,9 +333,12 @@ export default function HomeScreen() {
           attempt: retryCount === 0 ? 'initial' : `retry-${retryCount}`,
         });
         const { sound } = await Audio.Sound.createAsync(entry.module, {
-          shouldPlay: true,
+          shouldPlay: false,
           volume: 1.0,
+          positionMillis: 0,
+          progressUpdateIntervalMillis: 100,
         });
+        createdSound = sound;
         if (playbackRequestIdRef.current !== requestId) {
           await sound.unloadAsync().catch(unloadError => {
             console.warn('Failed to unload stale sound instance', unloadError);
@@ -283,10 +346,46 @@ export default function HomeScreen() {
           return;
         }
         soundRef.current = sound;
+        let playbackStatus = await sound.playFromPositionAsync(0);
+        if (playbackRequestIdRef.current !== requestId) {
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+          }
+          await sound.unloadAsync().catch(unloadError => {
+            console.warn('Failed to unload stale sound instance', unloadError);
+          });
+          return;
+        }
+        let playbackStarted =
+          didPlaybackStart(playbackStatus) || (await waitForSoundToStart(sound));
+        if (!playbackStarted) {
+          console.warn('Audio did not report playback start; replaying once', {
+            chord: chordId,
+            file: entry.fileName,
+            origin,
+          });
+          playbackStatus = await sound.replayAsync();
+          playbackStarted = didPlaybackStart(playbackStatus) || (await waitForSoundToStart(sound));
+        }
+        if (!playbackStarted) {
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+          }
+          await sound.unloadAsync().catch(unloadError => {
+            console.warn('Failed to unload silent sound instance', unloadError);
+          });
+          throw new Error(`Audio playback did not start for ${entry.fileName}`);
+        }
         hasPlayedAnyAudioRef.current = true;
         setStartupAutoplayPending(false);
         clearStartupPlaybackWatchdog();
       } catch (error) {
+        if (createdSound && soundRef.current === createdSound) {
+          soundRef.current = null;
+          await createdSound.unloadAsync().catch(unloadError => {
+            console.warn('Failed to unload failed sound instance', unloadError);
+          });
+        }
         console.warn('Failed to play chord audio', error);
         if (isAutoplayBlockedError(error)) {
           setHasStartedTraining(false);
@@ -313,7 +412,7 @@ export default function HomeScreen() {
         }, retryDelayMs);
       }
     },
-    [clearPlaybackRetry, clearStartupPlaybackWatchdog, stopSound]
+    [clearPlaybackRetry, clearStartupPlaybackWatchdog, ensureTrainingAudioMode, stopSound]
   );
 
   useEffect(() => {
@@ -330,7 +429,6 @@ export default function HomeScreen() {
       clearStartupPlaybackWatchdog();
       currentChordRef.current = null;
       currentAudioRef.current = null;
-      setCurrentChordId(null);
       setStartupAutoplayPending(false);
       return;
     }
@@ -338,12 +436,11 @@ export default function HomeScreen() {
     clearAdvanceTimer();
     clearStartupPlaybackWatchdog();
     hasAnsweredCurrentTrialRef.current = false;
-    setLastAnswerId(null);
+    setFeedbackChordId(null);
     setLastResult(null);
 
     const nextChordId = pickRandomChordId(activeUnlockedChordIds);
     currentChordRef.current = nextChordId;
-    setCurrentChordId(nextChordId);
 
     const nextAudio = pickRandomAudioEntry(nextChordId);
     if (!nextAudio) {
@@ -409,7 +506,7 @@ export default function HomeScreen() {
         activeSessionPreferences.feedbackSeconds
       );
 
-      setLastAnswerId(id);
+      setFeedbackChordId(expectedId);
       setLastResult(isCorrect ? 'correct' : 'incorrect');
       setUnlockAnnouncement(null);
       setProgress(previous => {
@@ -611,13 +708,13 @@ export default function HomeScreen() {
           progressionStatus.perfectDayStreak / Math.max(1, progressionStatus.perfectDaysRequired)
         )
     : 0;
-  const currentChord = currentChordId ? CHORD_BY_ID[currentChordId] : null;
+  const feedbackChord = feedbackChordId ? CHORD_BY_ID[feedbackChordId] : null;
   const showStartOverlay = !isLoading && !hasStartedTraining;
   const autoAdvanceProgress =
     autoAdvanceRemainingMs === null
       ? 0
       : getAutoAdvanceProgress(autoAdvanceRemainingMs, autoAdvanceMs);
-  const showCenterFlash = Boolean(currentChord && lastResult && autoAdvanceRemainingMs !== null);
+  const showCenterFlash = Boolean(feedbackChord && lastResult && autoAdvanceRemainingMs !== null);
   const resolveAnimalImageCandidate = useCallback(
     (
       chordId: EguchiChordId,
@@ -650,15 +747,22 @@ export default function HomeScreen() {
     },
     [failedAnimalImageKeys]
   );
-  const feedbackEmotion: AnimalEmotion | undefined =
-    lastResult === 'correct' ? 'happy' : lastResult === 'incorrect' ? 'sad' : undefined;
-  const currentChordImageCandidate =
-    currentChord && showCenterFlash
-      ? resolveAnimalImageCandidate(currentChord.id, {
+  const feedbackEmotion = getFeedbackAnimalEmotion(lastResult);
+  const feedbackChordImageCandidate =
+    feedbackChord && showCenterFlash
+      ? resolveAnimalImageCandidate(feedbackChord.id, {
           emotion: feedbackEmotion,
         })
       : null;
-  const currentChordImageSource = currentChordImageCandidate?.source ?? null;
+  const feedbackChordImageSource = feedbackChordImageCandidate?.source ?? null;
+  const feedbackImageRecyclingKey =
+    feedbackChord && feedbackEmotion
+      ? getAnimalImageRecyclingKey(
+          'center',
+          feedbackChord.id,
+          feedbackChordImageCandidate?.emotion ?? feedbackEmotion
+        )
+      : undefined;
   const handleViewportLayout = useCallback(
     (width: number, height: number) => {
       setViewportSize(previous => {
@@ -694,11 +798,15 @@ export default function HomeScreen() {
   const gridWidth = gridLayout.columns * gridLayout.tileSize + GRID_GAP * (gridLayout.columns - 1);
   const gridRows = Math.max(1, Math.ceil(unlockedChords.length / Math.max(1, gridLayout.columns)));
   const gridHeight = gridRows * gridLayout.tileSize + GRID_GAP * (gridRows - 1);
-  const centerCardSize = Math.max(
-    120,
-    Math.min(340, Math.max(120, Math.min(gridWidth, gridHeight) - 8))
+  const feedbackViewportShortSide = Math.min(
+    viewportSize.width || windowWidth,
+    viewportSize.height || windowHeight
   );
+  const centerCardSize = Math.max(170, Math.min(430, Math.floor(feedbackViewportShortSide * 0.52)));
   const centerEmojiSize = Math.floor(centerCardSize * 0.58);
+  const countdownSeconds =
+    autoAdvanceRemainingMs === null ? 0 : Math.max(1, Math.ceil(autoAdvanceRemainingMs / 1000));
+  const countdownFillScale = Math.max(0.18, 1 - autoAdvanceProgress * 0.72);
 
   return (
     <ThemedView style={styles.container}>
@@ -714,13 +822,14 @@ export default function HomeScreen() {
         <View style={[styles.gridStage, { width: gridWidth, height: gridHeight }]}>
           <View style={[styles.grid, { width: gridWidth }]}>
             {unlockedChords.map(chord => {
-              const showCorrect = lastResult !== null;
-              const isCorrectTile = showCorrect && currentChordId === chord.id;
-              const isWrongSelection =
-                lastResult === 'incorrect' && lastAnswerId === chord.id && !isCorrectTile;
               const tileTextColor = getReadableTextColor(chord.color.hex);
               const animalImageCandidate = resolveAnimalImageCandidate(chord.id);
               const animalImageSource = animalImageCandidate?.source ?? null;
+              const tileImageRecyclingKey = getAnimalImageRecyclingKey(
+                'tile',
+                chord.id,
+                animalImageCandidate?.emotion ?? 'happy'
+              );
 
               return (
                 <Pressable
@@ -732,13 +841,13 @@ export default function HomeScreen() {
                     styles.tile,
                     { width: gridLayout.tileSize, height: gridLayout.tileSize },
                     { backgroundColor: chord.color.hex },
-                    isCorrectTile && styles.tileCorrect,
-                    isWrongSelection && styles.tileIncorrect,
                     isLoading && styles.buttonDisabled,
                   ]}
                 >
                   {animalImageSource ? (
                     <Image
+                      key={tileImageRecyclingKey}
+                      recyclingKey={tileImageRecyclingKey}
                       source={animalImageSource}
                       style={styles.tileImage}
                       contentFit="contain"
@@ -848,41 +957,43 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
       <Modal
-        visible={showCenterFlash && Boolean(currentChord)}
+        visible={showCenterFlash && Boolean(feedbackChord)}
         transparent
-        animationType="fade"
+        animationType="none"
         presentationStyle="overFullScreen"
         statusBarTranslucent
       >
         <View style={styles.feedbackOverlay}>
-          {currentChord ? (
+          {feedbackChord ? (
             <View style={styles.overlayFeedbackStack}>
               <View
                 style={[
                   styles.centerFlashCard,
                   {
-                    backgroundColor: currentChord.color.hex,
+                    backgroundColor: feedbackChord.color.hex,
                     width: centerCardSize,
                     height: centerCardSize,
                     borderRadius: Math.floor(centerCardSize * 0.12),
                   },
                 ]}
               >
-                {currentChordImageSource ? (
+                {feedbackChordImageSource ? (
                   <Image
-                    source={currentChordImageSource}
+                    key={feedbackImageRecyclingKey}
+                    recyclingKey={feedbackImageRecyclingKey}
+                    source={feedbackChordImageSource}
                     style={styles.centerFlashImage}
                     contentFit="contain"
                     onError={() => {
                       console.log('[Eguchi] Center flash image missing, using emoji fallback', {
-                        chord: currentChord.id,
-                        emotion: currentChordImageCandidate?.emotion ?? 'default',
+                        chord: feedbackChord.id,
+                        emotion: feedbackChordImageCandidate?.emotion ?? 'default',
                         uri:
-                          typeof currentChordImageSource === 'number'
+                          typeof feedbackChordImageSource === 'number'
                             ? 'bundle'
-                            : currentChordImageSource.uri,
+                            : feedbackChordImageSource.uri,
                       });
-                      markAnimalImageFailed(currentChord.id, currentChordImageCandidate?.emotion);
+                      markAnimalImageFailed(feedbackChord.id, feedbackChordImageCandidate?.emotion);
                     }}
                   />
                 ) : (
@@ -892,14 +1003,20 @@ export default function HomeScreen() {
                       { fontSize: centerEmojiSize, lineHeight: Math.round(centerEmojiSize * 1.06) },
                     ]}
                   >
-                    {ANIMAL_EMOJIS[currentChord.id]}
+                    {ANIMAL_EMOJIS[feedbackChord.id]}
                   </ThemedText>
                 )}
               </View>
-              <View style={styles.overlayProgressTrack}>
+              <View style={styles.overlayCountdownCircle}>
                 <View
-                  style={[styles.overlayProgressFill, { width: `${autoAdvanceProgress * 100}%` }]}
+                  style={[
+                    styles.overlayCountdownFill,
+                    {
+                      transform: [{ scale: countdownFillScale }],
+                    },
+                  ]}
                 />
+                <ThemedText style={styles.overlayCountdownText}>{countdownSeconds}</ThemedText>
               </View>
             </View>
           ) : null}
@@ -1133,15 +1250,6 @@ const styles = StyleSheet.create({
     height: '94%',
   },
   tileEmoji: { fontSize: 116, lineHeight: 124 },
-  tileCorrect: {
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-  },
-  tileIncorrect: {
-    borderWidth: 4,
-    borderColor: '#B71C1C',
-    opacity: 0.8,
-  },
   buttonDisabled: {
     opacity: 0.5,
   },
@@ -1167,18 +1275,29 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '90%',
   },
-  overlayProgressTrack: {
-    width: '56%',
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: '#E2E2E2',
-    overflow: 'hidden',
-    borderWidth: 1,
+  overlayCountdownCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 2,
     borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
   },
-  overlayProgressFill: {
+  overlayCountdownFill: {
+    position: 'absolute',
+    width: '100%',
     height: '100%',
-    backgroundColor: '#607D8B',
+    borderRadius: 29,
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+  },
+  overlayCountdownText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '800',
   },
   centerFlashEmoji: {
     fontSize: 182,

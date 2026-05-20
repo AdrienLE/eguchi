@@ -1,4 +1,5 @@
 import {
+  didPlaybackStart,
   getPlaybackRetryDelayMs,
   getPlaybackRetryLimit,
   INITIAL_AUDIO_RETRY_BACKOFF_MS,
@@ -70,5 +71,13 @@ describe('eguchi audio playback policy', () => {
   test('retry delays are monotonic for first several attempts', () => {
     const firstEight = Array.from({ length: 8 }, (_, index) => getPlaybackRetryDelayMs(index));
     expect(firstEight).toEqual([...firstEight].sort((a, b) => a - b));
+  });
+
+  test('playback is only accepted after the native player reports playing', () => {
+    expect(didPlaybackStart({ isLoaded: true, isPlaying: true })).toBe(true);
+    expect(didPlaybackStart({ isLoaded: true, didJustFinish: true })).toBe(true);
+    expect(didPlaybackStart({ isLoaded: true, isPlaying: false })).toBe(false);
+    expect(didPlaybackStart({ isLoaded: false })).toBe(false);
+    expect(didPlaybackStart(null)).toBe(false);
   });
 });

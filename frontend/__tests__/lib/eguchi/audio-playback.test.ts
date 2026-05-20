@@ -8,6 +8,7 @@ import {
   STANDARD_PLAYBACK_RETRY_LIMIT,
   STARTUP_PLAYBACK_RETRY_LIMIT,
   STARTUP_PLAYBACK_WATCHDOG_DELAY_MS,
+  shouldReplayAfterPlaybackWatchdog,
 } from '@/lib/eguchi/audio-playback';
 
 describe('eguchi audio playback policy', () => {
@@ -80,5 +81,11 @@ describe('eguchi audio playback policy', () => {
     expect(didPlaybackStart({ isLoaded: true, isPlaying: false })).toBe(false);
     expect(didPlaybackStart({ isLoaded: false })).toBe(false);
     expect(didPlaybackStart(null)).toBe(false);
+  });
+
+  test('stale playback requests do not replay after the watchdog', () => {
+    expect(shouldReplayAfterPlaybackWatchdog(false, true)).toBe(true);
+    expect(shouldReplayAfterPlaybackWatchdog(true, true)).toBe(false);
+    expect(shouldReplayAfterPlaybackWatchdog(false, false)).toBe(false);
   });
 });

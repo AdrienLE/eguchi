@@ -37,6 +37,7 @@ import {
   getPlaybackRetryDelayMs,
   getPlaybackRetryLimit,
   STARTUP_PLAYBACK_WATCHDOG_DELAY_MS,
+  shouldReplayAfterPlaybackWatchdog,
   type PlaybackOrigin,
 } from '@/lib/eguchi/audio-playback';
 import {
@@ -332,6 +333,7 @@ export default function HomeScreen() {
           pendingPlaybackRequestRef.current = null;
         }
       };
+      const isCurrentPlaybackRequest = () => playbackRequestIdRef.current === requestId;
 
       if (!chordId || !entry) {
         clearPendingPlaybackRequest();
@@ -347,7 +349,7 @@ export default function HomeScreen() {
 
       if (soundRef.current) {
         await stopSound();
-        if (playbackRequestIdRef.current !== requestId) {
+        if (!isCurrentPlaybackRequest()) {
           clearPendingPlaybackRequest();
           return;
         }
@@ -355,7 +357,7 @@ export default function HomeScreen() {
 
       if (previousPlaybackOrigin === 'answer-feedback' && origin === 'new-trial') {
         await wait(FEEDBACK_TO_TRIAL_AUDIO_SETTLE_MS);
-        if (playbackRequestIdRef.current !== requestId) {
+        if (!isCurrentPlaybackRequest()) {
           clearPendingPlaybackRequest();
           return;
         }
@@ -376,7 +378,7 @@ export default function HomeScreen() {
           progressUpdateIntervalMillis: 100,
         });
         createdSound = sound;
-        if (playbackRequestIdRef.current !== requestId) {
+        if (!isCurrentPlaybackRequest()) {
           clearPendingPlaybackRequest();
           await sound.unloadAsync().catch(unloadError => {
             console.warn('Failed to unload stale sound instance', unloadError);
@@ -387,7 +389,7 @@ export default function HomeScreen() {
         activeSoundOriginRef.current = origin;
         clearPendingPlaybackRequest();
         let playbackStatus = await sound.playFromPositionAsync(0);
-        if (playbackRequestIdRef.current !== requestId) {
+        if (!isCurrentPlaybackRequest()) {
           if (soundRef.current === sound) {
             soundRef.current = null;
             activeSoundOriginRef.current = null;
@@ -399,7 +401,17 @@ export default function HomeScreen() {
         }
         let playbackStarted =
           didPlaybackStart(playbackStatus) || (await waitForSoundToStart(sound));
-        if (!playbackStarted) {
+        if (!isCurrentPlaybackRequest()) {
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+            activeSoundOriginRef.current = null;
+          }
+          await sound.unloadAsync().catch(unloadError => {
+            console.warn('Failed to unload stale sound instance', unloadError);
+          });
+          return;
+        }
+        if (shouldReplayAfterPlaybackWatchdog(playbackStarted, isCurrentPlaybackRequest())) {
           console.warn('Audio did not report playback start; replaying once', {
             chord: chordId,
             file: entry.fileName,
@@ -407,6 +419,16 @@ export default function HomeScreen() {
           });
           playbackStatus = await sound.replayAsync();
           playbackStarted = didPlaybackStart(playbackStatus) || (await waitForSoundToStart(sound));
+        }
+        if (!isCurrentPlaybackRequest()) {
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+            activeSoundOriginRef.current = null;
+          }
+          await sound.unloadAsync().catch(unloadError => {
+            console.warn('Failed to unload stale sound instance', unloadError);
+          });
+          return;
         }
         if (!playbackStarted) {
           if (soundRef.current === sound) {
@@ -418,6 +440,29 @@ export default function HomeScreen() {
           });
           throw new Error(`Audio playback did not start for ${entry.fileName}`);
         }
+        const confirmedPlaybackStatus = await sound.getStatusAsync();
+        if (!isCurrentPlaybackRequest()) {
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+            activeSoundOriginRef.current = null;
+          }
+          await sound.unloadAsync().catch(unloadError => {
+            console.warn('Failed to unload stale sound instance', unloadError);
+          });
+          return;
+        }
+        console.log('[Eguchi] Audio playback started', {
+          chord: chordId,
+          file: entry.fileName,
+          origin,
+          isPlaying: confirmedPlaybackStatus.isLoaded ? confirmedPlaybackStatus.isPlaying : false,
+          positionMillis: confirmedPlaybackStatus.isLoaded
+            ? confirmedPlaybackStatus.positionMillis
+            : null,
+          durationMillis: confirmedPlaybackStatus.isLoaded
+            ? confirmedPlaybackStatus.durationMillis
+            : null,
+        });
         hasPlayedAnyAudioRef.current = true;
         setStartupAutoplayPending(false);
         clearStartupPlaybackWatchdog();
@@ -429,6 +474,9 @@ export default function HomeScreen() {
           await createdSound.unloadAsync().catch(unloadError => {
             console.warn('Failed to unload failed sound instance', unloadError);
           });
+        }
+        if (!isCurrentPlaybackRequest()) {
+          return;
         }
         console.warn('Failed to play chord audio', error);
         if (isAutoplayBlockedError(error)) {

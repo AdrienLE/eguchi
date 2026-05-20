@@ -32,3 +32,8 @@ export type PlaybackStatusLike = {
 
 export const didPlaybackStart = (status: PlaybackStatusLike | null | undefined) =>
   Boolean(status?.isLoaded && (status.isPlaying || status.didJustFinish));
+
+export const shouldReplayAfterPlaybackWatchdog = (
+  playbackStarted: boolean,
+  requestIsCurrent: boolean
+) => requestIsCurrent && !playbackStarted;

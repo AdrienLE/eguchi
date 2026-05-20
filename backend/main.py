@@ -16,7 +16,9 @@ from sqlalchemy import text
 from .auth import verify_jwt, AUTH0_DOMAIN
 from .eguchi_audio import get_audio_pack_metadata
 import os
+import json
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from openai import OpenAI
 import boto3
 from uuid import uuid4
@@ -202,6 +204,40 @@ class SettingsIn(BaseModel):
     nickname: str | None = None
     email: str | None = None
     imageUrl: str | None = None
+
+
+class EguchiTrialEventIn(BaseModel):
+    id: str
+    chordId: str
+    correct: bool
+    timestamp: str
+    clientId: str | None = None
+    audioPackName: str | None = None
+    audioPackHash: str | None = None
+
+
+class EguchiProgressStateIn(BaseModel):
+    unlockedChordIds: list[str]
+    lastAutoUnlockDayKey: str | None = None
+    resetAt: str | None = None
+
+
+class EguchiSyncedValueIn(BaseModel):
+    updatedAt: str
+    data: dict
+
+
+class EguchiProgressSyncedValueIn(BaseModel):
+    updatedAt: str
+    data: EguchiProgressStateIn
+
+
+class EguchiSyncIn(BaseModel):
+    clientId: str
+    lastServerEventCursor: str | None = None
+    trialEvents: list[EguchiTrialEventIn] = []
+    progressState: EguchiProgressSyncedValueIn | None = None
+    sessionPreferences: EguchiSyncedValueIn | None = None
 
 
 ALLOWED_CONTENT_TYPES = {
@@ -410,6 +446,146 @@ def get_eguchi_audio_pack():
     except (FileNotFoundError, ValueError) as error:
         logger.warning(f"Eguchi audio pack metadata unavailable: {error}")
         raise HTTPException(status_code=404, detail="Audio pack metadata unavailable") from error
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _is_newer_or_equal(candidate: str | None, current: str | None) -> bool:
+    if not candidate:
+        return False
+    if not current:
+        return True
+    return candidate >= current
+
+
+def _serialize_trial_event(event: models.EguchiTrialEvent) -> dict:
+    return {
+        "id": event.id,
+        "chordId": event.chord_id,
+        "correct": event.correct,
+        "timestamp": event.timestamp,
+        "clientId": event.client_id,
+        "audioPackName": event.audio_pack_name,
+        "audioPackHash": event.audio_pack_hash,
+    }
+
+
+def _sync_state_payload(
+    state: models.EguchiUserSyncState | None,
+) -> tuple[dict | None, dict | None]:
+    if not state:
+        return None, None
+    progress_state = None
+    if state.progress_state_json and state.progress_updated_at:
+        progress_state = {
+            "updatedAt": state.progress_updated_at,
+            "data": json.loads(state.progress_state_json),
+        }
+    session_preferences = None
+    if state.session_preferences_json and state.session_preferences_updated_at:
+        session_preferences = {
+            "updatedAt": state.session_preferences_updated_at,
+            "data": json.loads(state.session_preferences_json),
+        }
+    return progress_state, session_preferences
+
+
+def _pydantic_data(model: BaseModel) -> dict:
+    if hasattr(model, "model_dump"):
+        return model.model_dump()
+    return model.dict()
+
+
+@app.post("/api/eguchi/sync")
+def sync_eguchi_state(
+    data: EguchiSyncIn,
+    db: Session = Depends(get_db),
+    user=Depends(verify_jwt),
+):
+    user_id = user["sub"]
+    server_updated_at = _utc_now_iso()
+    accepted_event_ids: list[str] = []
+
+    for event in data.trialEvents:
+        existing = (
+            db.query(models.EguchiTrialEvent).filter(models.EguchiTrialEvent.id == event.id).first()
+        )
+        if existing:
+            if existing.user_id == user_id:
+                accepted_event_ids.append(event.id)
+            continue
+
+        db.add(
+            models.EguchiTrialEvent(
+                id=event.id,
+                user_id=user_id,
+                client_id=event.clientId or data.clientId,
+                chord_id=event.chordId,
+                correct=event.correct,
+                timestamp=event.timestamp,
+                audio_pack_name=event.audioPackName,
+                audio_pack_hash=event.audioPackHash,
+                server_updated_at=server_updated_at,
+            )
+        )
+        accepted_event_ids.append(event.id)
+
+    sync_state = (
+        db.query(models.EguchiUserSyncState)
+        .filter(models.EguchiUserSyncState.user_id == user_id)
+        .first()
+    )
+    if not sync_state:
+        sync_state = models.EguchiUserSyncState(user_id=user_id)
+        db.add(sync_state)
+
+    if data.progressState and _is_newer_or_equal(
+        data.progressState.updatedAt, sync_state.progress_updated_at
+    ):
+        sync_state.progress_updated_at = data.progressState.updatedAt
+        sync_state.progress_state_json = json.dumps(_pydantic_data(data.progressState.data))
+
+    if data.sessionPreferences and _is_newer_or_equal(
+        data.sessionPreferences.updatedAt,
+        sync_state.session_preferences_updated_at,
+    ):
+        sync_state.session_preferences_updated_at = data.sessionPreferences.updatedAt
+        sync_state.session_preferences_json = json.dumps(data.sessionPreferences.data)
+
+    db.commit()
+    db.refresh(sync_state)
+
+    event_query = db.query(models.EguchiTrialEvent).filter(
+        models.EguchiTrialEvent.user_id == user_id
+    )
+    if data.lastServerEventCursor:
+        event_query = event_query.filter(
+            models.EguchiTrialEvent.server_updated_at > data.lastServerEventCursor
+        )
+    server_events = (
+        event_query.order_by(
+            models.EguchiTrialEvent.server_updated_at.asc(),
+            models.EguchiTrialEvent.timestamp.asc(),
+            models.EguchiTrialEvent.id.asc(),
+        )
+        .limit(5000)
+        .all()
+    )
+    event_cursor = (
+        server_events[-1].server_updated_at if server_events else data.lastServerEventCursor
+    )
+    progress_state, session_preferences = _sync_state_payload(sync_state)
+
+    return {
+        "acceptedEventIds": accepted_event_ids,
+        "trialEvents": [_serialize_trial_event(event) for event in server_events],
+        "serverEventCursor": event_cursor,
+        "progressState": progress_state,
+        "sessionPreferences": session_preferences,
+        "syncedAt": server_updated_at,
+    }
 
 
 # Mount frontend static files AFTER all API routes are defined

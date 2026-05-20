@@ -23,7 +23,27 @@ const getDayKeyFromTimestamp = (timestamp: string) => {
   return getDayKey(date);
 };
 
-const normalizeUnlockedChordIds = (ids: unknown): EguchiChordId[] => {
+const createRandomIdPart = () => {
+  const cryptoObject = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (typeof cryptoObject?.randomUUID === 'function') {
+    return cryptoObject.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+};
+
+export const createEguchiTrialId = (timestamp: string = new Date().toISOString()) =>
+  `trial_${timestamp.replace(/[^0-9A-Za-z]/g, '')}_${createRandomIdPart()}`;
+
+const createLegacyTrialId = (
+  candidate: Partial<EguchiTrialRecord>,
+  timestamp: string,
+  index: number
+) => {
+  const correctPart = candidate.correct ? 'correct' : 'incorrect';
+  return `legacy_${timestamp.replace(/[^0-9A-Za-z]/g, '')}_${candidate.chordId}_${correctPart}_${index}`;
+};
+
+export const normalizeUnlockedChordIds = (ids: unknown): EguchiChordId[] => {
   if (!Array.isArray(ids)) {
     return [...DEFAULT_UNLOCKED_CHORD_IDS];
   }
@@ -45,8 +65,9 @@ const sanitizeTrialHistory = (history: unknown): EguchiTrialRecord[] => {
   }
 
   const sanitized: EguchiTrialRecord[] = [];
+  const seenIds = new Set<string>();
 
-  for (const item of history) {
+  for (const [index, item] of history.entries()) {
     if (!item || typeof item !== 'object') {
       continue;
     }
@@ -64,15 +85,47 @@ const sanitizeTrialHistory = (history: unknown): EguchiTrialRecord[] => {
     if (Number.isNaN(parsed.getTime())) {
       continue;
     }
+    const normalizedTimestamp = parsed.toISOString();
+    const candidateId =
+      typeof candidate.id === 'string' && candidate.id.trim()
+        ? candidate.id.trim()
+        : createLegacyTrialId(candidate, normalizedTimestamp, index);
+    if (seenIds.has(candidateId)) {
+      continue;
+    }
+    seenIds.add(candidateId);
 
     sanitized.push({
+      id: candidateId,
       chordId: candidate.chordId,
       correct: candidate.correct,
-      timestamp: parsed.toISOString(),
+      timestamp: normalizedTimestamp,
     });
   }
 
   return sanitized.slice(-MAX_TRIAL_HISTORY);
+};
+
+export const mergeEguchiTrialHistories = (
+  ...histories: Array<ReadonlyArray<EguchiTrialRecord>>
+): EguchiTrialRecord[] => {
+  const byId = new Map<string, EguchiTrialRecord>();
+  for (const history of histories) {
+    for (const trial of history) {
+      if (!trial.id || byId.has(trial.id)) {
+        continue;
+      }
+      byId.set(trial.id, trial);
+    }
+  }
+
+  return [...byId.values()]
+    .sort((left, right) => {
+      const timestampDelta =
+        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime();
+      return timestampDelta || left.id.localeCompare(right.id);
+    })
+    .slice(-MAX_TRIAL_HISTORY);
 };
 
 const buildDailySummaries = (trialHistory: EguchiTrialRecord[]) => {
@@ -89,6 +142,7 @@ const buildDailySummaries = (trialHistory: EguchiTrialRecord[]) => {
 };
 
 export type EguchiTrialRecord = {
+  id: string;
   chordId: EguchiChordId;
   correct: boolean;
   timestamp: string;
@@ -109,6 +163,7 @@ export type EguchiProgress = {
 export type RecordTrialInput = {
   chordId: EguchiChordId;
   correct: boolean;
+  id?: string;
   timestamp?: string;
 };
 
@@ -188,7 +243,7 @@ export const setUnlockedLevel = (progress: EguchiProgress, level: number): Eguch
 
 export const recordTrial = (
   progress: EguchiProgress,
-  { chordId, correct, timestamp }: RecordTrialInput
+  { chordId, correct, id, timestamp }: RecordTrialInput
 ): EguchiProgress => {
   const parsedTimestamp = new Date(timestamp ?? new Date().toISOString());
   const normalizedTimestamp = Number.isNaN(parsedTimestamp.getTime())
@@ -196,16 +251,29 @@ export const recordTrial = (
     : parsedTimestamp.toISOString();
 
   const nextTrial: EguchiTrialRecord = {
+    id: id?.trim() || createEguchiTrialId(normalizedTimestamp),
     chordId,
     correct,
     timestamp: normalizedTimestamp,
   };
 
-  const trialHistory = [...progress.trialHistory, nextTrial].slice(-MAX_TRIAL_HISTORY);
+  const trialHistory = mergeEguchiTrialHistories(progress.trialHistory, [nextTrial]);
   return {
     ...progress,
     trialHistory,
     dailySummaries: buildDailySummaries(trialHistory),
+  };
+};
+
+export const rebuildProgressWithTrialHistory = (
+  progress: EguchiProgress,
+  trialHistory: EguchiTrialRecord[]
+): EguchiProgress => {
+  const mergedTrialHistory = mergeEguchiTrialHistories(trialHistory);
+  return {
+    ...progress,
+    trialHistory: mergedTrialHistory,
+    dailySummaries: buildDailySummaries(mergedTrialHistory),
   };
 };
 

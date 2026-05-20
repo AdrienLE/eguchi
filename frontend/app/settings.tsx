@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useAuth } from '@/auth/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AUDIO_PACK_HASH, AUDIO_PACK_NAME } from '@/lib/eguchi/audio-pack';
@@ -53,6 +54,12 @@ import {
   setPerfectDaysRequired,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
+import {
+  markEguchiProgressDirty,
+  markEguchiProgressReset,
+  markEguchiSessionPreferencesDirty,
+  syncEguchiStateBestEffort,
+} from '@/lib/eguchi/sync';
 import {
   ANIMAL_GRID_GAP,
   SETTINGS_CONTENT_MAX_WIDTH,
@@ -96,6 +103,7 @@ const sanitizeDecimalInput = (value: string) => {
 };
 
 export default function SettingsScreen() {
+  const { token } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const { width: windowWidth } = useWindowDimensions();
@@ -127,6 +135,30 @@ export default function SettingsScreen() {
   const [feedbackSecondsDraft, setFeedbackSecondsDraft] = useState('2');
   const stepRepeatStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRepeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const syncInFlightRef = useRef(false);
+
+  const syncSettingsData = useCallback(
+    async (reloadAfterSync = false) => {
+      if (!token || syncInFlightRef.current) {
+        return;
+      }
+      syncInFlightRef.current = true;
+      try {
+        const result = await syncEguchiStateBestEffort(token);
+        if (reloadAfterSync && result.ok) {
+          const [loadedProgress, loadedSessionPreferences] = await Promise.all([
+            loadEguchiProgress(),
+            loadEguchiSessionPreferences(),
+          ]);
+          setProgress(loadedProgress);
+          setSessionPreferences(loadedSessionPreferences);
+        }
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    },
+    [token]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -164,29 +196,42 @@ export default function SettingsScreen() {
     };
   }, []);
 
-  const persistProgress = useCallback(async (nextProgress: EguchiProgress) => {
-    setSavingProgress(true);
-    try {
-      await saveEguchiProgress(nextProgress);
-    } catch (error) {
-      console.warn('Failed to save Eguchi progress', error);
-    } finally {
-      setSavingProgress(false);
+  useEffect(() => {
+    if (!loading) {
+      void syncSettingsData(true);
     }
-  }, []);
+  }, [loading, syncSettingsData]);
+
+  const persistProgress = useCallback(
+    async (nextProgress: EguchiProgress) => {
+      setSavingProgress(true);
+      try {
+        await saveEguchiProgress(nextProgress);
+        await markEguchiProgressDirty();
+        void syncSettingsData();
+      } catch (error) {
+        console.warn('Failed to save Eguchi progress', error);
+      } finally {
+        setSavingProgress(false);
+      }
+    },
+    [syncSettingsData]
+  );
 
   const persistSessionPreferences = useCallback(
     async (nextPreferences: EguchiSessionPreferences) => {
       setSavingSession(true);
       try {
         await saveEguchiSessionPreferences(nextPreferences);
+        await markEguchiSessionPreferencesDirty();
+        void syncSettingsData();
       } catch (error) {
         console.warn('Failed to save Eguchi session preferences', error);
       } finally {
         setSavingSession(false);
       }
     },
-    []
+    [syncSettingsData]
   );
 
   const handleSetUnlockedLevel = useCallback(
@@ -213,6 +258,8 @@ export default function SettingsScreen() {
     setSavingProgress(true);
     try {
       const reset = await resetEguchiProgress();
+      await markEguchiProgressReset();
+      void syncSettingsData();
       console.log('[Eguchi] Progress reset to defaults');
       setProgress(reset);
       setProgressionMessage(`Progress reset. Back to level ${reset.unlockedChordIds.length}.`);

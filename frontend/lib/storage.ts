@@ -72,4 +72,6 @@ export const STORAGE_KEYS = {
   EGUCHI_PROGRESS: 'eguchi_progress_v1',
   EGUCHI_SESSION_PREFERENCES: 'eguchi_session_preferences_v1',
   EGUCHI_AUDIO_CACHE_META: 'eguchi_audio_cache_meta_v1',
+  EGUCHI_SYNC_META: 'eguchi_sync_meta_v1',
+  EGUCHI_SYNC_QUEUE: 'eguchi_sync_queue_v1',
 } as const;

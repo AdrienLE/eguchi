@@ -115,5 +115,7 @@ describe('STORAGE_KEYS', () => {
     expect(STORAGE_KEYS.EGUCHI_PROGRESS).toBe('eguchi_progress_v1');
     expect(STORAGE_KEYS.EGUCHI_SESSION_PREFERENCES).toBe('eguchi_session_preferences_v1');
     expect(STORAGE_KEYS.EGUCHI_AUDIO_CACHE_META).toBe('eguchi_audio_cache_meta_v1');
+    expect(STORAGE_KEYS.EGUCHI_SYNC_META).toBe('eguchi_sync_meta_v1');
+    expect(STORAGE_KEYS.EGUCHI_SYNC_QUEUE).toBe('eguchi_sync_queue_v1');
   });
 });

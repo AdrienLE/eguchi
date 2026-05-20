@@ -223,6 +223,89 @@ class TestHealthAndSPA:
         assert body["hashAlgorithm"] == "sha256"
         assert len(body["hash"]) == 64
 
+    def test_eguchi_sync_accepts_events_and_state(self, client):
+        c, _ = client
+        payload = {
+            "clientId": "client-a",
+            "lastServerEventCursor": None,
+            "trialEvents": [
+                {
+                    "id": "trial-1",
+                    "chordId": "C-E-G",
+                    "correct": True,
+                    "timestamp": "2026-01-11T10:00:00.000Z",
+                    "clientId": "client-a",
+                    "audioPackName": "eguchi-pack-test",
+                    "audioPackHash": "hash",
+                }
+            ],
+            "progressState": {
+                "updatedAt": "2026-01-11T10:00:00.000Z",
+                "data": {"unlockedChordIds": ["C-E-G", "F-A-C"], "lastAutoUnlockDayKey": None},
+            },
+            "sessionPreferences": {
+                "updatedAt": "2026-01-11T10:01:00.000Z",
+                "data": {"feedbackSeconds": 2, "autoUnlockEnabled": True},
+            },
+        }
+
+        response = c.post("/api/eguchi/sync", json=payload)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["acceptedEventIds"] == ["trial-1"]
+        assert [event["id"] for event in body["trialEvents"]] == ["trial-1"]
+        assert body["progressState"]["data"]["unlockedChordIds"] == ["C-E-G", "F-A-C"]
+        assert body["sessionPreferences"]["data"]["feedbackSeconds"] == 2
+        assert body["serverEventCursor"]
+
+        duplicate_response = c.post(
+            "/api/eguchi/sync", json={**payload, "trialEvents": payload["trialEvents"]}
+        )
+        assert duplicate_response.status_code == 200
+        duplicate_body = duplicate_response.json()
+        assert duplicate_body["acceptedEventIds"] == ["trial-1"]
+        assert [event["id"] for event in duplicate_body["trialEvents"]] == ["trial-1"]
+
+    def test_eguchi_sync_cursor_returns_only_new_events(self, client):
+        c, _ = client
+        first = c.post(
+            "/api/eguchi/sync",
+            json={
+                "clientId": "client-a",
+                "trialEvents": [
+                    {
+                        "id": "trial-1",
+                        "chordId": "C-E-G",
+                        "correct": True,
+                        "timestamp": "2026-01-11T10:00:00.000Z",
+                    }
+                ],
+            },
+        )
+        cursor = first.json()["serverEventCursor"]
+
+        second = c.post(
+            "/api/eguchi/sync",
+            json={
+                "clientId": "client-a",
+                "lastServerEventCursor": cursor,
+                "trialEvents": [
+                    {
+                        "id": "trial-2",
+                        "chordId": "F-A-C",
+                        "correct": False,
+                        "timestamp": "2026-01-11T10:01:00.000Z",
+                    }
+                ],
+            },
+        )
+
+        assert second.status_code == 200
+        body = second.json()
+        assert body["acceptedEventIds"] == ["trial-2"]
+        assert [event["id"] for event in body["trialEvents"]] == ["trial-2"]
+
 
 class TestSettingsMerging:
     def test_user_overrides_preserved(self, client, monkeypatch):

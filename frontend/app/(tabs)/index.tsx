@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useAuth } from '@/auth/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { resolveAudioPlaybackSource } from '@/lib/eguchi/audio-assets';
@@ -22,11 +23,17 @@ import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/l
 import { getNextLevelProgress, maybeApplyAutoUnlock } from '@/lib/eguchi/progression';
 import {
   createDefaultEguchiProgress,
+  createEguchiTrialId,
   loadEguchiProgress,
   recordTrial,
   saveEguchiProgress,
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
+import {
+  markEguchiProgressDirty,
+  queueEguchiTrialEvent,
+  syncEguchiStateBestEffort,
+} from '@/lib/eguchi/sync';
 import {
   AUTO_ADVANCE_TICK_MS,
   getAutoAdvanceDurationMs,
@@ -199,6 +206,7 @@ const ANIMAL_EMOJIS: Record<EguchiChordId, string> = {
 };
 
 export default function HomeScreen() {
+  const { token } = useAuth();
   const colorScheme = useColorScheme();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -240,6 +248,7 @@ export default function HomeScreen() {
   const hasAnsweredCurrentTrialRef = useRef(false);
   const [unlockAnnouncement, setUnlockAnnouncement] = useState<string | null>(null);
   const [failedAnimalImageKeys, setFailedAnimalImageKeys] = useState<Set<string>>(new Set());
+  const syncInFlightRef = useRef(false);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current) {
@@ -325,11 +334,29 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const syncTrainingData = useCallback(
+    async (reloadAfterSync = false) => {
+      if (!token || syncInFlightRef.current) {
+        return;
+      }
+      syncInFlightRef.current = true;
+      try {
+        const result = await syncEguchiStateBestEffort(token);
+        if (reloadAfterSync && result.ok) {
+          await loadTrainingData();
+        }
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    },
+    [loadTrainingData, token]
+  );
+
   useFocusEffect(
     useCallback(() => {
-      void loadTrainingData();
+      void loadTrainingData().then(() => syncTrainingData(true));
       return undefined;
-    }, [loadTrainingData])
+    }, [loadTrainingData, syncTrainingData])
   );
 
   const playCurrentAudio = useCallback(
@@ -627,6 +654,8 @@ export default function HomeScreen() {
       const selectedChord = CHORD_BY_ID[id];
       const expectedChord = CHORD_BY_ID[expectedId];
       const isCorrect = id === expectedId;
+      const trialTimestamp = new Date().toISOString();
+      const trialId = createEguchiTrialId(trialTimestamp);
       const activeSessionPreferences = sessionPreferences ?? defaultSessionPreferences.current;
       const autoAdvanceDurationMs = getAutoAdvanceDurationMs(
         activeSessionPreferences.feedbackSeconds
@@ -638,8 +667,10 @@ export default function HomeScreen() {
       setProgress(previous => {
         const currentProgress = previous ?? createDefaultEguchiProgress();
         const afterRecord = recordTrial(currentProgress, {
+          id: trialId,
           chordId: expectedId,
           correct: isCorrect,
+          timestamp: trialTimestamp,
         });
         const autoUnlockResult = maybeApplyAutoUnlock(afterRecord, {
           autoUnlockEnabled: activeSessionPreferences.autoUnlockEnabled,
@@ -662,9 +693,21 @@ export default function HomeScreen() {
           });
         }
 
-        void saveEguchiProgress(autoUnlockResult.progress).catch(error => {
-          console.warn('Failed to save Eguchi progress', error);
-        });
+        void (async () => {
+          try {
+            await saveEguchiProgress(autoUnlockResult.progress);
+            await queueEguchiTrialEvent({
+              id: trialId,
+              chordId: expectedId,
+              correct: isCorrect,
+              timestamp: trialTimestamp,
+            });
+            await markEguchiProgressDirty();
+            void syncEguchiStateBestEffort(token);
+          } catch (error) {
+            console.warn('Failed to save Eguchi progress', error);
+          }
+        })();
         return autoUnlockResult.progress;
       });
 
@@ -702,6 +745,7 @@ export default function HomeScreen() {
       playCurrentAudio,
       sessionPreferences,
       startNewTrial,
+      token,
     ]
   );
 

@@ -59,7 +59,22 @@ describe('eguchi progress', () => {
     });
 
     expect(withIncorrect.trialHistory.length).toBe(2);
+    expect(withIncorrect.trialHistory[0].id).toEqual(expect.any(String));
+    expect(withIncorrect.trialHistory[1].id).toEqual(expect.any(String));
     expect(withIncorrect.dailySummaries[dayKey]).toEqual({ attempts: 2, correct: 1 });
+  });
+
+  test('recordTrial accepts a caller-provided id for durable sync', () => {
+    const progress = createDefaultEguchiProgress();
+
+    const next = recordTrial(progress, {
+      id: 'trial-123',
+      chordId: 'C-E-G',
+      correct: true,
+      timestamp: '2026-01-11T10:30:00.000Z',
+    });
+
+    expect(next.trialHistory[0].id).toBe('trial-123');
   });
 
   test('recordTrial trims old history after max limit', () => {
@@ -128,6 +143,7 @@ describe('eguchi progress', () => {
 
     expect(loaded.unlockedChordIds).toEqual(DEFAULT_UNLOCKED_CHORD_IDS);
     expect(loaded.trialHistory.length).toBe(1);
+    expect(loaded.trialHistory[0].id.startsWith('legacy_')).toBe(true);
     expect(loaded.dailySummaries[dayKey]).toEqual({ attempts: 1, correct: 1 });
     expect(loaded.lastAutoUnlockDayKey).toBe(null);
   });

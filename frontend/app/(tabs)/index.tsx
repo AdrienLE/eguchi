@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { resolveAudioPlaybackSource } from '@/lib/eguchi/audio-assets';
 import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
 import { getChordAnimalImageSource, type AnimalEmotion } from '@/lib/eguchi/animal-assets';
 import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
@@ -137,6 +138,21 @@ const isAutoplayBlockedError = (error: unknown) => {
   );
 };
 
+const summarizeAudioUri = (uri: string | null) => {
+  if (!uri) {
+    return null;
+  }
+  const fileMarker = '/audio/';
+  const fileIndex = uri.lastIndexOf(fileMarker);
+  if (fileIndex >= 0) {
+    return uri.slice(fileIndex + fileMarker.length);
+  }
+  if (uri.startsWith('file://')) {
+    return 'file://...';
+  }
+  return uri.length > 96 ? `${uri.slice(0, 93)}...` : uri;
+};
+
 const getGridLayout = (tileCount: number, availableWidth: number, availableHeight: number) => {
   const safeCount = Math.max(1, tileCount);
   const safeWidth = Math.max(100, availableWidth);
@@ -239,8 +255,11 @@ export default function HomeScreen() {
 
   const stopSound = useCallback(async () => {
     if (soundRef.current) {
+      const sound = soundRef.current;
       try {
-        await soundRef.current.unloadAsync();
+        sound.setOnPlaybackStatusUpdate(null);
+        await sound.stopAsync().catch(() => undefined);
+        await sound.unloadAsync();
       } catch (error) {
         console.warn('Failed to unload audio', error);
       } finally {
@@ -365,18 +384,36 @@ export default function HomeScreen() {
 
       let createdSound: Audio.Sound | null = null;
       try {
-        console.log('[Eguchi] Playing audio', {
-          chord: chordId,
-          file: entry.fileName,
-          origin,
-          attempt: retryCount === 0 ? 'initial' : `retry-${retryCount}`,
-        });
-        const { sound } = await Audio.Sound.createAsync(entry.module, {
-          shouldPlay: false,
-          volume: 1.0,
-          positionMillis: 0,
-          progressUpdateIntervalMillis: 100,
-        });
+        const resolvedAudio = await resolveAudioPlaybackSource(entry);
+        if (!isCurrentPlaybackRequest()) {
+          clearPendingPlaybackRequest();
+          return;
+        }
+
+        console.log(
+          '[Eguchi] Playing audio',
+          JSON.stringify({
+            chord: chordId,
+            file: entry.fileName,
+            origin,
+            attempt: retryCount === 0 ? 'initial' : `retry-${retryCount}`,
+            assetUri: summarizeAudioUri(resolvedAudio.assetUri),
+            localUri: summarizeAudioUri(resolvedAudio.localUri),
+            downloaded: resolvedAudio.downloaded,
+          })
+        );
+        const { sound, status } = await Audio.Sound.createAsync(
+          resolvedAudio.source,
+          {
+            shouldPlay: true,
+            volume: 1.0,
+            positionMillis: 0,
+            progressUpdateIntervalMillis: 100,
+          },
+          null,
+          false
+        );
+        let playbackStatus = status;
         createdSound = sound;
         if (!isCurrentPlaybackRequest()) {
           clearPendingPlaybackRequest();
@@ -388,17 +425,6 @@ export default function HomeScreen() {
         soundRef.current = sound;
         activeSoundOriginRef.current = origin;
         clearPendingPlaybackRequest();
-        let playbackStatus = await sound.playFromPositionAsync(0);
-        if (!isCurrentPlaybackRequest()) {
-          if (soundRef.current === sound) {
-            soundRef.current = null;
-            activeSoundOriginRef.current = null;
-          }
-          await sound.unloadAsync().catch(unloadError => {
-            console.warn('Failed to unload stale sound instance', unloadError);
-          });
-          return;
-        }
         let playbackStarted =
           didPlaybackStart(playbackStatus) || (await waitForSoundToStart(sound));
         if (!isCurrentPlaybackRequest()) {
@@ -412,11 +438,14 @@ export default function HomeScreen() {
           return;
         }
         if (shouldReplayAfterPlaybackWatchdog(playbackStarted, isCurrentPlaybackRequest())) {
-          console.warn('Audio did not report playback start; replaying once', {
-            chord: chordId,
-            file: entry.fileName,
-            origin,
-          });
+          console.warn(
+            'Audio did not report playback start; replaying once',
+            JSON.stringify({
+              chord: chordId,
+              file: entry.fileName,
+              origin,
+            })
+          );
           playbackStatus = await sound.replayAsync();
           playbackStarted = didPlaybackStart(playbackStatus) || (await waitForSoundToStart(sound));
         }
@@ -451,18 +480,21 @@ export default function HomeScreen() {
           });
           return;
         }
-        console.log('[Eguchi] Audio playback started', {
-          chord: chordId,
-          file: entry.fileName,
-          origin,
-          isPlaying: confirmedPlaybackStatus.isLoaded ? confirmedPlaybackStatus.isPlaying : false,
-          positionMillis: confirmedPlaybackStatus.isLoaded
-            ? confirmedPlaybackStatus.positionMillis
-            : null,
-          durationMillis: confirmedPlaybackStatus.isLoaded
-            ? confirmedPlaybackStatus.durationMillis
-            : null,
-        });
+        console.log(
+          '[Eguchi] Audio playback started',
+          JSON.stringify({
+            chord: chordId,
+            file: entry.fileName,
+            origin,
+            isPlaying: confirmedPlaybackStatus.isLoaded ? confirmedPlaybackStatus.isPlaying : false,
+            positionMillis: confirmedPlaybackStatus.isLoaded
+              ? confirmedPlaybackStatus.positionMillis
+              : null,
+            durationMillis: confirmedPlaybackStatus.isLoaded
+              ? confirmedPlaybackStatus.durationMillis
+              : null,
+          })
+        );
         hasPlayedAnyAudioRef.current = true;
         setStartupAutoplayPending(false);
         clearStartupPlaybackWatchdog();

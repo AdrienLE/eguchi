@@ -53,9 +53,9 @@ EXPO_PUBLIC_API_URL=https://your-api.com yarn build:ios:production
 
 - **Development**: Local server at `http://127.0.0.1:8000`
 - **Staging**: `https://baseapp-staging.up.railway.app`
-- **Production**: `REPLACE_WITH_PROD_URL`
+- **Production**: `https://eguchi-api-production.up.railway.app`
 
-The production builds will automatically use your Railway production server at `REPLACE_WITH_PROD_URL/api`
+The production builds will automatically use your Railway production server at `https://eguchi-api-production.up.railway.app/api`
 
 ## More Options
 

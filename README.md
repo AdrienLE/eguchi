@@ -1,13 +1,10 @@
 # Eguchi Ear Trainer
 
-An app built with the Base App template.
-
-> **Project status:** freshly scaffolded. No Eguchi-specific functionality has been implemented yet—use the specification below as the single source of truth while building out features.
+An iPad-first, local-first ear trainer for chord recognition practice.
 
 ## Product Spec
 
 - Primary spec: [`SPEC.md`](SPEC.md)
-- Quick pointer: the default home screen currently renders a placeholder that links to the spec so designers/devs can align before writing code.
 
 Please review the spec before starting implementation work; note open questions inline (look for `TODO` callouts) to capture any clarifications.
 
@@ -38,14 +35,7 @@ cp .env.example .env.local
 # Edit .env.local with your configuration
 ```
 
-4. **Important: Set your production URL**
-   Replace all instances of `REPLACE_WITH_PROD_URL` with your actual production URL:
-   ```bash
-   # Find and replace in all files
-   find . -type f \( -name "*.json" -o -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.sh" -o -name "*.md" \) \
-     -not -path "./node_modules/*" \
-     -exec sed -i '' 's|REPLACE_WITH_PROD_URL|https://your-production-url.com|g' {} \;
-   ```
+4. Production builds default to `https://eguchi-api-production.up.railway.app`. Override with `EXPO_PUBLIC_API_URL_PRODUCTION` when needed.
 
 ### Development
 

@@ -70,7 +70,7 @@ def test_health_endpoint():
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "base-app-api"
+    assert data["service"] == "eguchi-api"
     # OpenAI and S3 statuses reflect configuration (may be configured in env)
     assert data["openai"] in ("configured", "not configured")
     assert data["s3"] in ("configured", "not configured")

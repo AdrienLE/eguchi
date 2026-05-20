@@ -33,7 +33,7 @@ const discovery = {
 
 const TOKEN_KEY = 'auth_token';
 const SILENT_AUTH_ATTEMPT_KEY = 'auth_silent_attempted';
-const URL_SCHEME = process.env.EXPO_PUBLIC_URL_SCHEME || 'baseapp';
+const URL_SCHEME = process.env.EXPO_PUBLIC_URL_SCHEME || 'eguchieartrainer';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setTokenState] = useState<string | null>(null);

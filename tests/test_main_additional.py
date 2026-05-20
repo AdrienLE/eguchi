@@ -139,7 +139,7 @@ class TestHealthAndSPA:
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("status") == "healthy"
-        assert data.get("service") == "base-app-api"
+        assert data.get("service") == "eguchi-api"
         assert data.get("database") == "connected"
         assert "openai" in data and "s3" in data
 

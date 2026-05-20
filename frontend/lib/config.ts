@@ -44,7 +44,7 @@ const ENV_CONFIGS = {
   },
   production: {
     api: {
-      baseUrl: readApiUrl('production', 'REPLACE_WITH_PROD_URL'),
+      baseUrl: readApiUrl('production', 'https://eguchi-api-production.up.railway.app'),
     },
     debug: false,
   },
@@ -59,9 +59,9 @@ export const APP_CONFIG = {
   debug: envConfig.debug,
 
   // App Identity
-  name: 'Base App',
+  name: 'Eguchi Ear Trainer',
   version: '1.0.0',
-  description: 'A modular base app for rapid development',
+  description: 'A local-first ear trainer for chord recognition practice',
 
   // API Configuration
   api: {

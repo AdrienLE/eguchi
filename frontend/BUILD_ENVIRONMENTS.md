@@ -18,7 +18,7 @@ This document explains how to build the app for different environments with diff
 
 ### Production
 
-- **API URL**: `REPLACE_WITH_PROD_URL` (production server)
+- **API URL**: `https://eguchi-api-production.up.railway.app` (production server)
 - **Debug Mode**: Disabled
 - **Use Case**: Live app for end users
 
@@ -127,15 +127,15 @@ The app uses these environment variables:
 For Auth0 to accept logins, make sure these URLs are configured in your Auth0 Application settings:
 
 - **Allowed Callback URLs**
-  - Native (recommended): `baseapp://redirect` (or `<your-scheme>://redirect` if overridden)
-  - Optional (Expo proxy): `https://auth.expo.io/@YOUR_EXPO_USERNAME/baseapp`
+  - Native (recommended): `eguchieartrainer://redirect`
+  - Optional (Expo proxy): `https://auth.expo.io/@YOUR_EXPO_USERNAME/eguchieartrainer`
 
 - **Allowed Logout URLs**
-  - `baseapp://redirect` (or your custom scheme)
+  - `eguchieartrainer://redirect`
 
 Notes:
 
-- The canonical app URL scheme is `baseapp` (see `app.json`). If you change it, update both the scheme and Auth0 settings.
+- The canonical app URL scheme is `eguchieartrainer` (see `app.json`). If you change it, update both the scheme and Auth0 settings.
 - You can temporarily enable the Expo proxy in native builds by setting `EXPO_PUBLIC_AUTH_USE_PROXY=true`.
 - If you change the Expo account or slug, update the Expo proxy URL accordingly.
 - You can override the URL scheme via `EXPO_PUBLIC_URL_SCHEME`; it must match `expo.scheme` in `app.json`.

@@ -36,7 +36,7 @@ changes so functionality can be tested early and often.
 - Always-test rule: do not mark work complete without running tests and reporting results; do not ship behavior changes without adding or updating tests.
 
 ## iOS Production Builds
-- Default prod API: `REPLACE_WITH_PROD_URL` (template default).
+- Default prod API: `https://eguchi-api-production.up.railway.app`.
 - Override via env: set `EXPO_PUBLIC_API_URL_PRODUCTION` (preferred) or `EXPO_PUBLIC_API_URL`.
 - EAS profile: `frontend/eas.json` `production.env` pre-configures the default; customize when inheriting.
 - Build: `cd frontend && EXPO_PUBLIC_API_URL_PRODUCTION=https://your-api eas build --platform ios --profile production`.

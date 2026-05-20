@@ -25,7 +25,7 @@ from uuid import uuid4
 import logging
 import requests
 
-from .database import Base, engine, SessionLocal
+from .database import Base, engine, SessionLocal, enable_sqlite_check_same_thread
 from . import models
 
 
@@ -39,20 +39,21 @@ models.Base.metadata.create_all(bind=engine)
 
 # Manual migration to add new columns if they don't exist
 try:
-    with engine.connect() as connection:
-        # Check if nickname column exists
-        result = connection.execute(text("PRAGMA table_info(user_settings)"))
-        columns = [row[1] for row in result.fetchall()]
+    if enable_sqlite_check_same_thread:
+        with engine.connect() as connection:
+            # Check if nickname column exists in older local SQLite databases.
+            result = connection.execute(text("PRAGMA table_info(user_settings)"))
+            columns = [row[1] for row in result.fetchall()]
 
-        if "nickname" not in columns:
-            logger.info("Adding nickname column to user_settings table")
-            connection.execute(text("ALTER TABLE user_settings ADD COLUMN nickname TEXT"))
-            connection.commit()
+            if "nickname" not in columns:
+                logger.info("Adding nickname column to user_settings table")
+                connection.execute(text("ALTER TABLE user_settings ADD COLUMN nickname TEXT"))
+                connection.commit()
 
-        if "email" not in columns:
-            logger.info("Adding email column to user_settings table")
-            connection.execute(text("ALTER TABLE user_settings ADD COLUMN email TEXT"))
-            connection.commit()
+            if "email" not in columns:
+                logger.info("Adding email column to user_settings table")
+                connection.execute(text("ALTER TABLE user_settings ADD COLUMN email TEXT"))
+                connection.commit()
 except Exception as e:
     logger.error(f"Migration failed: {e}")
     # Continue anyway - columns might already exist
@@ -121,7 +122,7 @@ def health_check():
     """Health check endpoint for Railway deployment"""
     return {
         "status": "healthy",
-        "service": "base-app-api",
+        "service": "eguchi-api",
         "openai": "configured" if client else "not configured",
         "s3": "configured" if s3_client else "not configured",
         "database": "connected",

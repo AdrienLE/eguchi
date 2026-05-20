@@ -9,7 +9,7 @@ Goal: deploy the Eguchi backend to a production Railway service, use Railway Buc
 - `eguchi-ear-trainer` has no Diawi helper script yet.
 - `DIAWI_TOKEN` is available in the current shell environment, but should not be committed or printed.
 - EAS CLI is installed and the local Expo account is logged in.
-- `frontend/eas.json`, `scripts/build-prod.sh`, and docs still use `REPLACE_WITH_PROD_URL`.
+- Production API defaults are configured for `https://eguchi-api-production.up.railway.app`.
 - Backend profile-picture upload currently uses direct S3 globals in `backend/main.py`.
 - `hue-2` has the newer pattern to copy:
   - `/Users/adrien/projects/hue-2/scripts/build_and_upload_diawi.sh`
@@ -135,7 +135,7 @@ Goal: deploy the Eguchi backend to a production Railway service, use Railway Buc
    - `scripts/build-prod.sh`
    - `scripts/dev.sh`
    - `frontend/lib/config.ts` tests if they assert the old placeholder
-   - any build docs that mention `REPLACE_WITH_PROD_URL`
+   - any build docs that mention the production API default
 
 ## Phase 6 - Build And Diawi Upload
 

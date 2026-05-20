@@ -2,7 +2,7 @@
 set -e
 
 # Default production API URL
-DEFAULT_PROD_API_URL="REPLACE_WITH_PROD_URL"
+DEFAULT_PROD_API_URL="https://eguchi-api-production.up.railway.app"
 
 # Parse arguments
 TARGET=""

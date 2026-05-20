@@ -1,6 +1,8 @@
-import { DEFAULT_UNLOCKED_CHORD_IDS } from '@/lib/eguchi/chords';
+import { DEFAULT_UNLOCKED_CHORD_IDS, ORDERED_CHORD_IDS } from '@/lib/eguchi/chords';
 import {
   MAX_TRIAL_HISTORY,
+  MAX_UNLOCKED_CHORD_COUNT,
+  MIN_UNLOCKED_CHORD_COUNT,
   createDefaultEguchiProgress,
   getDayKey,
   getProgressSnapshot,
@@ -9,6 +11,7 @@ import {
   resetEguchiProgress,
   saveEguchiProgress,
   setChordUnlocked,
+  setUnlockedLevel,
 } from '@/lib/eguchi/progress';
 import { STORAGE_KEYS, type StorageService } from '@/lib/storage';
 
@@ -85,6 +88,21 @@ describe('eguchi progress', () => {
 
     const preventedEmpty = setChordUnlocked(removedSecond, 'G-B-D', false);
     expect(preventedEmpty.unlockedChordIds).toEqual(['G-B-D']);
+  });
+
+  test('setUnlockedLevel stores the ordered level prefix and clamps bounds', () => {
+    const defaults = createDefaultEguchiProgress();
+
+    const levelFive = setUnlockedLevel(defaults, 5);
+    expect(levelFive.unlockedChordIds).toEqual(ORDERED_CHORD_IDS.slice(0, 5));
+
+    const belowMinimum = setUnlockedLevel(levelFive, MIN_UNLOCKED_CHORD_COUNT - 10);
+    expect(belowMinimum.unlockedChordIds).toEqual(
+      ORDERED_CHORD_IDS.slice(0, MIN_UNLOCKED_CHORD_COUNT)
+    );
+
+    const aboveMaximum = setUnlockedLevel(defaults, MAX_UNLOCKED_CHORD_COUNT + 10);
+    expect(aboveMaximum.unlockedChordIds).toEqual(ORDERED_CHORD_IDS);
   });
 
   test('loadEguchiProgress sanitizes invalid stored data', async () => {

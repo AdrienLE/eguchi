@@ -171,7 +171,11 @@ export default function HomeScreen() {
   const [startupAutoplayPending, setStartupAutoplayPending] = useState(false);
   const currentChordRef = useRef<EguchiChordId | null>(null);
   const currentAudioRef = useRef<AudioEntry | null>(null);
+  const unlockedChordIdsRef = useRef<EguchiChordId[]>(DEFAULT_UNLOCKED_CHORD_IDS);
+  const hasInitializedTrialRef = useRef(false);
+  const previousUnlockedChordKeyRef = useRef(unlockedChordKey);
   const hasAnsweredCurrentTrialRef = useRef(false);
+  const [unlockAnnouncement, setUnlockAnnouncement] = useState<string | null>(null);
   const [failedAnimalImageKeys, setFailedAnimalImageKeys] = useState<Set<string>>(new Set());
 
   const clearAdvanceTimer = useCallback(() => {
@@ -312,8 +316,16 @@ export default function HomeScreen() {
     [clearPlaybackRetry, clearStartupPlaybackWatchdog, stopSound]
   );
 
+  useEffect(() => {
+    unlockedChordIdsRef.current = unlockedChordIds;
+  }, [unlockedChordIds]);
+
   const startNewTrial = useCallback(() => {
-    if (!unlockedChordIds.length) {
+    const activeUnlockedChordIds = unlockedChordIdsRef.current.length
+      ? unlockedChordIdsRef.current
+      : DEFAULT_UNLOCKED_CHORD_IDS;
+
+    if (!activeUnlockedChordIds.length) {
       clearAdvanceTimer();
       clearStartupPlaybackWatchdog();
       currentChordRef.current = null;
@@ -329,7 +341,7 @@ export default function HomeScreen() {
     setLastAnswerId(null);
     setLastResult(null);
 
-    const nextChordId = pickRandomChordId(unlockedChordIds);
+    const nextChordId = pickRandomChordId(activeUnlockedChordIds);
     currentChordRef.current = nextChordId;
     setCurrentChordId(nextChordId);
 
@@ -374,13 +386,7 @@ export default function HomeScreen() {
       entry: nextAudio,
       origin: 'new-trial',
     });
-  }, [
-    clearAdvanceTimer,
-    clearStartupPlaybackWatchdog,
-    hasStartedTraining,
-    playCurrentAudio,
-    unlockedChordIds,
-  ]);
+  }, [clearAdvanceTimer, clearStartupPlaybackWatchdog, hasStartedTraining, playCurrentAudio]);
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
@@ -405,6 +411,7 @@ export default function HomeScreen() {
 
       setLastAnswerId(id);
       setLastResult(isCorrect ? 'correct' : 'incorrect');
+      setUnlockAnnouncement(null);
       setProgress(previous => {
         const currentProgress = previous ?? createDefaultEguchiProgress();
         const afterRecord = recordTrial(currentProgress, {
@@ -418,6 +425,14 @@ export default function HomeScreen() {
         });
 
         if (autoUnlockResult.unlocked) {
+          const unlockedChordId =
+            autoUnlockResult.progress.unlockedChordIds[
+              autoUnlockResult.progress.unlockedChordIds.length - 1
+            ];
+          const unlockedAnimal = unlockedChordId ? CHORD_BY_ID[unlockedChordId]?.animal : null;
+          setUnlockAnnouncement(
+            unlockedAnimal ? `New friend unlocked: ${unlockedAnimal}.` : 'New friend unlocked.'
+          );
           console.log('[Eguchi] Auto-unlocked next level', {
             unlockedCount: autoUnlockResult.progress.unlockedChordIds.length,
             unlockDay: autoUnlockResult.progress.lastAutoUnlockDayKey,
@@ -508,11 +523,6 @@ export default function HomeScreen() {
   const isReady = !isLoading && progress !== null && sessionPreferences !== null;
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    startNewTrial();
     return () => {
       clearAdvanceTimer();
       clearPlaybackRetry();
@@ -521,15 +531,46 @@ export default function HomeScreen() {
       playbackRequestIdRef.current += 1;
       void stopSound();
     };
-  }, [
-    clearAdvanceTimer,
-    clearPlaybackRetry,
-    clearStartupPlaybackWatchdog,
-    isReady,
-    startNewTrial,
-    stopSound,
-    unlockedChordKey,
-  ]);
+  }, [clearAdvanceTimer, clearPlaybackRetry, clearStartupPlaybackWatchdog, stopSound]);
+
+  useEffect(() => {
+    if (!isReady) {
+      hasInitializedTrialRef.current = false;
+      previousUnlockedChordKeyRef.current = unlockedChordKey;
+      return;
+    }
+
+    if (hasInitializedTrialRef.current) {
+      return;
+    }
+
+    hasInitializedTrialRef.current = true;
+    previousUnlockedChordKeyRef.current = unlockedChordKey;
+    startNewTrial();
+  }, [isReady, startNewTrial, unlockedChordKey]);
+
+  useEffect(() => {
+    if (!isReady) {
+      previousUnlockedChordKeyRef.current = unlockedChordKey;
+      return;
+    }
+
+    if (!hasInitializedTrialRef.current) {
+      previousUnlockedChordKeyRef.current = unlockedChordKey;
+      return;
+    }
+
+    if (previousUnlockedChordKeyRef.current === unlockedChordKey) {
+      return;
+    }
+
+    previousUnlockedChordKeyRef.current = unlockedChordKey;
+    if (lastResult !== null || autoAdvanceRemainingMs !== null) {
+      return;
+    }
+
+    startNewTrial();
+  }, [autoAdvanceRemainingMs, isReady, lastResult, startNewTrial, unlockedChordKey]);
 
   const progressionStatus = useMemo(() => {
     if (!progress) {
@@ -797,6 +838,11 @@ export default function HomeScreen() {
                   ? `🪄 Keep going to meet ${progressionStatus.nextChordAnimal}.`
                   : '🏆 All animal sounds unlocked.'}
               </ThemedText>
+              {unlockAnnouncement ? (
+                <View style={styles.unlockBanner}>
+                  <ThemedText style={styles.unlockBannerText}>{unlockAnnouncement}</ThemedText>
+                </View>
+              ) : null}
             </View>
           ) : null}
         </View>
@@ -959,6 +1005,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     opacity: 0.85,
+  },
+  unlockBanner: {
+    borderRadius: 10,
+    backgroundColor: '#E9F7EF',
+    borderWidth: 1,
+    borderColor: '#9CD7B0',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  unlockBannerText: {
+    color: '#166534',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   replayContainer: {
     width: '100%',

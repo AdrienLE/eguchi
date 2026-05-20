@@ -7,6 +7,8 @@ import {
 } from './chords';
 
 export const MAX_TRIAL_HISTORY = 2000;
+export const MIN_UNLOCKED_CHORD_COUNT = DEFAULT_UNLOCKED_CHORD_IDS.length;
+export const MAX_UNLOCKED_CHORD_COUNT = ORDERED_CHORD_IDS.length;
 
 const padDatePart = (value: number) => String(value).padStart(2, '0');
 
@@ -157,6 +159,31 @@ export const resetEguchiProgress = async (storageService: StorageService = stora
   const defaults = createDefaultEguchiProgress();
   await saveEguchiProgress(defaults, storageService);
   return defaults;
+};
+
+export const clampUnlockedLevel = (level: number) => {
+  const numericLevel = Number.isFinite(level) ? level : MIN_UNLOCKED_CHORD_COUNT;
+  return Math.max(
+    MIN_UNLOCKED_CHORD_COUNT,
+    Math.min(MAX_UNLOCKED_CHORD_COUNT, Math.round(numericLevel))
+  );
+};
+
+export const setUnlockedLevel = (progress: EguchiProgress, level: number): EguchiProgress => {
+  const unlockedCount = clampUnlockedLevel(level);
+  const unlockedChordIds = ORDERED_CHORD_IDS.slice(0, unlockedCount);
+
+  if (
+    progress.unlockedChordIds.length === unlockedChordIds.length &&
+    progress.unlockedChordIds.every((chordId, index) => chordId === unlockedChordIds[index])
+  ) {
+    return progress;
+  }
+
+  return {
+    ...progress,
+    unlockedChordIds,
+  };
 };
 
 export const recordTrial = (

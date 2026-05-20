@@ -1,6 +1,15 @@
 import { Stack, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { ThemedView } from '@/components/ThemedView';
@@ -15,19 +24,17 @@ import {
   preloadEguchiAudioPack,
   type EguchiAudioCacheMeta,
 } from '@/lib/eguchi/audio-cache';
-import { CHORD_BY_ID, ORDERED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
+import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
+import { CHORD_BY_ID, ORDERED_CHORD_IDS } from '@/lib/eguchi/chords';
+import { getNextLevelProgress } from '@/lib/eguchi/progression';
 import {
-  getNextLevelProgress,
-  lockLastUnlockedLevel,
-  unlockNextLevelManually,
-} from '@/lib/eguchi/progression';
-import {
+  MIN_UNLOCKED_CHORD_COUNT,
   createDefaultEguchiProgress,
   getProgressSnapshot,
   loadEguchiProgress,
   resetEguchiProgress,
   saveEguchiProgress,
-  setChordUnlocked,
+  setUnlockedLevel,
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
 import {
@@ -62,6 +69,10 @@ const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
 const STEP_REPEAT_START_DELAY_MS = 300;
 const STEP_REPEAT_INTERVAL_MS = 90;
 const FEEDBACK_STEP_SECONDS = 0.25;
+const SETTINGS_CONTENT_MAX_WIDTH = 760;
+const SETTINGS_HORIZONTAL_PADDING = 40;
+const LEVEL_CARD_HORIZONTAL_PADDING = 28;
+const ANIMAL_GRID_GAP = 10;
 
 const formatFeedbackSeconds = (value: number) => value.toFixed(2).replace(/\.?0+$/, '');
 
@@ -80,6 +91,7 @@ const sanitizeDecimalInput = (value: string) => {
 export default function SettingsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
+  const { width: windowWidth } = useWindowDimensions();
   const [progress, setProgress] = useState<EguchiProgress>(createDefaultEguchiProgress());
   const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences>(
     createDefaultEguchiSessionPreferences()
@@ -165,19 +177,17 @@ export default function SettingsScreen() {
     []
   );
 
-  const handleToggleChord = useCallback(
-    (chordId: EguchiChordId, enabled: boolean) => {
+  const handleSetUnlockedLevel = useCallback(
+    (level: number) => {
       setProgress(previous => {
-        const next = setChordUnlocked(previous, chordId, enabled);
+        const next = setUnlockedLevel(previous, level);
         if (next === previous) {
-          setProgressionMessage('At least one chord must stay unlocked.');
           return previous;
         }
 
-        setProgressionMessage(null);
-        console.log('[Eguchi] Updated unlocked chords', {
-          chord: chordId,
-          enabled,
+        setProgressionMessage(`Training level set to ${next.unlockedChordIds.length}.`);
+        console.log('[Eguchi] Updated training level', {
+          level: next.unlockedChordIds.length,
           unlocked: next.unlockedChordIds,
         });
         void persistProgress(next);
@@ -193,39 +203,13 @@ export default function SettingsScreen() {
       const reset = await resetEguchiProgress();
       console.log('[Eguchi] Progress reset to defaults');
       setProgress(reset);
-      setProgressionMessage('Progress reset. Back to level 1.');
+      setProgressionMessage(`Progress reset. Back to level ${reset.unlockedChordIds.length}.`);
     } catch (error) {
       console.warn('Failed to reset Eguchi progress', error);
     } finally {
       setSavingProgress(false);
     }
   }, []);
-
-  const handleManualUnlockNext = useCallback(() => {
-    setProgress(previous => {
-      const next = unlockNextLevelManually(previous);
-      if (next === previous) {
-        setProgressionMessage('All levels are already unlocked.');
-        return previous;
-      }
-      setProgressionMessage('Unlocked the next level manually.');
-      void persistProgress(next);
-      return next;
-    });
-  }, [persistProgress]);
-
-  const handleManualLockLast = useCallback(() => {
-    setProgress(previous => {
-      const next = lockLastUnlockedLevel(previous);
-      if (next === previous) {
-        setProgressionMessage('Cannot lock below one unlocked chord.');
-        return previous;
-      }
-      setProgressionMessage('Locked the latest level manually.');
-      void persistProgress(next);
-      return next;
-    });
-  }, [persistProgress]);
 
   const handleSessionUpdate = useCallback(
     (updater: (previous: EguchiSessionPreferences) => EguchiSessionPreferences) => {
@@ -288,6 +272,13 @@ export default function SettingsScreen() {
       );
     },
     [handleSessionUpdate]
+  );
+
+  const applyUnlockedLevelDelta = useCallback(
+    (delta: number) => {
+      handleSetUnlockedLevel(progress.unlockedChordIds.length + delta);
+    },
+    [handleSetUnlockedLevel, progress.unlockedChordIds.length]
   );
 
   const applyFeedbackSecondsDelta = useCallback(
@@ -391,6 +382,20 @@ export default function SettingsScreen() {
   }, [refreshAudioMeta]);
 
   const snapshot = getProgressSnapshot(progress);
+  const currentLevel = progress.unlockedChordIds.length;
+  const settingsContentWidth = Math.min(
+    SETTINGS_CONTENT_MAX_WIDTH,
+    Math.max(320, windowWidth - SETTINGS_HORIZONTAL_PADDING)
+  );
+  const animalGridInnerWidth = settingsContentWidth - LEVEL_CARD_HORIZONTAL_PADDING;
+  const animalGridColumns = animalGridInnerWidth >= 660 ? 4 : animalGridInnerWidth >= 460 ? 3 : 2;
+  const animalGridCardWidth = Math.floor(
+    (animalGridInnerWidth - ANIMAL_GRID_GAP * (animalGridColumns - 1)) / animalGridColumns
+  );
+  const levelProgress = clampProgress(
+    (currentLevel - MIN_UNLOCKED_CHORD_COUNT) /
+      Math.max(1, ORDERED_CHORD_IDS.length - MIN_UNLOCKED_CHORD_COUNT)
+  );
   const progressionStatus = useMemo(
     () =>
       getNextLevelProgress(progress, {
@@ -448,7 +453,7 @@ export default function SettingsScreen() {
               Caregiver Settings
             </ThemedText>
             <ThemedText style={styles.subtitle}>
-              Manage level progression, unlocked chords, offline audio, and local data.
+              Manage training level, progression goals, offline audio, and local data.
             </ThemedText>
             <ThemedText style={styles.subtitleNote}>
               No login is required. These settings are saved on this device.
@@ -457,7 +462,7 @@ export default function SettingsScreen() {
 
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Unlocked chords</ThemedText>
+              <ThemedText style={styles.summaryLabel}>Active animals</ThemedText>
               <ThemedText style={styles.summaryValue}>
                 {snapshot.unlockedCount}/{ORDERED_CHORD_IDS.length}
               </ThemedText>
@@ -476,6 +481,173 @@ export default function SettingsScreen() {
                 {formatPercent(snapshot.totalAccuracy)})
               </ThemedText>
             </View>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Training Level</ThemedText>
+            {savingProgress ? <ActivityIndicator size="small" color={tintColor} /> : null}
+          </View>
+
+          <View style={styles.levelCard}>
+            <View style={styles.levelHeaderRow}>
+              <View style={styles.levelTitleGroup}>
+                <ThemedText style={styles.levelLabel}>Active animals</ThemedText>
+                <ThemedText style={styles.levelValue}>
+                  Level {currentLevel} of {ORDERED_CHORD_IDS.length}
+                </ThemedText>
+              </View>
+              <View style={styles.levelStepControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Lower training level"
+                  onPress={() => applyUnlockedLevelDelta(-1)}
+                  disabled={loading || savingProgress || currentLevel <= MIN_UNLOCKED_CHORD_COUNT}
+                  style={[
+                    styles.levelStepButton,
+                    { borderColor: iconColor },
+                    (loading || savingProgress || currentLevel <= MIN_UNLOCKED_CHORD_COUNT) &&
+                      styles.buttonDisabled,
+                  ]}
+                >
+                  <IconSymbol size={20} name="minus" color={iconColor} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Raise training level"
+                  onPress={() => applyUnlockedLevelDelta(1)}
+                  disabled={loading || savingProgress || currentLevel >= ORDERED_CHORD_IDS.length}
+                  style={[
+                    styles.levelStepButton,
+                    { borderColor: iconColor },
+                    (loading || savingProgress || currentLevel >= ORDERED_CHORD_IDS.length) &&
+                      styles.buttonDisabled,
+                  ]}
+                >
+                  <IconSymbol size={20} name="plus" color={iconColor} />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.levelTrack}>
+              <View style={[styles.levelFill, { width: `${levelProgress * 100}%` }]} />
+            </View>
+
+            <ThemedText style={styles.levelHint}>
+              Level follows the fixed animal order below.
+            </ThemedText>
+
+            <View style={styles.animalLevelGrid}>
+              {ORDERED_CHORD_IDS.map((chordId, index) => {
+                const chord = CHORD_BY_ID[chordId];
+                const animalLevel = Math.max(MIN_UNLOCKED_CHORD_COUNT, index + 1);
+                const isEnabled = index < currentLevel;
+                const isCurrentLevel = index + 1 === currentLevel;
+                const imageSource = getChordAnimalImageSource(chordId);
+                const statusLabel = isCurrentLevel ? 'Current' : isEnabled ? 'Active' : 'Locked';
+
+                return (
+                  <Pressable
+                    key={chordId}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Set training level through ${chord.animal}`}
+                    onPress={() => handleSetUnlockedLevel(animalLevel)}
+                    disabled={loading || savingProgress}
+                    style={[
+                      styles.animalLevelCard,
+                      {
+                        width: animalGridCardWidth,
+                        borderColor: isCurrentLevel
+                          ? tintColor
+                          : isEnabled
+                            ? chord.color.hex
+                            : '#D7DDE2',
+                      },
+                      !isEnabled && styles.animalLevelCardLocked,
+                      isCurrentLevel && styles.animalLevelCardCurrent,
+                      (loading || savingProgress) && styles.buttonDisabled,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.animalLevelStripe,
+                        { backgroundColor: isEnabled ? chord.color.hex : '#D3D9DE' },
+                      ]}
+                    />
+                    <View style={styles.animalLevelTopRow}>
+                      <View
+                        style={[
+                          styles.animalLevelNumber,
+                          { backgroundColor: isEnabled ? tintColor : '#E2E6EA' },
+                        ]}
+                      >
+                        <ThemedText
+                          style={[
+                            styles.animalLevelNumberText,
+                            isEnabled && styles.animalLevelNumberTextEnabled,
+                          ]}
+                        >
+                          {index + 1}
+                        </ThemedText>
+                      </View>
+                      <View
+                        style={[
+                          styles.animalLevelStatus,
+                          isEnabled && { backgroundColor: `${tintColor}22` },
+                        ]}
+                      >
+                        <ThemedText
+                          style={[styles.animalLevelStatusText, isEnabled && { color: tintColor }]}
+                        >
+                          {statusLabel}
+                        </ThemedText>
+                      </View>
+                    </View>
+                    {imageSource ? (
+                      <Image
+                        source={imageSource}
+                        style={[
+                          styles.animalLevelImage,
+                          !isEnabled && styles.animalLevelImageLocked,
+                        ]}
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <View style={styles.animalLevelImageFallback} />
+                    )}
+                    <ThemedText
+                      style={[styles.animalLevelAnimal, !isEnabled && styles.animalLevelTextLocked]}
+                    >
+                      {chord.animal}
+                    </ThemedText>
+                    <ThemedText
+                      style={[styles.animalLevelChord, !isEnabled && styles.animalLevelTextLocked]}
+                    >
+                      {chord.label}
+                    </ThemedText>
+                    <View style={styles.animalLevelColorRow}>
+                      <View
+                        style={[
+                          styles.colorDot,
+                          { backgroundColor: isEnabled ? chord.color.hex : '#B8C0C7' },
+                        ]}
+                      />
+                      <ThemedText
+                        style={[
+                          styles.animalLevelColorText,
+                          !isEnabled && styles.animalLevelTextLocked,
+                        ]}
+                      >
+                        {chord.color.name}
+                      </ThemedText>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {progressionMessage ? (
+              <ThemedText style={styles.progressionMessage}>{progressionMessage}</ThemedText>
+            ) : null}
           </View>
 
           <View style={styles.sectionHeader}>
@@ -507,8 +679,8 @@ export default function SettingsScreen() {
             <View style={styles.summaryRow}>
               <ThemedText style={styles.summaryLabel}>Today toward streak</ThemedText>
               <ThemedText style={styles.summaryValue}>
-                {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}(
-                target {progressionStatus.dailyAttemptTarget})
+                {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}{' '}
+                (target {progressionStatus.dailyAttemptTarget})
               </ThemedText>
             </View>
             <View style={styles.summaryRow}>
@@ -649,65 +821,7 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
             </View>
-
-            <View style={styles.manualRow}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={handleManualUnlockNext}
-                disabled={loading || savingProgress}
-                style={[styles.manualButton, { borderColor: iconColor }]}
-              >
-                <ThemedText style={styles.manualButtonText}>Unlock Next (Manual)</ThemedText>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                onPress={handleManualLockLast}
-                disabled={loading || savingProgress}
-                style={[styles.manualButton, { borderColor: iconColor }]}
-              >
-                <ThemedText style={styles.manualButtonText}>Lock Last (Manual)</ThemedText>
-              </Pressable>
-            </View>
-
-            {progressionMessage ? (
-              <ThemedText style={styles.progressionMessage}>{progressionMessage}</ThemedText>
-            ) : null}
           </View>
-
-          <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">Unlocked Chords</ThemedText>
-            {savingProgress ? <ActivityIndicator size="small" color={tintColor} /> : null}
-          </View>
-
-          {loading ? (
-            <ActivityIndicator size="small" color={tintColor} />
-          ) : (
-            ORDERED_CHORD_IDS.map(chordId => {
-              const chord = CHORD_BY_ID[chordId];
-              const isEnabled = progress.unlockedChordIds.includes(chordId);
-
-              return (
-                <View key={chordId} style={styles.chordRow}>
-                  <View style={styles.chordMeta}>
-                    <View style={[styles.colorDot, { backgroundColor: chord.color.hex }]} />
-                    <View>
-                      <ThemedText style={styles.chordAnimal}>{chord.animal}</ThemedText>
-                      <ThemedText style={styles.chordLabel}>
-                        {chord.label} · {chord.color.name}
-                      </ThemedText>
-                    </View>
-                  </View>
-                  <Switch
-                    value={isEnabled}
-                    onValueChange={enabled => handleToggleChord(chordId, enabled)}
-                    trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
-                    thumbColor={isEnabled ? tintColor : iconColor}
-                    disabled={loading}
-                  />
-                </View>
-              );
-            })
-          )}
 
           <Pressable
             onPress={handleResetProgress}
@@ -801,8 +915,7 @@ export default function SettingsScreen() {
           </View>
 
           <ThemedText style={styles.note}>
-            Manual controls are intentionally subtle for caregiver-only use while keeping child flow
-            simple.
+            Training level controls are for caregiver setup while the child flow stays simple.
           </ThemedText>
         </View>
       </ScrollView>
@@ -823,7 +936,7 @@ const styles = StyleSheet.create({
   },
   content: {
     width: '100%',
-    maxWidth: 760,
+    maxWidth: SETTINGS_CONTENT_MAX_WIDTH,
     gap: 16,
   },
   closeButton: {
@@ -868,6 +981,163 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 10,
+  },
+  levelCard: {
+    borderWidth: 1,
+    borderColor: '#D3D3D3',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  levelHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  levelTitleGroup: {
+    flexShrink: 1,
+  },
+  levelLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    opacity: 0.75,
+  },
+  levelValue: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '800',
+  },
+  levelStepControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  levelStepButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  levelTrack: {
+    width: '100%',
+    height: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#E1E5E8',
+  },
+  levelFill: {
+    height: '100%',
+    backgroundColor: '#1B8B4D',
+  },
+  animalLevelGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: ANIMAL_GRID_GAP,
+  },
+  animalLevelCard: {
+    minHeight: 158,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 4,
+  },
+  animalLevelCardCurrent: {
+    borderWidth: 2,
+  },
+  animalLevelCardLocked: {
+    backgroundColor: '#F3F5F6',
+  },
+  animalLevelStripe: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 5,
+  },
+  animalLevelTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 6,
+  },
+  animalLevelNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  animalLevelNumberText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#45515A',
+  },
+  animalLevelNumberTextEnabled: {
+    color: '#FFFFFF',
+  },
+  animalLevelStatus: {
+    borderRadius: 999,
+    backgroundColor: '#E1E5E8',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  animalLevelStatusText: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '800',
+    color: '#5B6670',
+  },
+  animalLevelImage: {
+    width: '100%',
+    height: 66,
+    marginTop: 2,
+  },
+  animalLevelImageLocked: {
+    opacity: 0.28,
+  },
+  animalLevelImageFallback: {
+    height: 66,
+  },
+  animalLevelAnimal: {
+    fontSize: 15,
+    lineHeight: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  animalLevelChord: {
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '700',
+    opacity: 0.82,
+    textAlign: 'center',
+  },
+  animalLevelColorRow: {
+    marginTop: 2,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 5,
+  },
+  animalLevelColorText: {
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '700',
+    opacity: 0.78,
+  },
+  animalLevelTextLocked: {
+    opacity: 0.5,
+  },
+  levelHint: {
+    fontSize: 12,
+    lineHeight: 18,
+    opacity: 0.75,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -946,56 +1216,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     fontSize: 14,
   },
-  manualRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  manualButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-  },
-  manualButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   progressionMessage: {
     fontSize: 12,
     lineHeight: 18,
     opacity: 0.8,
   },
-  chordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#E1E1E1',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  chordMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flexShrink: 1,
-  },
   colorDot: {
     width: 18,
     height: 18,
     borderRadius: 9,
-  },
-  chordAnimal: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  chordLabel: {
-    fontSize: 12,
-    opacity: 0.8,
   },
   resetButton: {
     borderWidth: 1,

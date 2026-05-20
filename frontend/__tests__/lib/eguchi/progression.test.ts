@@ -85,6 +85,7 @@ describe('eguchi progression', () => {
     );
     expect(first.unlocked).toBe(true);
     expect(first.progress.lastAutoUnlockDayKey).toBe('2026-01-12');
+    expect(first.progress.unlockedChordIds).toEqual(ORDERED_CHORD_IDS.slice(0, 3));
 
     const second = maybeApplyAutoUnlock(
       first.progress,

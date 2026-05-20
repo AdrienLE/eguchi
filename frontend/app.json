@@ -8,6 +8,7 @@
     "scheme": "eguchieartrainer",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "assetBundlePatterns": ["assets/audio/**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.eguchi.app"

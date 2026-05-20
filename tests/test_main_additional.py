@@ -211,6 +211,18 @@ class TestHealthAndSPA:
         r = c.get("/assets/images/eguchi/animals/does-not-exist.png")
         assert r.status_code == 404
 
+    def test_eguchi_audio_pack_metadata_route(self, client):
+        c, _ = client
+        r = c.get("/api/eguchi/audio-pack")
+        assert r.status_code == 200
+
+        body = r.json()
+        assert body["packName"] == "eguchi-pack-20260111-1631"
+        assert body["format"] == "mp3"
+        assert body["fileCount"] == 336
+        assert body["hashAlgorithm"] == "sha256"
+        assert len(body["hash"]) == 64
+
 
 class TestSettingsMerging:
     def test_user_overrides_preserved(self, client, monkeypatch):

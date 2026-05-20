@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
+  Platform,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -17,7 +18,11 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { AUDIO_PACK_NAME } from '@/lib/eguchi/audio-pack';
+import { AUDIO_PACK_HASH, AUDIO_PACK_NAME } from '@/lib/eguchi/audio-pack';
+import {
+  checkEguchiAudioPackVersion,
+  type EguchiAudioPackVersionCheck,
+} from '@/lib/eguchi/audio-pack-version';
 import {
   clearEguchiAudioPackCache,
   createDefaultEguchiAudioCacheMeta,
@@ -113,6 +118,10 @@ export default function SettingsScreen() {
     fileName: string;
   } | null>(null);
   const [audioMessage, setAudioMessage] = useState<string | null>(null);
+  const [audioVersionBusy, setAudioVersionBusy] = useState(false);
+  const [audioVersionCheck, setAudioVersionCheck] = useState<EguchiAudioPackVersionCheck | null>(
+    null
+  );
   const [perfectDaysDraft, setPerfectDaysDraft] = useState('14');
   const [dailyAttemptsDraft, setDailyAttemptsDraft] = useState('100');
   const [feedbackSecondsDraft, setFeedbackSecondsDraft] = useState('2');
@@ -389,6 +398,29 @@ export default function SettingsScreen() {
     }
   }, [refreshAudioMeta]);
 
+  const handleCheckAudioPackVersion = useCallback(async () => {
+    setAudioVersionBusy(true);
+    setAudioMessage(null);
+    try {
+      const result = await checkEguchiAudioPackVersion();
+      setAudioVersionCheck(result);
+      if (result.error) {
+        setAudioMessage(`Server check unavailable: ${result.error}`);
+      } else if (result.isCurrent) {
+        setAudioMessage('Bundled audio matches the server pack.');
+      } else {
+        setAudioMessage('Server audio differs from this app bundle.');
+      }
+      console.log('[Eguchi] Audio pack version check', result);
+    } catch (error) {
+      console.warn('Failed to check audio pack version', error);
+      setAudioVersionCheck(null);
+      setAudioMessage('Could not check the server audio pack.');
+    } finally {
+      setAudioVersionBusy(false);
+    }
+  }, []);
+
   const snapshot = getProgressSnapshot(progress);
   const currentLevel = progress.unlockedChordIds.length;
   const animalGridLayout = getSettingsAnimalGridLayout(windowWidth);
@@ -417,6 +449,15 @@ export default function SettingsScreen() {
   const audioProgressPercent = audioProgress
     ? clampProgress(audioProgress.completed / Math.max(1, audioProgress.total))
     : 0;
+  const nativeAudioBundleLabel = Platform.OS === 'web' ? 'Web bundle' : 'Included in app';
+  const audioVersionCheckLabel = audioVersionCheck
+    ? audioVersionCheck.error
+      ? 'Unavailable'
+      : audioVersionCheck.isCurrent
+        ? 'Current'
+        : 'Update available'
+    : 'Not checked';
+  const audioControlsDisabled = audioBusy || audioVersionBusy || loading;
 
   return (
     <ThemedView style={styles.container}>
@@ -806,13 +847,27 @@ export default function SettingsScreen() {
 
           <View style={styles.sectionHeader}>
             <ThemedText type="subtitle">Audio Pack</ThemedText>
-            {audioBusy ? <ActivityIndicator size="small" color={tintColor} /> : null}
+            {audioBusy || audioVersionBusy ? (
+              <ActivityIndicator size="small" color={tintColor} />
+            ) : null}
           </View>
 
           <View style={styles.audioCard}>
             <View style={styles.summaryRow}>
               <ThemedText style={styles.summaryLabel}>Pack</ThemedText>
               <ThemedText style={styles.summaryValue}>{AUDIO_PACK_NAME}</ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Native bundle</ThemedText>
+              <ThemedText style={styles.summaryValue}>{nativeAudioBundleLabel}</ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Pack hash</ThemedText>
+              <ThemedText style={styles.summaryValue}>{AUDIO_PACK_HASH.slice(0, 12)}</ThemedText>
+            </View>
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Server check</ThemedText>
+              <ThemedText style={styles.summaryValue}>{audioVersionCheckLabel}</ThemedText>
             </View>
             <View style={styles.summaryRow}>
               <ThemedText style={styles.summaryLabel}>Cached files</ThemedText>
@@ -859,29 +914,39 @@ export default function SettingsScreen() {
             <View style={styles.audioButtonRow}>
               <Pressable
                 accessibilityRole="button"
+                onPress={handleCheckAudioPackVersion}
+                disabled={audioControlsDisabled}
+                style={[
+                  styles.audioSecondaryButton,
+                  { borderColor: iconColor },
+                  audioControlsDisabled && styles.buttonDisabled,
+                ]}
+              >
+                <ThemedText style={styles.audioSecondaryButtonText}>Check Server</ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
                 onPress={handleCacheAudioPack}
-                disabled={audioBusy || loading}
+                disabled={audioControlsDisabled}
                 style={[
                   styles.audioPrimaryButton,
                   { backgroundColor: tintColor },
-                  (audioBusy || loading) && styles.buttonDisabled,
+                  audioControlsDisabled && styles.buttonDisabled,
                 ]}
               >
-                <ThemedText style={styles.audioPrimaryButtonText}>
-                  Download All for Offline
-                </ThemedText>
+                <ThemedText style={styles.audioPrimaryButtonText}>Download All</ThemedText>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
                 onPress={handleClearAudioCache}
-                disabled={audioBusy || loading}
+                disabled={audioControlsDisabled}
                 style={[
                   styles.audioSecondaryButton,
                   { borderColor: iconColor },
-                  (audioBusy || loading) && styles.buttonDisabled,
+                  audioControlsDisabled && styles.buttonDisabled,
                 ]}
               >
-                <ThemedText style={styles.audioSecondaryButtonText}>Clear Cached Audio</ThemedText>
+                <ThemedText style={styles.audioSecondaryButtonText}>Clear Cache</ThemedText>
               </Pressable>
             </View>
           </View>
@@ -1307,10 +1372,12 @@ const styles = StyleSheet.create({
   },
   audioButtonRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   audioPrimaryButton: {
     flex: 1,
+    minWidth: 140,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 8,
@@ -1324,6 +1391,7 @@ const styles = StyleSheet.create({
   },
   audioSecondaryButton: {
     flex: 1,
+    minWidth: 140,
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 10,

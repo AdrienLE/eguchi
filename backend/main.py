@@ -14,6 +14,7 @@ from fastapi.exception_handlers import http_exception_handler
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from .auth import verify_jwt, AUTH0_DOMAIN
+from .eguchi_audio import get_audio_pack_metadata
 import os
 from contextlib import asynccontextmanager
 from openai import OpenAI
@@ -402,6 +403,15 @@ def update_settings(
     return {"ok": True}
 
 
+@app.get("/api/eguchi/audio-pack")
+def get_eguchi_audio_pack():
+    try:
+        return get_audio_pack_metadata()
+    except (FileNotFoundError, ValueError) as error:
+        logger.warning(f"Eguchi audio pack metadata unavailable: {error}")
+        raise HTTPException(status_code=404, detail="Audio pack metadata unavailable") from error
+
+
 # Mount frontend static files AFTER all API routes are defined
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 frontend_eguchi_assets_path = os.path.realpath(
@@ -419,9 +429,7 @@ if os.path.isdir(frontend_path):
 
         @app.get("/assets/images/eguchi/{asset_path:path}")
         async def serve_eguchi_source_asset(asset_path: str):
-            resolved_path = os.path.realpath(
-                os.path.join(frontend_eguchi_assets_path, asset_path)
-            )
+            resolved_path = os.path.realpath(os.path.join(frontend_eguchi_assets_path, asset_path))
             if (
                 os.path.commonpath([resolved_path, frontend_eguchi_assets_path])
                 != frontend_eguchi_assets_path
@@ -450,7 +458,9 @@ if os.path.isdir(frontend_path):
 
         search_paths.append(os.path.join(dist_root, "assets", "images", "favicon.ico"))
         search_paths.append(
-            os.path.join(os.path.dirname(__file__), "..", "frontend", "assets", "images", "favicon.ico")
+            os.path.join(
+                os.path.dirname(__file__), "..", "frontend", "assets", "images", "favicon.ico"
+            )
         )
 
         for candidate in search_paths:
@@ -480,7 +490,9 @@ if os.path.isdir(frontend_path):
         # Serve static files in dist root directly when present (e.g., manifest, favicons)
         direct_file = os.path.realpath(os.path.join(frontend_path, path))
         dist_root = os.path.realpath(frontend_path)
-        if os.path.commonpath([direct_file, dist_root]) == dist_root and os.path.isfile(direct_file):
+        if os.path.commonpath([direct_file, dist_root]) == dist_root and os.path.isfile(
+            direct_file
+        ):
             return FileResponse(direct_file)
         # Serve HTML for routes (path -> path.html)
         html_file = os.path.realpath(os.path.join(frontend_path, f"{path}.html"))

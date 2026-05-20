@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from typing import Iterable
 
 
 PACK_NAME_PATTERN = re.compile(r"export const AUDIO_PACK_NAME = '([^']+)';")
+PACK_HASH_PATTERN = re.compile(r"export const AUDIO_PACK_HASH = '([^']+)';")
 CHORD_PATTERN = re.compile(r"^\s*'([^']+)':\s*\[")
 REQUIRE_PATTERN = re.compile(r"require\('([^']+)'\)")
 CHORD_ID_PATTERN = re.compile(r"id:\s*'([^']+)'")
@@ -20,6 +22,7 @@ CHORD_ID_PATTERN = re.compile(r"id:\s*'([^']+)'")
 @dataclass(frozen=True)
 class AudioPackReference:
     pack_name: str
+    pack_hash: str | None
     referenced_files_by_chord: dict[str, list[Path]]
 
     @property
@@ -36,6 +39,8 @@ def parse_audio_pack_references(audio_pack_ts: Path) -> AudioPackReference:
     if not pack_match:
         raise ValueError(f"Could not find AUDIO_PACK_NAME in {audio_pack_ts}")
     pack_name = pack_match.group(1)
+    hash_match = PACK_HASH_PATTERN.search(source)
+    pack_hash = hash_match.group(1) if hash_match else None
 
     referenced_files_by_chord: dict[str, list[Path]] = {}
     current_chord: str | None = None
@@ -54,7 +59,9 @@ def parse_audio_pack_references(audio_pack_ts: Path) -> AudioPackReference:
     if not referenced_files_by_chord:
         raise ValueError(f"No audio file references found in {audio_pack_ts}")
     return AudioPackReference(
-        pack_name=pack_name, referenced_files_by_chord=referenced_files_by_chord
+        pack_name=pack_name,
+        pack_hash=pack_hash,
+        referenced_files_by_chord=referenced_files_by_chord,
     )
 
 
@@ -72,6 +79,22 @@ def find_missing_source_files(reference: AudioPackReference) -> list[Path]:
 
 def find_unsafe_file_names(reference: AudioPackReference) -> list[str]:
     return sorted({path.name for path in reference.referenced_files if "#" in path.name})
+
+
+def compute_audio_pack_hash(reference: AudioPackReference) -> str:
+    pack_dir = next(iter(reference.referenced_files)).parent.parent
+    digest = hashlib.sha256()
+    for source_file in sorted(
+        reference.referenced_files,
+        key=lambda path: path.relative_to(pack_dir).as_posix(),
+    ):
+        relative_path = source_file.relative_to(pack_dir).as_posix()
+        file_digest = hashlib.sha256(source_file.read_bytes()).hexdigest()
+        digest.update(relative_path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(file_digest.encode("ascii"))
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def find_missing_chord_entries(
@@ -174,6 +197,18 @@ def main(argv: list[str] | None = None) -> int:
         if len(unsafe_file_names) > 30:
             print(f"... and {len(unsafe_file_names) - 30} more")
         return 1
+
+    if not reference.pack_hash:
+        print("Missing AUDIO_PACK_HASH in audio-pack.ts")
+        return 1
+
+    actual_hash = compute_audio_pack_hash(reference)
+    if actual_hash != reference.pack_hash:
+        print("Audio pack hash mismatch:")
+        print(f"- expected: {reference.pack_hash}")
+        print(f"- actual:   {actual_hash}")
+        return 1
+    print("Audio pack hash: OK")
 
     if args.check_dist:
         missing_dist_files = find_missing_dist_files(reference, dist_root)

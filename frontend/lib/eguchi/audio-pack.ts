@@ -3,6 +3,8 @@
 import type { EguchiChordId } from './chords';
 
 export const AUDIO_PACK_NAME = 'eguchi-pack-20260111-1631';
+export const AUDIO_PACK_HASH_ALGORITHM = 'sha256';
+export const AUDIO_PACK_HASH = 'cb5a0d9c83eebad5e8e4953d68c67792ec100ca513a108c40489d5792f19a0c7';
 type AudioModule = number;
 export type AudioEntry = { module: AudioModule; fileName: string };
 

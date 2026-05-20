@@ -134,9 +134,11 @@ def build_midi(
     track.append(MetaMessage("set_tempo", tempo=tempo, time=0))
 
     jitters = [
-        rng.randint(-config.start_jitter_ms, config.start_jitter_ms)
-        if config.start_jitter_ms
-        else 0
+        (
+            rng.randint(-config.start_jitter_ms, config.start_jitter_ms)
+            if config.start_jitter_ms
+            else 0
+        )
         for _ in notes
     ]
     offset_ms = -min(jitters) if jitters and min(jitters) < 0 else 0
@@ -522,7 +524,9 @@ def main() -> int:
                         "octave": octave,
                         "variant": variant,
                         "midiFile": f"midi/{filename}.mid",
-                        "audioFile": None if args.midi_only else f"audio/{filename}.{config.output_format}",
+                        "audioFile": (
+                            None if args.midi_only else f"audio/{filename}.{config.output_format}"
+                        ),
                     }
                 )
 

@@ -116,6 +116,38 @@ export const AUDIO_PACK_FILES_BY_CHORD = {
     assert missing == []
 
 
+def test_compute_audio_pack_hash_changes_with_source_bytes(tmp_path: Path):
+    module = load_module()
+    audio_pack_ts = tmp_path / "frontend" / "lib" / "eguchi" / "audio-pack.ts"
+    write_file(
+        audio_pack_ts,
+        """export const AUDIO_PACK_NAME = 'eguchi-pack-test';
+export const AUDIO_PACK_HASH = 'unused';
+export const AUDIO_PACK_FILES_BY_CHORD = {
+  'C-E-G': [
+    { module: require('../../assets/audio/eguchi-pack-test/audio/C-E-G__o-3__v-01.mp3') },
+  ],
+};""",
+    )
+    source_audio = (
+        tmp_path
+        / "frontend"
+        / "assets"
+        / "audio"
+        / "eguchi-pack-test"
+        / "audio"
+        / "C-E-G__o-3__v-01.mp3"
+    )
+    source_audio.parent.mkdir(parents=True, exist_ok=True)
+    source_audio.write_bytes(b"x")
+
+    reference = module.parse_audio_pack_references(audio_pack_ts)
+    first_hash = module.compute_audio_pack_hash(reference)
+    source_audio.write_bytes(b"updated")
+
+    assert module.compute_audio_pack_hash(reference) != first_hash
+
+
 def test_main_passes_for_real_repo_data():
     module = load_module()
     assert module.main([]) == 0

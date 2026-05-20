@@ -24,12 +24,18 @@ describe('eguchi animal assets', () => {
 
   test('native source uses bundled assets first, then emoji fallback', () => {
     expect(Object.keys(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID).length > 0).toBe(true);
-    expect(getChordAnimalImageSource('C-E-G', 'ios')).toBe(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['C-E-G']);
-    expect(getChordAnimalImageSource('F-A-C', 'android')).toBe(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['F-A-C']);
+    expect(getChordAnimalImageSource('C-E-G', 'ios')).toBe(
+      CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['C-E-G']
+    );
+    expect(getChordAnimalImageSource('F-A-C', 'android')).toBe(
+      CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['F-A-C']
+    );
   });
 
   test('sad emotion uses bundled sad images when available', () => {
-    expect(getChordAnimalWebPath('C-E-G', 'sad')).toBe('/assets/images/eguchi/animals/fox__sad.png');
+    expect(getChordAnimalWebPath('C-E-G', 'sad')).toBe(
+      '/assets/images/eguchi/animals/fox__sad.png'
+    );
     expect(getChordAnimalImageSource('C-E-G', 'web', { emotion: 'sad' })).toBe(
       CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID['C-E-G']
     );

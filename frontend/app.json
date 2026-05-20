@@ -27,7 +27,12 @@
       "favicon": "./assets/images/eguchi/ui/app-icon.png"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "origin": "https://eguchi-api-production.up.railway.app"
+        }
+      ],
       [
         "expo-splash-screen",
         {

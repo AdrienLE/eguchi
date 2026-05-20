@@ -5,6 +5,10 @@ describe('Expo app configuration', () => {
   test('production iPad build supports rotation', () => {
     expect(appJson.expo.orientation).toBe('default');
     expect(appJson.expo.ios.supportsTablet).toBe(true);
+    expect(appJson.expo.plugins[0]).toEqual([
+      'expo-router',
+      { origin: 'https://eguchi-api-production.up.railway.app' },
+    ]);
   });
 
   test('production EAS profiles target Railway and include a simulator build', () => {

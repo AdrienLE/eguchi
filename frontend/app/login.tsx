@@ -1,11 +1,16 @@
-import { Button, StyleSheet, View, ActivityIndicator } from 'react-native';
+import { Button, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { ThemedView } from '@/components/ThemedView';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { getEguchiTheme } from '@/lib/eguchi/theme';
 
 export default function LoginScreen() {
   const { login, token, loading } = useAuth();
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const theme = getEguchiTheme(colorScheme);
 
   useEffect(() => {
     if (!loading && token) {
@@ -13,9 +18,13 @@ export default function LoginScreen() {
     }
   }, [token, loading]);
   return (
-    <View style={styles.container}>
-      {loading ? <ActivityIndicator /> : <Button title="Sign In" onPress={login} />}
-    </View>
+    <ThemedView style={styles.container}>
+      {loading ? (
+        <ActivityIndicator color={theme.tint} />
+      ) : (
+        <Button title="Sign In" color={theme.tint} onPress={login} />
+      )}
+    </ThemedView>
   );
 }
 

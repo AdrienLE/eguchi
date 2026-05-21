@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, useAuthRequest, ResponseType } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import jwtDecode from 'jwt-decode';
+import { TOKEN_KEY, resolveStoredAuthToken } from './auth-state';
 
 // Close the Auth0 popup on web if a redirect back to the app occurred
 WebBrowser.maybeCompleteAuthSession();
@@ -31,8 +32,7 @@ const discovery = {
   revocationEndpoint: `https://${process.env.EXPO_PUBLIC_AUTH0_DOMAIN}/oauth/revoke`,
 };
 
-const TOKEN_KEY = 'auth_token';
-const SILENT_AUTH_ATTEMPT_KEY = 'auth_silent_attempted';
+const SILENT_AUTH_ATTEMPT_KEY = 'eguchi_auth_silent_attempted';
 const URL_SCHEME = process.env.EXPO_PUBLIC_URL_SCHEME || 'eguchieartrainer';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -94,94 +94,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        // Otherwise, load from stored token
+        // Otherwise, load this app's stored token. The key is app-specific so a token from
+        // another base-app-derived localhost build cannot sign into Eguchi.
         const stored = await AsyncStorage.getItem(TOKEN_KEY);
-        if (stored) {
-          try {
-            const payload: { exp?: number } = jwtDecode(stored);
-            if (!payload.exp || payload.exp * 1000 > Date.now()) {
-              setTokenState(stored);
-            } else {
-              // Token is expired - clear it completely
-              console.log('Token expired, clearing authentication');
-              await AsyncStorage.removeItem(TOKEN_KEY);
-              setTokenState(null); // Clear the state too!
+        const storedTokenDecision = resolveStoredAuthToken(stored);
+        if (storedTokenDecision.token) {
+          setTokenState(storedTokenDecision.token);
+        } else if (storedTokenDecision.shouldClearStoredToken) {
+          console.log('Stored Eguchi token expired or was invalid, clearing authentication');
+          await AsyncStorage.removeItem(TOKEN_KEY);
+          setTokenState(null);
 
-              // Attempt silent re-auth on web if the user still has an Auth0 session
-              if (Platform.OS === 'web') {
-                try {
-                  const attempted = sessionStorage.getItem(SILENT_AUTH_ATTEMPT_KEY);
-                  if (!attempted) {
-                    sessionStorage.setItem(SILENT_AUTH_ATTEMPT_KEY, '1');
-                    const auth0Domain = process.env.EXPO_PUBLIC_AUTH0_DOMAIN;
-                    const clientId = process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID;
-                    const audience = process.env.EXPO_PUBLIC_AUTH0_AUDIENCE;
-                    const silentUrl =
-                      `https://${auth0Domain}/authorize?` +
-                      new URLSearchParams({
-                        response_type: 'token',
-                        client_id: clientId ?? '',
-                        redirect_uri: redirectUri,
-                        scope: 'openid profile email',
-                        audience: audience ?? '',
-                        prompt: 'none',
-                      }).toString();
-                    console.log('Attempting silent auth via redirect');
-                    // Use replace() to avoid polluting history
-                    window.location.replace(silentUrl);
-                    return; // Stop further processing; navigation will occur
-                  }
-                } catch (e) {
-                  console.log('Silent auth attempt skipped due to sessionStorage error:', e);
-                }
-              } else {
-                // On native, try a best-effort silent login using system browser cookies
-                try {
-                  await tryNativeSilentLogin();
-                  // If successful, tryNativeSilentLogin will set token
-                } catch (e) {
-                  console.log('Native silent login failed or not available:', e);
-                }
+          // Attempt silent re-auth only after this app had an Eguchi token. A fresh local-first
+          // session stays signed out until the caregiver chooses account sync.
+          if (Platform.OS === 'web') {
+            try {
+              const attempted = sessionStorage.getItem(SILENT_AUTH_ATTEMPT_KEY);
+              if (!attempted) {
+                sessionStorage.setItem(SILENT_AUTH_ATTEMPT_KEY, '1');
+                const auth0Domain = process.env.EXPO_PUBLIC_AUTH0_DOMAIN;
+                const clientId = process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID;
+                const audience = process.env.EXPO_PUBLIC_AUTH0_AUDIENCE;
+                const silentUrl =
+                  `https://${auth0Domain}/authorize?` +
+                  new URLSearchParams({
+                    response_type: 'token',
+                    client_id: clientId ?? '',
+                    redirect_uri: redirectUri,
+                    scope: 'openid profile email',
+                    audience: audience ?? '',
+                    prompt: 'none',
+                  }).toString();
+                console.log('Attempting silent auth via redirect');
+                window.location.replace(silentUrl);
+                return;
               }
+            } catch (e) {
+              console.log('Silent auth attempt skipped due to sessionStorage error:', e);
             }
-          } catch {
-            // Invalid token - clear it completely
-            console.log('Invalid token, clearing authentication');
-            await AsyncStorage.removeItem(TOKEN_KEY);
-            setTokenState(null); // Clear the state too!
-
-            // Attempt silent re-auth on web once
-            if (Platform.OS === 'web') {
-              try {
-                const attempted = sessionStorage.getItem(SILENT_AUTH_ATTEMPT_KEY);
-                if (!attempted) {
-                  sessionStorage.setItem(SILENT_AUTH_ATTEMPT_KEY, '1');
-                  const auth0Domain = process.env.EXPO_PUBLIC_AUTH0_DOMAIN;
-                  const clientId = process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID;
-                  const audience = process.env.EXPO_PUBLIC_AUTH0_AUDIENCE;
-                  const silentUrl =
-                    `https://${auth0Domain}/authorize?` +
-                    new URLSearchParams({
-                      response_type: 'token',
-                      client_id: clientId ?? '',
-                      redirect_uri: redirectUri,
-                      scope: 'openid profile email',
-                      audience: audience ?? '',
-                      prompt: 'none',
-                    }).toString();
-                  console.log('Attempting silent auth via redirect');
-                  window.location.replace(silentUrl);
-                  return;
-                }
-              } catch (e) {
-                console.log('Silent auth attempt skipped due to sessionStorage error:', e);
-              }
-            } else {
-              try {
-                await tryNativeSilentLogin();
-              } catch (e) {
-                console.log('Native silent login failed or not available:', e);
-              }
+          } else {
+            try {
+              await tryNativeSilentLogin();
+            } catch (e) {
+              console.log('Native silent login failed or not available:', e);
             }
           }
         }

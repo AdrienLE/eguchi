@@ -10,8 +10,8 @@
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "development",
         "EXPO_PUBLIC_AUTH0_DOMAIN": "dev-dv5sxg3q0hnih5mb.us.auth0.com",
-        "EXPO_PUBLIC_AUTH0_CLIENT_ID": "13AcdsTmghcCiqn9ex4ChDHOJabK1zVq",
-        "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://dev-dv5sxg3q0hnih5mb.us.auth0.com/api/v2/"
+        "EXPO_PUBLIC_AUTH0_CLIENT_ID": "anmRxoN5x2uWiXdjAyXe33kW4d8N81Vj",
+        "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://eguchi-api-production.up.railway.app/api"
       }
     },
     "staging": {
@@ -19,8 +19,8 @@
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "staging",
         "EXPO_PUBLIC_AUTH0_DOMAIN": "dev-dv5sxg3q0hnih5mb.us.auth0.com",
-        "EXPO_PUBLIC_AUTH0_CLIENT_ID": "13AcdsTmghcCiqn9ex4ChDHOJabK1zVq",
-        "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://dev-dv5sxg3q0hnih5mb.us.auth0.com/api/v2/"
+        "EXPO_PUBLIC_AUTH0_CLIENT_ID": "anmRxoN5x2uWiXdjAyXe33kW4d8N81Vj",
+        "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://eguchi-api-production.up.railway.app/api"
       }
     },
     "production": {

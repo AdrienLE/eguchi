@@ -14,7 +14,6 @@ import {
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/auth/AuthContext';
-import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { resolveAudioPlaybackSource } from '@/lib/eguchi/audio-assets';
 import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
@@ -58,6 +57,7 @@ import {
   loadEguchiSessionPreferences,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
+import { getEguchiTheme } from '@/lib/eguchi/theme';
 
 const CONTENT_HORIZONTAL_PADDING = 24;
 const CONTENT_VERTICAL_PADDING = 20;
@@ -208,6 +208,7 @@ const ANIMAL_EMOJIS: Record<EguchiChordId, string> = {
 export default function HomeScreen() {
   const { token } = useAuth();
   const colorScheme = useColorScheme();
+  const theme = getEguchiTheme(colorScheme);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
@@ -852,13 +853,8 @@ export default function HomeScreen() {
       dailyAttemptTarget: activeSessionPreferences.dailyAttemptTarget,
     });
   }, [progress, sessionPreferences]);
-  const isDarkMode = colorScheme === 'dark';
-  const buttonBackground = Colors[colorScheme ?? 'light'].tint;
-  const startCardBackground = isDarkMode ? '#242628' : '#FFFFFF';
-  const startCardBorderColor = isDarkMode ? '#3E4448' : '#D0D0D0';
-  const startTitleColor = Colors[colorScheme ?? 'light'].text;
-  const startSubtitleColor = isDarkMode ? '#C9CED3' : '#4B5560';
-  const startBadgeTextColor = isDarkMode ? '#111111' : '#FFFFFF';
+  const buttonBackground = theme.tint;
+  const startBadgeTextColor = theme.isDark ? '#06202B' : '#FFFFFF';
   const autoAdvanceMs = getAutoAdvanceDurationMs(
     (sessionPreferences ?? defaultSessionPreferences.current).feedbackSeconds
   );
@@ -1092,7 +1088,12 @@ export default function HomeScreen() {
             ) : null}
           </View>
           {progressionStatus ? (
-            <View style={styles.missionCard}>
+            <View
+              style={[
+                styles.missionCard,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
+            >
               <ThemedText style={styles.missionTitle}>🎯 Today</ThemedText>
               <View style={styles.missionRow}>
                 <ThemedText style={styles.missionLabel}>🧩 Rounds</ThemedText>
@@ -1100,7 +1101,7 @@ export default function HomeScreen() {
                   {progressionStatus.todaySummary.attempts}/{progressionStatus.dailyAttemptTarget}
                 </ThemedText>
               </View>
-              <View style={styles.progressTrack}>
+              <View style={[styles.progressTrack, { backgroundColor: theme.track }]}>
                 <View style={[styles.progressFill, { width: `${missionProgress * 100}%` }]} />
               </View>
 
@@ -1110,7 +1111,7 @@ export default function HomeScreen() {
                   {formatPercent(successProgress)}
                 </ThemedText>
               </View>
-              <View style={styles.progressTrack}>
+              <View style={[styles.progressTrack, { backgroundColor: theme.track }]}>
                 <View
                   style={[
                     styles.progressFill,
@@ -1126,7 +1127,7 @@ export default function HomeScreen() {
                   {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
                 </ThemedText>
               </View>
-              <View style={styles.progressTrack}>
+              <View style={[styles.progressTrack, { backgroundColor: theme.track }]}>
                 <View
                   style={[
                     styles.progressFill,
@@ -1142,8 +1143,18 @@ export default function HomeScreen() {
                   : '🏆 All animal sounds unlocked.'}
               </ThemedText>
               {unlockAnnouncement ? (
-                <View style={styles.unlockBanner}>
-                  <ThemedText style={styles.unlockBannerText}>{unlockAnnouncement}</ThemedText>
+                <View
+                  style={[
+                    styles.unlockBanner,
+                    {
+                      backgroundColor: theme.successSurface,
+                      borderColor: theme.successBorder,
+                    },
+                  ]}
+                >
+                  <ThemedText style={[styles.unlockBannerText, { color: theme.successText }]}>
+                    {unlockAnnouncement}
+                  </ThemedText>
                 </View>
               ) : null}
             </View>
@@ -1236,8 +1247,8 @@ export default function HomeScreen() {
             style={[
               styles.startCard,
               {
-                backgroundColor: startCardBackground,
-                borderColor: startCardBorderColor,
+                backgroundColor: theme.surfaceElevated,
+                borderColor: theme.border,
               },
             ]}
           >
@@ -1246,10 +1257,8 @@ export default function HomeScreen() {
                 🔊
               </ThemedText>
             </View>
-            <ThemedText style={[styles.startTitle, { color: startTitleColor }]}>
-              Tap To Start
-            </ThemedText>
-            <ThemedText style={[styles.startSubtitle, { color: startSubtitleColor }]}>
+            <ThemedText style={[styles.startTitle, { color: theme.text }]}>Tap To Start</ThemedText>
+            <ThemedText style={[styles.startSubtitle, { color: theme.subtleText }]}>
               Listen, then tap the matching animal
             </ThemedText>
           </Pressable>

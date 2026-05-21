@@ -10,10 +10,12 @@ import { Colors } from '@/constants/Colors';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { ThemedText } from '@/components/ThemedText';
 import { api } from '@/lib/api';
+import { getEguchiTheme } from '@/lib/eguchi/theme';
 
 export function ProfileMenu() {
   const { logout, token } = useAuth();
   const colorScheme = useColorScheme();
+  const theme = getEguchiTheme(colorScheme);
   const [open, setOpen] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState('');
 
@@ -60,7 +62,8 @@ export function ProfileMenu() {
             style={[
               styles.menu,
               {
-                backgroundColor: Colors[colorScheme ?? 'light'].background,
+                backgroundColor: theme.surfaceElevated,
+                borderColor: theme.border,
                 top: Platform.OS === 'web' ? 55 : Platform.OS === 'android' ? 52 : 48,
                 right: Platform.OS === 'web' ? 8 : 16,
               },
@@ -85,6 +88,7 @@ const styles = StyleSheet.create({
   menu: {
     position: 'absolute',
     borderRadius: 8,
+    borderWidth: 1,
     elevation: 3,
     shadowColor: '#000',
     shadowOpacity: 0.1,

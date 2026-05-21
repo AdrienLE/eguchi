@@ -12,6 +12,12 @@ describe('Expo app configuration', () => {
   });
 
   test('production EAS profiles target Railway and include a simulator build', () => {
+    expect(easJson.build.development.env.EXPO_PUBLIC_AUTH0_CLIENT_ID).toBe(
+      'anmRxoN5x2uWiXdjAyXe33kW4d8N81Vj'
+    );
+    expect(easJson.build.staging.env.EXPO_PUBLIC_AUTH0_AUDIENCE).toBe(
+      'https://eguchi-api-production.up.railway.app/api'
+    );
     expect(easJson.build.production.env.EXPO_PUBLIC_API_URL_PRODUCTION).toBe(
       'https://eguchi-api-production.up.railway.app'
     );

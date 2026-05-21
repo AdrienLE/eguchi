@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '@/auth/AuthContext';
+import { getEguchiTheme } from '@/lib/eguchi/theme';
 import { getRootContentFrameStyle, getSettingsPresentation } from '@/lib/platform-layout';
 
 export default function RootLayout() {
@@ -19,6 +20,7 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const theme = getEguchiTheme(colorScheme);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -32,7 +34,7 @@ function RootLayoutNav() {
           flex: 1,
           alignItems: 'center',
           width: '100%',
-          backgroundColor: colorScheme === 'dark' ? '#0a0b0c' : '#f5f5f5',
+          backgroundColor: theme.appBackground,
         }}
       >
         <View style={getRootContentFrameStyle()}>

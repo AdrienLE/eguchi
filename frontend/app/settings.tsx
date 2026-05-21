@@ -65,6 +65,7 @@ import {
   SETTINGS_CONTENT_MAX_WIDTH,
   getSettingsAnimalGridLayout,
 } from '@/lib/eguchi/settings-layout';
+import { getEguchiTheme } from '@/lib/eguchi/theme';
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 const formatTimestamp = (isoTime: string | null) =>
@@ -103,9 +104,10 @@ const sanitizeDecimalInput = (value: string) => {
 };
 
 export default function SettingsScreen() {
-  const { token } = useAuth();
+  const { token, login, logout, loading: authLoading } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
+  const theme = getEguchiTheme(colorScheme);
   const { width: windowWidth } = useWindowDimensions();
   const [progress, setProgress] = useState<EguchiProgress>(createDefaultEguchiProgress());
   const [sessionPreferences, setSessionPreferences] = useState<EguchiSessionPreferences>(
@@ -493,6 +495,7 @@ export default function SettingsScreen() {
 
   const tintColor = Colors[colorScheme ?? 'light'].tint;
   const iconColor = Colors[colorScheme ?? 'light'].icon;
+  const primaryButtonTextColor = theme.isDark ? '#06202B' : '#FFFFFF';
   const audioProgressPercent = audioProgress
     ? clampProgress(audioProgress.completed / Math.max(1, audioProgress.total))
     : 0;
@@ -545,8 +548,49 @@ export default function SettingsScreen() {
               Manage training level, progression goals, offline audio, and local data.
             </ThemedText>
             <ThemedText style={styles.subtitleNote}>
-              No login is required. These settings are saved on this device.
+              Sign in is optional. Practice works offline and syncs when an account is connected.
             </ThemedText>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Account Sync</ThemedText>
+          </View>
+
+          <View
+            style={[
+              styles.accountCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <View style={styles.accountTextGroup}>
+              <ThemedText style={styles.accountStatus}>
+                {token ? 'Signed in' : 'Not signed in'}
+              </ThemedText>
+              <ThemedText style={[styles.accountDetail, { color: theme.subtleText }]}>
+                {token
+                  ? 'Progress and caregiver settings save locally first, then sync to this account.'
+                  : 'This device keeps working locally. Sign in only when you want account sync.'}
+              </ThemedText>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={token ? logout : login}
+              disabled={authLoading}
+              style={[
+                styles.accountButton,
+                {
+                  backgroundColor: token ? theme.surfaceMuted : tintColor,
+                  borderColor: token ? theme.border : tintColor,
+                },
+                authLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText
+                style={[styles.accountButtonText, token ? null : { color: primaryButtonTextColor }]}
+              >
+                {token ? 'Sign Out' : 'Sign In'}
+              </ThemedText>
+            </Pressable>
           </View>
 
           <View style={styles.sectionHeader}>
@@ -554,9 +598,19 @@ export default function SettingsScreen() {
             {savingSession ? <ActivityIndicator size="small" color={tintColor} /> : null}
           </View>
 
-          <View style={styles.progressionCard}>
+          <View
+            style={[
+              styles.progressionCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
             <View style={styles.metricGrid}>
-              <View style={styles.metricTile}>
+              <View
+                style={[
+                  styles.metricTile,
+                  { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
+                ]}
+              >
                 <ThemedText style={styles.metricLabel}>Today</ThemedText>
                 <ThemedText style={styles.metricValue}>
                   {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}
@@ -565,7 +619,12 @@ export default function SettingsScreen() {
                   target {progressionStatus.dailyAttemptTarget}
                 </ThemedText>
               </View>
-              <View style={styles.metricTile}>
+              <View
+                style={[
+                  styles.metricTile,
+                  { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
+                ]}
+              >
                 <ThemedText style={styles.metricLabel}>Perfect-day streak</ThemedText>
                 <ThemedText style={styles.metricValue}>
                   {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
@@ -574,7 +633,12 @@ export default function SettingsScreen() {
                   {progressionStatus.isTodayPerfect ? 'today is perfect' : 'today in progress'}
                 </ThemedText>
               </View>
-              <View style={styles.metricTile}>
+              <View
+                style={[
+                  styles.metricTile,
+                  { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
+                ]}
+              >
                 <ThemedText style={styles.metricLabel}>Days to unlock</ThemedText>
                 <ThemedText style={styles.metricValue}>
                   {progressionStatus.isMaxLevel ? '0' : progressionStatus.daysRemaining}
@@ -583,7 +647,12 @@ export default function SettingsScreen() {
                   {progressionStatus.isMaxLevel ? 'all animals active' : 'until next animal'}
                 </ThemedText>
               </View>
-              <View style={styles.metricTile}>
+              <View
+                style={[
+                  styles.metricTile,
+                  { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
+                ]}
+              >
                 <ThemedText style={styles.metricLabel}>Total accuracy</ThemedText>
                 <ThemedText style={styles.metricValue}>
                   {formatPercent(snapshot.totalAccuracy)}
@@ -592,7 +661,7 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            <View style={styles.streakTrack}>
+            <View style={[styles.streakTrack, { backgroundColor: theme.track }]}>
               <View style={[styles.streakFill, { width: `${streakProgress * 100}%` }]} />
             </View>
 
@@ -730,7 +799,12 @@ export default function SettingsScreen() {
             {savingProgress ? <ActivityIndicator size="small" color={tintColor} /> : null}
           </View>
 
-          <View style={styles.levelCard}>
+          <View
+            style={[
+              styles.levelCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
             <View style={styles.levelHeaderRow}>
               <View style={styles.levelTitleGroup}>
                 <ThemedText style={styles.levelLabel}>Active animals</ThemedText>
@@ -770,7 +844,7 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            <View style={styles.levelTrack}>
+            <View style={[styles.levelTrack, { backgroundColor: theme.track }]}>
               <View style={[styles.levelFill, { width: `${levelProgress * 100}%` }]} />
             </View>
 
@@ -797,12 +871,13 @@ export default function SettingsScreen() {
                     style={[
                       styles.animalLevelCard,
                       {
+                        backgroundColor: isEnabled ? theme.surface : theme.lockedSurface,
                         width: animalGridCardWidth,
                         borderColor: isCurrentLevel
                           ? tintColor
                           : isEnabled
                             ? chord.color.hex
-                            : '#D7DDE2',
+                            : theme.lockedBorder,
                       },
                       !isEnabled && styles.animalLevelCardLocked,
                       isCurrentLevel && styles.animalLevelCardCurrent,
@@ -812,14 +887,14 @@ export default function SettingsScreen() {
                     <View
                       style={[
                         styles.animalLevelStripe,
-                        { backgroundColor: isEnabled ? chord.color.hex : '#D3D9DE' },
+                        { backgroundColor: isEnabled ? chord.color.hex : theme.lockedFill },
                       ]}
                     />
                     <View style={styles.animalLevelTopRow}>
                       <View
                         style={[
                           styles.animalLevelNumber,
-                          { backgroundColor: isEnabled ? tintColor : '#E2E6EA' },
+                          { backgroundColor: isEnabled ? tintColor : theme.lockedFill },
                         ]}
                       >
                         <ThemedText
@@ -834,11 +909,14 @@ export default function SettingsScreen() {
                       <View
                         style={[
                           styles.animalLevelStatus,
-                          isEnabled && { backgroundColor: `${tintColor}22` },
+                          { backgroundColor: isEnabled ? `${tintColor}22` : theme.lockedFill },
                         ]}
                       >
                         <ThemedText
-                          style={[styles.animalLevelStatusText, isEnabled && { color: tintColor }]}
+                          style={[
+                            styles.animalLevelStatusText,
+                            { color: isEnabled ? tintColor : theme.subtleText },
+                          ]}
                         >
                           {statusLabel}
                         </ThemedText>
@@ -870,7 +948,7 @@ export default function SettingsScreen() {
                       <View
                         style={[
                           styles.colorDot,
-                          { backgroundColor: isEnabled ? chord.color.hex : '#B8C0C7' },
+                          { backgroundColor: isEnabled ? chord.color.hex : theme.lockedFill },
                         ]}
                       />
                       <ThemedText
@@ -899,7 +977,12 @@ export default function SettingsScreen() {
             ) : null}
           </View>
 
-          <View style={styles.audioCard}>
+          <View
+            style={[
+              styles.audioCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
             <View style={styles.summaryRow}>
               <ThemedText style={styles.summaryLabel}>Pack</ThemedText>
               <ThemedText style={styles.summaryValue}>{AUDIO_PACK_NAME}</ThemedText>
@@ -946,7 +1029,7 @@ export default function SettingsScreen() {
                 <ThemedText style={styles.audioProgressText}>
                   {audioProgress.completed}/{audioProgress.total} · {audioProgress.fileName}
                 </ThemedText>
-                <View style={styles.audioProgressTrack}>
+                <View style={[styles.audioProgressTrack, { backgroundColor: theme.track }]}>
                   <View
                     style={[styles.audioProgressFill, { width: `${audioProgressPercent * 100}%` }]}
                   />
@@ -981,7 +1064,11 @@ export default function SettingsScreen() {
                   audioControlsDisabled && styles.buttonDisabled,
                 ]}
               >
-                <ThemedText style={styles.audioPrimaryButtonText}>Download All</ThemedText>
+                <ThemedText
+                  style={[styles.audioPrimaryButtonText, { color: primaryButtonTextColor }]}
+                >
+                  Download All
+                </ThemedText>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -1003,8 +1090,16 @@ export default function SettingsScreen() {
             {savingProgress ? <ActivityIndicator size="small" color="#B42318" /> : null}
           </View>
 
-          <View style={styles.dangerCard}>
-            <ThemedText style={styles.dangerText}>
+          <View
+            style={[
+              styles.dangerCard,
+              {
+                backgroundColor: theme.dangerSurface,
+                borderColor: theme.dangerBorder,
+              },
+            ]}
+          >
+            <ThemedText style={[styles.dangerText, { color: theme.dangerText }]}>
               Reset removes local training history, streaks, and unlocked animals on this device.
             </ThemedText>
             <Pressable
@@ -1026,10 +1121,12 @@ export default function SettingsScreen() {
         presentationStyle="overFullScreen"
         onRequestClose={() => setResetConfirmVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.resetModal}>
-            <ThemedText style={styles.resetModalTitle}>Reset progress?</ThemedText>
-            <ThemedText style={styles.resetModalBody}>
+        <View style={[styles.modalBackdrop, { backgroundColor: theme.modalBackdrop }]}>
+          <View style={[styles.resetModal, { backgroundColor: theme.surface }]}>
+            <ThemedText style={[styles.resetModalTitle, { color: theme.text }]}>
+              Reset progress?
+            </ThemedText>
+            <ThemedText style={[styles.resetModalBody, { color: theme.subtleText }]}>
               This clears training history, streaks, and unlocked animals on this device. This
               cannot be undone.
             </ThemedText>
@@ -1037,9 +1134,14 @@ export default function SettingsScreen() {
               <Pressable
                 accessibilityRole="button"
                 onPress={() => setResetConfirmVisible(false)}
-                style={styles.resetCancelButton}
+                style={[
+                  styles.resetCancelButton,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
               >
-                <ThemedText style={styles.resetCancelText}>Cancel</ThemedText>
+                <ThemedText style={[styles.resetCancelText, { color: theme.text }]}>
+                  Cancel
+                </ThemedText>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -1099,6 +1201,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.75,
     lineHeight: 18,
+  },
+  accountCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  accountTextGroup: {
+    gap: 3,
+  },
+  accountStatus: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800',
+  },
+  accountDetail: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  accountButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  accountButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   progressionCard: {
     borderWidth: 1,
@@ -1168,7 +1300,6 @@ const styles = StyleSheet.create({
     minHeight: 132,
     borderRadius: 10,
     borderWidth: 1,
-    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
     paddingHorizontal: 8,
     paddingTop: 8,
@@ -1179,7 +1310,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   animalLevelCardLocked: {
-    backgroundColor: '#F3F5F6',
+    opacity: 0.82,
   },
   animalLevelStripe: {
     position: 'absolute',

@@ -5,7 +5,11 @@ describe('Expo app configuration', () => {
   test('production iPad build supports rotation', () => {
     expect(appJson.expo.orientation).toBe('default');
     expect(appJson.expo.ios.supportsTablet).toBe(true);
-    expect(appJson.expo.plugins[0]).toEqual([
+    expect(appJson.expo.plugins).toContain('./plugins/withFmtXcode26Fix');
+    const routerPlugin = appJson.expo.plugins.find(
+      (plugin: unknown) => Array.isArray(plugin) && plugin[0] === 'expo-router'
+    );
+    expect(routerPlugin).toEqual([
       'expo-router',
       { origin: 'https://eguchi-api-production.up.railway.app' },
     ]);

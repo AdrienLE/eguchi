@@ -27,6 +27,7 @@
       "favicon": "./assets/images/eguchi/ui/app-icon.png"
     },
     "plugins": [
+      "./plugins/withFmtXcode26Fix",
       [
         "expo-router",
         {

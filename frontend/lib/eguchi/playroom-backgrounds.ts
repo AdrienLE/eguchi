@@ -18,7 +18,7 @@ export type PlayroomBackground = {
 export const DEFAULT_PLAYROOM_BACKGROUND_ID: PlayroomBackgroundId = 'pink';
 
 export const PLAYROOM_BACKGROUNDS: readonly PlayroomBackground[] = [
-  { id: 'pink', label: 'Pink', color: '#FFE7F1' },
+  { id: 'pink', label: 'Pink', color: '#FFD6E7' },
   { id: 'cloud', label: 'Cloud', color: '#F5F7F8' },
   { id: 'sky', label: 'Sky', color: '#E7F5FF' },
   { id: 'lavender', label: 'Lavender', color: '#EEE9FF' },

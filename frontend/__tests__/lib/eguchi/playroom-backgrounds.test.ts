@@ -11,7 +11,7 @@ describe('playroom backgrounds', () => {
     expect(PLAYROOM_BACKGROUNDS[0]).toEqual({
       id: 'pink',
       label: 'Pink',
-      color: '#FFE7F1',
+      color: '#FFD6E7',
     });
     expect(new Set(PLAYROOM_BACKGROUNDS.map(background => background.id)).size).toBe(6);
     for (const background of PLAYROOM_BACKGROUNDS) {

@@ -6,19 +6,20 @@ from fastapi import (
     HTTPException,
     Request,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exception_handlers import http_exception_handler
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from .auth import verify_jwt, AUTH0_DOMAIN
 from .eguchi_audio import get_audio_pack_metadata
 import os
 import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from typing import Literal
 from openai import OpenAI
 import boto3
 from uuid import uuid4
@@ -36,6 +37,33 @@ logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
 
 models.Base.metadata.create_all(bind=engine)
+
+
+def _ensure_eguchi_trial_event_columns(target_engine) -> None:
+    """Add adaptive-learning event fields to databases created by older releases."""
+    inspector = inspect(target_engine)
+    if not inspector.has_table("eguchi_trial_events"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("eguchi_trial_events")}
+    missing_columns = {
+        "outcome": "VARCHAR",
+        "prompt_delay_ms": "INTEGER",
+    }
+    with target_engine.begin() as connection:
+        for column_name, column_type in missing_columns.items():
+            if column_name not in existing_columns:
+                logger.info("Adding %s column to eguchi_trial_events table", column_name)
+                connection.execute(
+                    text(f"ALTER TABLE eguchi_trial_events ADD COLUMN {column_name} {column_type}")
+                )
+
+
+try:
+    _ensure_eguchi_trial_event_columns(engine)
+except Exception as e:
+    logger.error("Eguchi trial event migration failed: %s", e)
+    # Continue so deployments with externally managed migrations can still start.
 
 # Manual migration to add new columns if they don't exist
 try:
@@ -211,6 +239,8 @@ class EguchiTrialEventIn(BaseModel):
     id: str
     chordId: str
     correct: bool
+    outcome: Literal["independent", "assisted", "corrected"] | None = None
+    promptDelayMs: int | None = Field(default=None, ge=0)
     timestamp: str
     clientId: str | None = None
     audioPackName: str | None = None
@@ -467,6 +497,8 @@ def _serialize_trial_event(event: models.EguchiTrialEvent) -> dict:
         "id": event.id,
         "chordId": event.chord_id,
         "correct": event.correct,
+        "outcome": event.outcome,
+        "promptDelayMs": event.prompt_delay_ms,
         "timestamp": event.timestamp,
         "clientId": event.client_id,
         "audioPackName": event.audio_pack_name,
@@ -526,6 +558,8 @@ def sync_eguchi_state(
                 client_id=event.clientId or data.clientId,
                 chord_id=event.chordId,
                 correct=event.correct,
+                outcome=event.outcome,
+                prompt_delay_ms=event.promptDelayMs,
                 timestamp=event.timestamp,
                 audio_pack_name=event.audioPackName,
                 audio_pack_hash=event.audioPackHash,

@@ -5,11 +5,17 @@ Additional tests for main.py to improve coverage
 import pytest
 from unittest.mock import patch, Mock
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from backend import models
-from backend.main import app, get_db, verify_jwt, generate_nugget
+from backend.main import (
+    _ensure_eguchi_trial_event_columns,
+    app,
+    generate_nugget,
+    get_db,
+    verify_jwt,
+)
 
 
 @pytest.fixture
@@ -233,6 +239,8 @@ class TestHealthAndSPA:
                     "id": "trial-1",
                     "chordId": "C-E-G",
                     "correct": True,
+                    "outcome": "independent",
+                    "promptDelayMs": 3000,
                     "timestamp": "2026-01-11T10:00:00.000Z",
                     "clientId": "client-a",
                     "audioPackName": "eguchi-pack-test",
@@ -255,6 +263,8 @@ class TestHealthAndSPA:
         body = response.json()
         assert body["acceptedEventIds"] == ["trial-1"]
         assert [event["id"] for event in body["trialEvents"]] == ["trial-1"]
+        assert body["trialEvents"][0]["outcome"] == "independent"
+        assert body["trialEvents"][0]["promptDelayMs"] == 3000
         assert body["progressState"]["data"]["unlockedChordIds"] == ["C-E-G", "F-A-C"]
         assert body["sessionPreferences"]["data"]["feedbackSeconds"] == 2
         assert body["serverEventCursor"]
@@ -266,6 +276,23 @@ class TestHealthAndSPA:
         duplicate_body = duplicate_response.json()
         assert duplicate_body["acceptedEventIds"] == ["trial-1"]
         assert [event["id"] for event in duplicate_body["trialEvents"]] == ["trial-1"]
+
+    def test_eguchi_trial_migration_adds_adaptive_learning_columns(self, tmp_path):
+        old_engine = create_engine(f"sqlite:///{tmp_path / 'old-eguchi.db'}")
+        with old_engine.begin() as connection:
+            connection.execute(
+                text(
+                    "CREATE TABLE eguchi_trial_events "
+                    "(id VARCHAR PRIMARY KEY, chord_id VARCHAR, correct BOOLEAN)"
+                )
+            )
+
+        _ensure_eguchi_trial_event_columns(old_engine)
+
+        columns = {
+            column["name"] for column in inspect(old_engine).get_columns("eguchi_trial_events")
+        }
+        assert {"outcome", "prompt_delay_ms"}.issubset(columns)
 
     def test_eguchi_sync_cursor_returns_only_new_events(self, client):
         c, _ = client

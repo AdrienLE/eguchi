@@ -24,6 +24,8 @@ class EguchiTrialEvent(Base):
     client_id = Column(String, nullable=False, index=True)
     chord_id = Column(String, nullable=False)
     correct = Column(Boolean, nullable=False)
+    outcome = Column(String, nullable=True)
+    prompt_delay_ms = Column(Integer, nullable=True)
     timestamp = Column(String, nullable=False)
     audio_pack_name = Column(String, nullable=True)
     audio_pack_hash = Column(String, nullable=True)

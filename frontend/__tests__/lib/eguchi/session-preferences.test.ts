@@ -11,6 +11,7 @@ import {
   setImportModeEnabled,
   setNoHintTrialsEnabled,
   setPerfectDaysRequired,
+  setPlayroomBackgroundId,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
 import { STORAGE_KEYS, type StorageService } from '@/lib/storage';
@@ -46,6 +47,7 @@ describe('eguchi session preferences', () => {
     expect(defaults.autoUnlockEnabled).toBe(false);
     expect(defaults.perfectDaysRequired).toBe(14);
     expect(defaults.dailyAttemptTarget).toBe(100);
+    expect(defaults.playroomBackgroundId).toBe('pink');
   });
 
   test('load sanitizes invalid values', async () => {
@@ -58,6 +60,7 @@ describe('eguchi session preferences', () => {
       autoUnlockEnabled: 'yes',
       perfectDaysRequired: 0,
       dailyAttemptTarget: 200,
+      playroomBackgroundId: 'neon-magenta',
     });
 
     const loaded = await loadEguchiSessionPreferences(storage);
@@ -71,6 +74,7 @@ describe('eguchi session preferences', () => {
     expect(loaded.autoUnlockEnabled).toBe(false);
     expect(loaded.perfectDaysRequired).toBe(1);
     expect(loaded.dailyAttemptTarget).toBe(100);
+    expect(loaded.playroomBackgroundId).toBe('pink');
   });
 
   test('setImportModeEnabled keeps at least one mode enabled', () => {
@@ -115,6 +119,13 @@ describe('eguchi session preferences', () => {
     expect(enabled.autoUnlockEnabled).toBe(true);
     expect(days.perfectDaysRequired).toBe(30);
     expect(attempts.dailyAttemptTarget).toBe(1);
+  });
+
+  test('playroom background setter updates the selected palette color', () => {
+    const defaults = createDefaultEguchiSessionPreferences();
+    const updated = setPlayroomBackgroundId(defaults, 'lavender');
+    expect(updated.playroomBackgroundId).toBe('lavender');
+    expect(defaults.playroomBackgroundId).toBe('pink');
   });
 
   test('save writes to expected storage key', async () => {

@@ -32,6 +32,7 @@ import {
   type EguchiAudioCacheMeta,
 } from '@/lib/eguchi/audio-cache';
 import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
+import { getCaregiverLearningSummary } from '@/lib/eguchi/caregiver-learning-summary';
 import { CHORD_BY_ID, ORDERED_CHORD_IDS } from '@/lib/eguchi/chords';
 import { getNextLevelProgress } from '@/lib/eguchi/progression';
 import {
@@ -48,9 +49,11 @@ import {
   createDefaultEguchiSessionPreferences,
   loadEguchiSessionPreferences,
   saveEguchiSessionPreferences,
+  setAdaptiveHintsEnabled,
   setAutoUnlockEnabled,
   setDailyAttemptTarget,
   setFeedbackSeconds,
+  setNoHintTrialsEnabled,
   setPerfectDaysRequired,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
@@ -270,7 +273,7 @@ export default function SettingsScreen() {
     } finally {
       setSavingProgress(false);
     }
-  }, []);
+  }, [syncSettingsData]);
 
   const handleConfirmResetProgress = useCallback(async () => {
     setResetConfirmVisible(false);
@@ -492,6 +495,37 @@ export default function SettingsScreen() {
     : clampProgress(
         progressionStatus.perfectDayStreak / Math.max(1, progressionStatus.perfectDaysRequired)
       );
+  const learningSummary = getCaregiverLearningSummary(
+    progress.learningPath,
+    sessionPreferences.adaptiveHintsEnabled
+  );
+  const progressMetrics = [
+    {
+      label: 'Today',
+      value: String(snapshot.todayAttempts),
+      detail: `first-tap ${formatPercent(snapshot.todayAccuracy)}`,
+    },
+    {
+      label: 'Independent',
+      value: String(snapshot.todayIndependent),
+      detail: `${snapshot.totalIndependent} total`,
+    },
+    {
+      label: 'Helped',
+      value: String(snapshot.todayAssisted),
+      detail: `${snapshot.totalAssisted} total`,
+    },
+    {
+      label: 'Corrected',
+      value: String(snapshot.todayCorrected),
+      detail: `${snapshot.totalCorrected} total`,
+    },
+    {
+      label: 'Total first-tap accuracy',
+      value: formatPercent(snapshot.totalAccuracy),
+      detail: `${snapshot.totalAttempts} rounds`,
+    },
+  ];
 
   const tintColor = Colors[colorScheme ?? 'light'].tint;
   const iconColor = Colors[colorScheme ?? 'light'].icon;
@@ -605,155 +639,191 @@ export default function SettingsScreen() {
             ]}
           >
             <View style={styles.metricGrid}>
-              <View
-                style={[
-                  styles.metricTile,
-                  { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
-                ]}
-              >
-                <ThemedText style={styles.metricLabel}>Today</ThemedText>
-                <ThemedText style={styles.metricValue}>
-                  {progressionStatus.todaySummary.correct}/{progressionStatus.todaySummary.attempts}
-                </ThemedText>
-                <ThemedText style={styles.metricDetail}>
-                  target {progressionStatus.dailyAttemptTarget}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.metricTile,
-                  { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
-                ]}
-              >
-                <ThemedText style={styles.metricLabel}>Perfect-day streak</ThemedText>
-                <ThemedText style={styles.metricValue}>
-                  {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
-                </ThemedText>
-                <ThemedText style={styles.metricDetail}>
-                  {progressionStatus.isTodayPerfect ? 'today is perfect' : 'today in progress'}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.metricTile,
-                  { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
-                ]}
-              >
-                <ThemedText style={styles.metricLabel}>Days to unlock</ThemedText>
-                <ThemedText style={styles.metricValue}>
-                  {progressionStatus.isMaxLevel ? '0' : progressionStatus.daysRemaining}
-                </ThemedText>
-                <ThemedText style={styles.metricDetail}>
-                  {progressionStatus.isMaxLevel ? 'all animals active' : 'until next animal'}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.metricTile,
-                  { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
-                ]}
-              >
-                <ThemedText style={styles.metricLabel}>Total accuracy</ThemedText>
-                <ThemedText style={styles.metricValue}>
-                  {formatPercent(snapshot.totalAccuracy)}
-                </ThemedText>
-                <ThemedText style={styles.metricDetail}>{snapshot.totalAttempts} rounds</ThemedText>
-              </View>
+              {progressMetrics.map(metric => (
+                <View
+                  key={metric.label}
+                  style={[
+                    styles.metricTile,
+                    { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
+                  ]}
+                >
+                  <ThemedText style={styles.metricLabel}>{metric.label}</ThemedText>
+                  <ThemedText style={styles.metricValue}>{metric.value}</ThemedText>
+                  <ThemedText style={styles.metricDetail}>{metric.detail}</ThemedText>
+                </View>
+              ))}
             </View>
 
-            <View style={[styles.streakTrack, { backgroundColor: theme.track }]}>
-              <View style={[styles.streakFill, { width: `${streakProgress * 100}%` }]} />
+            <View
+              style={[
+                styles.learningStatusCard,
+                { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
+              ]}
+            >
+              <ThemedText style={styles.learningStatusTitle}>
+                {learningSummary.stageLabel}
+              </ThemedText>
+              <View style={styles.summaryRow}>
+                <ThemedText style={styles.summaryLabel}>Current friend</ThemedText>
+                <ThemedText style={styles.summaryValue}>{learningSummary.focusLabel}</ThemedText>
+              </View>
+              <View style={styles.summaryRow}>
+                <ThemedText style={styles.summaryLabel}>Usual color-wink cue</ThemedText>
+                <ThemedText style={styles.summaryValue}>{learningSummary.hintLabel}</ThemedText>
+              </View>
+              <View style={styles.summaryRow}>
+                <ThemedText style={styles.summaryLabel}>Sound range</ThemedText>
+                <ThemedText style={styles.summaryValue}>
+                  {learningSummary.audioRangeLabel}
+                </ThemedText>
+              </View>
+              <View style={styles.summaryRow}>
+                <ThemedText style={styles.summaryLabel}>Recent independent rounds</ThemedText>
+                <ThemedText style={styles.summaryValue}>
+                  {learningSummary.recentIndependent}/{learningSummary.recentRounds}
+                </ThemedText>
+              </View>
+              <ThemedText style={[styles.controlDetail, { color: theme.subtleText }]}>
+                New friends arrive only after independent recognition generalizes across the audio
+                range.
+              </ThemedText>
             </View>
 
             <View style={styles.controlRow}>
-              <ThemedText style={styles.controlLabel}>Auto unlock</ThemedText>
+              <View style={styles.controlTextGroup}>
+                <ThemedText style={styles.controlLabel}>Adaptive learning path</ThemedText>
+                <ThemedText style={[styles.controlDetail, { color: theme.subtleText }]}>
+                  Start with one friend, then gradually delay and remove the color-wink cue.
+                </ThemedText>
+              </View>
               <Switch
-                value={sessionPreferences.autoUnlockEnabled}
+                value={sessionPreferences.adaptiveHintsEnabled}
                 onValueChange={enabled =>
-                  handleSessionUpdate(previous => setAutoUnlockEnabled(previous, enabled))
+                  handleSessionUpdate(previous => setAdaptiveHintsEnabled(previous, enabled))
                 }
                 trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
-                thumbColor={sessionPreferences.autoUnlockEnabled ? tintColor : iconColor}
+                thumbColor={sessionPreferences.adaptiveHintsEnabled ? tintColor : iconColor}
                 disabled={loading}
               />
             </View>
 
-            <View style={styles.stepperRow}>
-              <ThemedText style={styles.controlLabel}>Perfect days needed</ThemedText>
-              <View style={styles.stepperControls}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyPerfectDaysDelta(-1)}
-                  onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(-1))}
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
-                </Pressable>
-                <ThemedTextInput
-                  value={perfectDaysDraft}
-                  onChangeText={value => setPerfectDaysDraft(sanitizeIntegerInput(value))}
-                  onBlur={commitPerfectDaysDraft}
-                  onSubmitEditing={commitPerfectDaysDraft}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  selectTextOnFocus
-                  editable={!loading}
-                  style={[styles.stepInput, { borderColor: iconColor }]}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyPerfectDaysDelta(1)}
-                  onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(1))}
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
-                </Pressable>
+            <View style={styles.controlRow}>
+              <View style={styles.controlTextGroup}>
+                <ThemedText style={styles.controlLabel}>Occasional no-wink turns</ThemedText>
+                <ThemedText style={[styles.controlDetail, { color: theme.subtleText }]}>
+                  Every fourth eligible guided round quietly tests recognition without a cue.
+                </ThemedText>
               </View>
+              <Switch
+                value={sessionPreferences.noHintTrialsEnabled}
+                onValueChange={enabled =>
+                  handleSessionUpdate(previous => setNoHintTrialsEnabled(previous, enabled))
+                }
+                trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
+                thumbColor={sessionPreferences.noHintTrialsEnabled ? tintColor : iconColor}
+                disabled={loading || !sessionPreferences.adaptiveHintsEnabled}
+              />
             </View>
 
-            <View style={styles.stepperRow}>
-              <ThemedText style={styles.controlLabel}>Daily attempts target</ThemedText>
-              <View style={styles.stepperControls}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyDailyAttemptsDelta(-1)}
-                  onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(-1))}
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>-</ThemedText>
-                </Pressable>
-                <ThemedTextInput
-                  value={dailyAttemptsDraft}
-                  onChangeText={value => setDailyAttemptsDraft(sanitizeIntegerInput(value))}
-                  onBlur={commitDailyAttemptsDraft}
-                  onSubmitEditing={commitDailyAttemptsDraft}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  selectTextOnFocus
-                  editable={!loading}
-                  style={[styles.stepInput, { borderColor: iconColor }]}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => applyDailyAttemptsDelta(1)}
-                  onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(1))}
-                  onPressOut={clearStepRepeater}
-                  style={[styles.stepButton, { borderColor: iconColor }]}
-                  disabled={loading}
-                >
-                  <ThemedText style={styles.stepButtonText}>+</ThemedText>
-                </Pressable>
+            {!sessionPreferences.adaptiveHintsEnabled ? (
+              <View style={[styles.legacyControls, { borderTopColor: theme.borderMuted }]}>
+                <ThemedText style={[styles.controlDetail, { color: theme.subtleText }]}>
+                  Fixed-level mode can optionally unlock friends using the earlier daily-goal rules.
+                </ThemedText>
+                <View style={[styles.streakTrack, { backgroundColor: theme.track }]}>
+                  <View style={[styles.streakFill, { width: `${streakProgress * 100}%` }]} />
+                </View>
+                <View style={styles.controlRow}>
+                  <ThemedText style={styles.controlLabel}>Day-based auto unlock</ThemedText>
+                  <Switch
+                    value={sessionPreferences.autoUnlockEnabled}
+                    onValueChange={enabled =>
+                      handleSessionUpdate(previous => setAutoUnlockEnabled(previous, enabled))
+                    }
+                    trackColor={{ false: '#BDBDBD', true: `${tintColor}99` }}
+                    thumbColor={sessionPreferences.autoUnlockEnabled ? tintColor : iconColor}
+                    disabled={loading}
+                  />
+                </View>
+
+                <View style={styles.stepperRow}>
+                  <ThemedText style={styles.controlLabel}>Perfect days needed</ThemedText>
+                  <View style={styles.stepperControls}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => applyPerfectDaysDelta(-1)}
+                      onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(-1))}
+                      onPressOut={clearStepRepeater}
+                      style={[styles.stepButton, { borderColor: iconColor }]}
+                      disabled={loading}
+                    >
+                      <ThemedText style={styles.stepButtonText}>-</ThemedText>
+                    </Pressable>
+                    <ThemedTextInput
+                      value={perfectDaysDraft}
+                      onChangeText={value => setPerfectDaysDraft(sanitizeIntegerInput(value))}
+                      onBlur={commitPerfectDaysDraft}
+                      onSubmitEditing={commitPerfectDaysDraft}
+                      keyboardType="number-pad"
+                      returnKeyType="done"
+                      selectTextOnFocus
+                      editable={!loading}
+                      style={[styles.stepInput, { borderColor: iconColor }]}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => applyPerfectDaysDelta(1)}
+                      onPressIn={() => startRepeatingStep(() => applyPerfectDaysDelta(1))}
+                      onPressOut={clearStepRepeater}
+                      style={[styles.stepButton, { borderColor: iconColor }]}
+                      disabled={loading}
+                    >
+                      <ThemedText style={styles.stepButtonText}>+</ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.stepperRow}>
+                  <ThemedText style={styles.controlLabel}>Daily attempts target</ThemedText>
+                  <View style={styles.stepperControls}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => applyDailyAttemptsDelta(-1)}
+                      onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(-1))}
+                      onPressOut={clearStepRepeater}
+                      style={[styles.stepButton, { borderColor: iconColor }]}
+                      disabled={loading}
+                    >
+                      <ThemedText style={styles.stepButtonText}>-</ThemedText>
+                    </Pressable>
+                    <ThemedTextInput
+                      value={dailyAttemptsDraft}
+                      onChangeText={value => setDailyAttemptsDraft(sanitizeIntegerInput(value))}
+                      onBlur={commitDailyAttemptsDraft}
+                      onSubmitEditing={commitDailyAttemptsDraft}
+                      keyboardType="number-pad"
+                      returnKeyType="done"
+                      selectTextOnFocus
+                      editable={!loading}
+                      style={[styles.stepInput, { borderColor: iconColor }]}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => applyDailyAttemptsDelta(1)}
+                      onPressIn={() => startRepeatingStep(() => applyDailyAttemptsDelta(1))}
+                      onPressOut={clearStepRepeater}
+                      style={[styles.stepButton, { borderColor: iconColor }]}
+                      disabled={loading}
+                    >
+                      <ThemedText style={styles.stepButtonText}>+</ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
               </View>
-            </View>
+            ) : null}
 
             <View style={styles.stepperRow}>
-              <ThemedText style={styles.controlLabel}>Answer reveal seconds</ThemedText>
+              <ThemedText style={styles.controlLabel}>Success reaction seconds</ThemedText>
               <View style={styles.stepperControls}>
                 <Pressable
                   accessibilityRole="button"
@@ -1449,6 +1519,19 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     opacity: 0.72,
   },
+  learningStatusCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    gap: 7,
+  },
+  learningStatusTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
   streakTrack: {
     width: '100%',
     height: 8,
@@ -1464,10 +1547,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 14,
+  },
+  controlTextGroup: {
+    flex: 1,
+    gap: 2,
   },
   controlLabel: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  controlDetail: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  legacyControls: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    gap: 12,
   },
   stepperRow: {
     flexDirection: 'row',

@@ -1,13 +1,14 @@
 # Eguchi Ear Trainer - Next Steps
 
 ## Current State
+
 - Template app is scaffolded; Eguchi-specific work is underway.
-- The home screen now runs a playable Eguchi loop with fixed-per-card audio playback, child-first tile layout, timed auto-advance, stay/next controls, replay/skip controls at the bottom, and answer logging (`frontend/app/(tabs)/index.tsx`).
-- Local progress is persisted (unlocked chords, trial history, daily summaries) and shown directly in the UI (`frontend/lib/eguchi/progress.ts`, `frontend/app/(tabs)/index.tsx`).
+- The home screen now runs an adaptive Eguchi loop that begins with Fox alone, fades color-wink cues, retries gently until success, and reserves larger celebrations for independent recognition (`frontend/app/(tabs)/index.tsx`).
+- Local progress persists independent/assisted/corrected outcomes plus the cue and octave-learning stage; caregiver metrics are shown only in Settings (`frontend/lib/eguchi/progress.ts`, `frontend/app/settings.tsx`).
 - Navigation is now simplified to training + caregiver settings via a header gear (`frontend/app/(tabs)/_layout.tsx`, `frontend/app/index.tsx`).
 - Auth-gated routing for app entry has been removed in the UI shell (`frontend/app/_layout.tsx`), while auth modules remain in repo for now.
 - Caregiver settings now include audio pack cache management (download all, clear cache, progress UI, and cache metadata) via `frontend/lib/eguchi/audio-cache.ts` and `frontend/app/settings.tsx`.
-- Next-level progression status is now visible (current level, next chord, streak, days remaining), with subtle manual controls and auto-unlock settings (`frontend/lib/eguchi/progression.ts`, `frontend/app/settings.tsx`, `frontend/app/(tabs)/index.tsx`).
+- Adaptive progression status and experimental no-wink controls are visible in Caregiver Settings, with manual level controls and legacy day-based auto-unlock retained as a fallback (`frontend/lib/eguchi/learning-path.ts`, `frontend/app/settings.tsx`).
 - Visual assets are currently checked in as plain happy/sad animal PNGs under `frontend/assets/images/eguchi/animals/`.
 - The accessory image pipeline has been removed from the active app and deferred until it can produce clean production art.
 - Backend APIs are template defaults (nugget + profile settings) and not tied to Eguchi data (`backend/main.py`).
@@ -17,12 +18,14 @@
 - The training UI uses only base animal art; accessory shuffle/reset controls and caregiver force-plain settings are not active.
 
 ## Decisions To Confirm
+
 - **Spec source of truth:** `SPEC.md` is canonical.
 - **Auth:** the spec says no accounts/logins; decide whether to remove auth entirely or keep an optional caregiver profile.
 - **Data storage:** local-only (AsyncStorage/SQLite) vs optional backend sync/import/export.
 - **Audio packaging:** manifest vs directory scan, file formats, and offline caching strategy (mobile + web).
 
 ## Build Plan (v1 - Manual Progression)
+
 - [x] **MVP: make the training loop playable** (audio playback + replay, auto-advance, and random chord selection).
 - [x] **MVP: store local progress** (unlocked chords, trial history, and daily summaries).
 - [x] **MVP: basic caregiver settings** (unlock toggles and reset data).
@@ -34,5 +37,6 @@
 - [ ] **Defer animal accessory variants** until a clean production image pipeline is designed and tested.
 
 ## Later Phases
-- **v2:** refine auto-unlock tuning + notifications (core streak logic and visuals now scaffolded).
+
+- **v2:** refine adaptive mastery thresholds from playtesting + notifications.
 - **v3:** Stage 3 chord decomposition and single-note modes.

@@ -12,10 +12,22 @@ describe('playroom backgrounds', () => {
       id: 'pink',
       label: 'Pink',
       color: '#FFD6E7',
+      headerColor: '#F6AFC9',
+      accentColor: '#D85C8D',
+      surfaceColor: '#FFF5F9',
+      textColor: '#522638',
     });
     expect(new Set(PLAYROOM_BACKGROUNDS.map(background => background.id)).size).toBe(6);
     for (const background of PLAYROOM_BACKGROUNDS) {
-      expect(background.color).toMatch(/^#[0-9A-F]{6}$/);
+      for (const color of [
+        background.color,
+        background.headerColor,
+        background.accentColor,
+        background.surfaceColor,
+        background.textColor,
+      ]) {
+        expect(color).toMatch(/^#[0-9A-F]{6}$/);
+      }
     }
   });
 
@@ -31,6 +43,10 @@ describe('playroom backgrounds', () => {
       id: 'sky',
       label: 'Sky',
       color: '#E7F5FF',
+      headerColor: '#B9DDF5',
+      accentColor: '#3B82B1',
+      surfaceColor: '#F7FCFF',
+      textColor: '#17394E',
     });
   });
 });

@@ -17,7 +17,6 @@ import {
   type TrainingTileReaction,
 } from '@/components/eguchi/TrainingAnimalTile';
 import { useAuth } from '@/auth/AuthContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { resolveAudioPlaybackSource } from '@/lib/eguchi/audio-assets';
 import type { AudioEntry } from '@/lib/eguchi/audio-pack';
 import { pickTrainingAudioEntry } from '@/lib/eguchi/audio-selection';
@@ -64,7 +63,6 @@ import {
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
 import { getPlayroomBackground } from '@/lib/eguchi/playroom-backgrounds';
-import { getEguchiTheme } from '@/lib/eguchi/theme';
 
 const CONTENT_HORIZONTAL_PADDING = 24;
 const CONTENT_VERTICAL_PADDING = 20;
@@ -212,8 +210,6 @@ const ANIMAL_EMOJIS: Record<EguchiChordId, string> = {
 
 export default function HomeScreen() {
   const { token } = useAuth();
-  const colorScheme = useColorScheme();
-  const theme = getEguchiTheme(colorScheme);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
@@ -948,12 +944,12 @@ export default function HomeScreen() {
     startNewTrial();
   }, [isReady, startNewTrial]);
 
-  const buttonBackground = theme.tint;
   const playroomBackground = getPlayroomBackground(
     sessionPreferences?.playroomBackgroundId ?? 'pink'
   );
+  const buttonBackground = playroomBackground.accentColor;
   const playroomTextColor = getReadableTextColor(playroomBackground.color);
-  const startBadgeTextColor = theme.isDark ? '#06202B' : '#FFFFFF';
+  const startBadgeTextColor = getReadableTextColor(playroomBackground.accentColor);
   const showStartOverlay = !isLoading && !hasStartedTraining;
   const resolveAnimalImageCandidate = useCallback(
     (
@@ -1089,7 +1085,10 @@ export default function HomeScreen() {
               disabled={isLoading}
               style={[
                 styles.replayButton,
-                { backgroundColor: buttonBackground },
+                {
+                  backgroundColor: buttonBackground,
+                  borderColor: playroomBackground.surfaceColor,
+                },
                 isLoading && styles.buttonDisabled,
               ]}
             >
@@ -1118,8 +1117,8 @@ export default function HomeScreen() {
             style={[
               styles.startCard,
               {
-                backgroundColor: theme.surfaceElevated,
-                borderColor: theme.border,
+                backgroundColor: playroomBackground.surfaceColor,
+                borderColor: playroomBackground.headerColor,
               },
             ]}
           >
@@ -1128,8 +1127,10 @@ export default function HomeScreen() {
                 🔊
               </ThemedText>
             </View>
-            <ThemedText style={[styles.startTitle, { color: theme.text }]}>Tap To Start</ThemedText>
-            <ThemedText style={[styles.startSubtitle, { color: theme.subtleText }]}>
+            <ThemedText style={[styles.startTitle, { color: playroomBackground.textColor }]}>
+              Tap To Start
+            </ThemedText>
+            <ThemedText style={[styles.startSubtitle, { color: playroomBackground.textColor }]}>
               Listen, then tap the matching animal
             </ThemedText>
           </Pressable>
@@ -1163,6 +1164,7 @@ const styles = StyleSheet.create({
     width: 92,
     height: 92,
     borderRadius: 999,
+    borderWidth: 4,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',

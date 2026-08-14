@@ -22,6 +22,7 @@ const MAPPING = {
   plus: 'add',
   checkmark: 'check',
   'person.crop.circle': 'account-circle',
+  'person.2.fill': 'family-restroom',
   xmark: 'close',
 } as IconMapping;
 

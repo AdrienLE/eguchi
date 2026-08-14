@@ -3,6 +3,11 @@ import { storage, STORAGE_KEYS, type StorageService } from '@/lib/storage';
 import { AUDIO_PACK_HASH, AUDIO_PACK_NAME } from './audio-pack';
 import { isValidChordId, type EguchiChordId } from './chords';
 import {
+  isTrainingOutcome,
+  normalizeLearningPathState,
+  type EguchiLearningPathState,
+} from './learning-path';
+import {
   loadEguchiProgress,
   normalizeUnlockedChordIds,
   rebuildProgressWithTrialHistory,
@@ -14,6 +19,7 @@ import { loadEguchiSessionPreferences, type EguchiSessionPreferences } from './s
 export type EguchiProgressSyncState = {
   unlockedChordIds: EguchiChordId[];
   lastAutoUnlockDayKey: string | null;
+  learningPath?: EguchiLearningPathState;
   resetAt: string | null;
 };
 
@@ -146,6 +152,14 @@ const sanitizeTrialEvent = (candidate: unknown): EguchiTrialRecord | null => {
     id: maybeTrial.id.trim(),
     chordId: maybeTrial.chordId,
     correct: maybeTrial.correct,
+    outcome: isTrainingOutcome(maybeTrial.outcome) ? maybeTrial.outcome : null,
+    promptDelayMs:
+      maybeTrial.promptDelayMs === null ||
+      (typeof maybeTrial.promptDelayMs === 'number' &&
+        Number.isFinite(maybeTrial.promptDelayMs) &&
+        maybeTrial.promptDelayMs >= 0)
+        ? maybeTrial.promptDelayMs
+        : null,
     timestamp: new Date(maybeTrial.timestamp).toISOString(),
   };
 };
@@ -247,6 +261,7 @@ const toProgressSyncState = (
 ): EguchiProgressSyncState => ({
   unlockedChordIds: [...progress.unlockedChordIds],
   lastAutoUnlockDayKey: progress.lastAutoUnlockDayKey,
+  learningPath: progress.learningPath,
   resetAt: meta.progressResetAt,
 });
 
@@ -260,12 +275,18 @@ const toTrialPayload = (trial: EguchiTrialRecord, clientId: string): EguchiTrial
 const applyRemoteProgressState = (
   progress: EguchiProgress,
   remote: SyncedValue<EguchiProgressSyncState>
-): EguchiProgress => ({
-  ...progress,
-  unlockedChordIds: normalizeUnlockedChordIds(remote.data.unlockedChordIds),
-  lastAutoUnlockDayKey:
-    typeof remote.data.lastAutoUnlockDayKey === 'string' ? remote.data.lastAutoUnlockDayKey : null,
-});
+): EguchiProgress => {
+  const unlockedChordIds = normalizeUnlockedChordIds(remote.data.unlockedChordIds);
+  return {
+    ...progress,
+    unlockedChordIds,
+    lastAutoUnlockDayKey:
+      typeof remote.data.lastAutoUnlockDayKey === 'string'
+        ? remote.data.lastAutoUnlockDayKey
+        : null,
+    learningPath: normalizeLearningPathState(remote.data.learningPath, unlockedChordIds),
+  };
+};
 
 const isAfterReset = (trial: EguchiTrialRecord, resetAt: string | null) =>
   !resetAt || compareIsoTimestamps(trial.timestamp, resetAt) > 0;

@@ -220,6 +220,7 @@ class EguchiTrialEventIn(BaseModel):
 class EguchiProgressStateIn(BaseModel):
     unlockedChordIds: list[str]
     lastAutoUnlockDayKey: str | None = None
+    learningPath: dict | None = None
     resetAt: str | None = None
 
 

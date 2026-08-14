@@ -5,6 +5,14 @@ import {
   isValidChordId,
   type EguchiChordId,
 } from './chords';
+import {
+  createDefaultLearningPathState,
+  createLearningPathStateForUnlocked,
+  isTrainingOutcome,
+  normalizeLearningPathState,
+  type EguchiLearningPathState,
+  type TrainingOutcome,
+} from './learning-path';
 
 export const MAX_TRIAL_HISTORY = 2000;
 export const MIN_UNLOCKED_CHORD_COUNT = DEFAULT_UNLOCKED_CHORD_IDS.length;
@@ -99,6 +107,14 @@ const sanitizeTrialHistory = (history: unknown): EguchiTrialRecord[] => {
       id: candidateId,
       chordId: candidate.chordId,
       correct: candidate.correct,
+      outcome: isTrainingOutcome(candidate.outcome) ? candidate.outcome : null,
+      promptDelayMs:
+        candidate.promptDelayMs === null ||
+        (typeof candidate.promptDelayMs === 'number' &&
+          Number.isFinite(candidate.promptDelayMs) &&
+          candidate.promptDelayMs >= 0)
+          ? candidate.promptDelayMs
+          : null,
       timestamp: normalizedTimestamp,
     });
   }
@@ -133,10 +149,23 @@ const buildDailySummaries = (trialHistory: EguchiTrialRecord[]) => {
   for (const trial of trialHistory) {
     const dayKey = getDayKeyFromTimestamp(trial.timestamp);
     const current = summaries[dayKey] ?? { attempts: 0, correct: 0 };
-    summaries[dayKey] = {
+    const next: EguchiDailySummary = {
       attempts: current.attempts + 1,
       correct: current.correct + (trial.correct ? 1 : 0),
     };
+    if (trial.outcome) {
+      next.independent = (current.independent ?? 0) + (trial.outcome === 'independent' ? 1 : 0);
+      next.assisted = (current.assisted ?? 0) + (trial.outcome === 'assisted' ? 1 : 0);
+      next.corrected = (current.corrected ?? 0) + (trial.outcome === 'corrected' ? 1 : 0);
+    } else {
+      next.independent = current.independent;
+      next.assisted = current.assisted;
+      next.corrected = current.corrected;
+    }
+    if (next.independent === undefined) delete next.independent;
+    if (next.assisted === undefined) delete next.assisted;
+    if (next.corrected === undefined) delete next.corrected;
+    summaries[dayKey] = next;
   }
   return summaries;
 };
@@ -145,12 +174,17 @@ export type EguchiTrialRecord = {
   id: string;
   chordId: EguchiChordId;
   correct: boolean;
+  outcome?: TrainingOutcome | null;
+  promptDelayMs?: number | null;
   timestamp: string;
 };
 
 export type EguchiDailySummary = {
   attempts: number;
   correct: number;
+  independent?: number;
+  assisted?: number;
+  corrected?: number;
 };
 
 export type EguchiProgress = {
@@ -158,11 +192,14 @@ export type EguchiProgress = {
   trialHistory: EguchiTrialRecord[];
   dailySummaries: Record<string, EguchiDailySummary>;
   lastAutoUnlockDayKey: string | null;
+  learningPath: EguchiLearningPathState;
 };
 
 export type RecordTrialInput = {
   chordId: EguchiChordId;
   correct: boolean;
+  outcome?: TrainingOutcome;
+  promptDelayMs?: number | null;
   id?: string;
   timestamp?: string;
 };
@@ -171,9 +208,15 @@ export type EguchiProgressSnapshot = {
   totalAttempts: number;
   totalCorrect: number;
   totalAccuracy: number;
+  totalIndependent: number;
+  totalAssisted: number;
+  totalCorrected: number;
   todayAttempts: number;
   todayCorrect: number;
   todayAccuracy: number;
+  todayIndependent: number;
+  todayAssisted: number;
+  todayCorrected: number;
   unlockedCount: number;
 };
 
@@ -182,6 +225,7 @@ export const createDefaultEguchiProgress = (): EguchiProgress => ({
   trialHistory: [],
   dailySummaries: {},
   lastAutoUnlockDayKey: null,
+  learningPath: createDefaultLearningPathState(),
 });
 
 export const loadEguchiProgress = async (
@@ -193,13 +237,23 @@ export const loadEguchiProgress = async (
   }
 
   const trialHistory = sanitizeTrialHistory(stored.trialHistory);
+  let unlockedChordIds = normalizeUnlockedChordIds(stored.unlockedChordIds);
+  const isLegacyTwoChordDefault =
+    !stored.learningPath &&
+    unlockedChordIds.length === 2 &&
+    unlockedChordIds[0] === ORDERED_CHORD_IDS[0] &&
+    unlockedChordIds[1] === ORDERED_CHORD_IDS[1];
+  if (isLegacyTwoChordDefault) {
+    unlockedChordIds = [...DEFAULT_UNLOCKED_CHORD_IDS];
+  }
 
   return {
-    unlockedChordIds: normalizeUnlockedChordIds(stored.unlockedChordIds),
+    unlockedChordIds,
     trialHistory,
     dailySummaries: buildDailySummaries(trialHistory),
     lastAutoUnlockDayKey:
       typeof stored.lastAutoUnlockDayKey === 'string' ? stored.lastAutoUnlockDayKey : null,
+    learningPath: normalizeLearningPathState(stored.learningPath, unlockedChordIds),
   };
 };
 
@@ -238,12 +292,15 @@ export const setUnlockedLevel = (progress: EguchiProgress, level: number): Eguch
   return {
     ...progress,
     unlockedChordIds,
+    learningPath: createLearningPathStateForUnlocked(unlockedChordIds, {
+      introduceNewest: unlockedChordIds.length > progress.unlockedChordIds.length,
+    }),
   };
 };
 
 export const recordTrial = (
   progress: EguchiProgress,
-  { chordId, correct, id, timestamp }: RecordTrialInput
+  { chordId, correct, outcome, promptDelayMs, id, timestamp }: RecordTrialInput
 ): EguchiProgress => {
   const parsedTimestamp = new Date(timestamp ?? new Date().toISOString());
   const normalizedTimestamp = Number.isNaN(parsedTimestamp.getTime())
@@ -254,6 +311,12 @@ export const recordTrial = (
     id: id?.trim() || createEguchiTrialId(normalizedTimestamp),
     chordId,
     correct,
+    outcome: outcome ?? null,
+    promptDelayMs:
+      promptDelayMs === null ||
+      (typeof promptDelayMs === 'number' && Number.isFinite(promptDelayMs) && promptDelayMs >= 0)
+        ? promptDelayMs
+        : null,
     timestamp: normalizedTimestamp,
   };
 
@@ -286,9 +349,13 @@ export const setChordUnlocked = (
 
   if (unlocked) {
     currentSet.add(chordId);
+    const unlockedChordIds = ORDERED_CHORD_IDS.filter(id => currentSet.has(id));
     return {
       ...progress,
-      unlockedChordIds: ORDERED_CHORD_IDS.filter(id => currentSet.has(id)),
+      unlockedChordIds,
+      learningPath: createLearningPathStateForUnlocked(unlockedChordIds, {
+        introduceNewest: true,
+      }),
     };
   }
 
@@ -297,9 +364,11 @@ export const setChordUnlocked = (
     return progress;
   }
 
+  const unlockedChordIds = ORDERED_CHORD_IDS.filter(id => currentSet.has(id));
   return {
     ...progress,
-    unlockedChordIds: ORDERED_CHORD_IDS.filter(id => currentSet.has(id)),
+    unlockedChordIds,
+    learningPath: createLearningPathStateForUnlocked(unlockedChordIds),
   };
 };
 
@@ -309,10 +378,16 @@ export const getProgressSnapshot = (
 ): EguchiProgressSnapshot => {
   let totalAttempts = 0;
   let totalCorrect = 0;
+  let totalIndependent = 0;
+  let totalAssisted = 0;
+  let totalCorrected = 0;
 
   for (const summary of Object.values(progress.dailySummaries)) {
     totalAttempts += summary.attempts;
     totalCorrect += summary.correct;
+    totalIndependent += summary.independent ?? 0;
+    totalAssisted += summary.assisted ?? 0;
+    totalCorrected += summary.corrected ?? 0;
   }
 
   const todayKey = getDayKey(date);
@@ -322,9 +397,15 @@ export const getProgressSnapshot = (
     totalAttempts,
     totalCorrect,
     totalAccuracy: totalAttempts ? totalCorrect / totalAttempts : 0,
+    totalIndependent,
+    totalAssisted,
+    totalCorrected,
     todayAttempts: todaySummary.attempts,
     todayCorrect: todaySummary.correct,
     todayAccuracy: todaySummary.attempts ? todaySummary.correct / todaySummary.attempts : 0,
+    todayIndependent: todaySummary.independent ?? 0,
+    todayAssisted: todaySummary.assisted ?? 0,
+    todayCorrected: todaySummary.corrected ?? 0,
     unlockedCount: progress.unlockedChordIds.length,
   };
 };

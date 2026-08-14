@@ -77,6 +77,40 @@ describe('eguchi progress', () => {
     expect(next.trialHistory[0].id).toBe('trial-123');
   });
 
+  test('recordTrial tracks independent, assisted, and corrected outcomes', () => {
+    const timestamp = '2026-01-11T10:30:00.000Z';
+    let progress = createDefaultEguchiProgress();
+    progress = recordTrial(progress, {
+      chordId: 'C-E-G',
+      correct: true,
+      outcome: 'independent',
+      promptDelayMs: 1500,
+      timestamp,
+    });
+    progress = recordTrial(progress, {
+      chordId: 'C-E-G',
+      correct: true,
+      outcome: 'assisted',
+      promptDelayMs: 0,
+      timestamp,
+    });
+    progress = recordTrial(progress, {
+      chordId: 'C-E-G',
+      correct: false,
+      outcome: 'corrected',
+      promptDelayMs: null,
+      timestamp,
+    });
+
+    const snapshot = getProgressSnapshot(progress, new Date(timestamp));
+    expect(snapshot.todayIndependent).toBe(1);
+    expect(snapshot.todayAssisted).toBe(1);
+    expect(snapshot.todayCorrected).toBe(1);
+    expect(
+      progress.trialHistory.find(trial => trial.outcome === 'independent')?.promptDelayMs
+    ).toBe(1500);
+  });
+
   test('recordTrial trims old history after max limit', () => {
     let progress = createDefaultEguchiProgress();
     for (let index = 0; index < MAX_TRIAL_HISTORY + 5; index += 1) {
@@ -93,15 +127,12 @@ describe('eguchi progress', () => {
   test('setChordUnlocked preserves order and keeps at least one chord unlocked', () => {
     const defaults = createDefaultEguchiProgress();
     const withExtra = setChordUnlocked(defaults, 'G-B-D', true);
-    expect(withExtra.unlockedChordIds).toEqual(['C-E-G', 'F-A-C', 'G-B-D']);
+    expect(withExtra.unlockedChordIds).toEqual(['C-E-G', 'G-B-D']);
 
     const removedFirst = setChordUnlocked(withExtra, 'C-E-G', false);
-    expect(removedFirst.unlockedChordIds).toEqual(['F-A-C', 'G-B-D']);
+    expect(removedFirst.unlockedChordIds).toEqual(['G-B-D']);
 
-    const removedSecond = setChordUnlocked(removedFirst, 'F-A-C', false);
-    expect(removedSecond.unlockedChordIds).toEqual(['G-B-D']);
-
-    const preventedEmpty = setChordUnlocked(removedSecond, 'G-B-D', false);
+    const preventedEmpty = setChordUnlocked(removedFirst, 'G-B-D', false);
     expect(preventedEmpty.unlockedChordIds).toEqual(['G-B-D']);
   });
 

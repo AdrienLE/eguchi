@@ -14,6 +14,8 @@ export type EguchiSessionPreferences = {
   importModes: Record<ImportSpeed, boolean>;
   autoAdvanceEnabled: boolean;
   feedbackSeconds: number;
+  adaptiveHintsEnabled: boolean;
+  noHintTrialsEnabled: boolean;
   autoUnlockEnabled: boolean;
   perfectDaysRequired: number;
   dailyAttemptTarget: number;
@@ -71,6 +73,8 @@ export const createDefaultEguchiSessionPreferences = (): EguchiSessionPreference
   importModes: { ...DEFAULT_IMPORT_MODES },
   autoAdvanceEnabled: true,
   feedbackSeconds: 2,
+  adaptiveHintsEnabled: true,
+  noHintTrialsEnabled: true,
   autoUnlockEnabled: false,
   perfectDaysRequired: 14,
   dailyAttemptTarget: 100,
@@ -92,6 +96,10 @@ export const loadEguchiSessionPreferences = async (
     autoAdvanceEnabled:
       typeof stored.autoAdvanceEnabled === 'boolean' ? stored.autoAdvanceEnabled : true,
     feedbackSeconds: normalizeFeedbackSeconds(stored.feedbackSeconds),
+    adaptiveHintsEnabled:
+      typeof stored.adaptiveHintsEnabled === 'boolean' ? stored.adaptiveHintsEnabled : true,
+    noHintTrialsEnabled:
+      typeof stored.noHintTrialsEnabled === 'boolean' ? stored.noHintTrialsEnabled : true,
     autoUnlockEnabled:
       typeof stored.autoUnlockEnabled === 'boolean' ? stored.autoUnlockEnabled : false,
     perfectDaysRequired: normalizePerfectDaysRequired(stored.perfectDaysRequired),
@@ -141,6 +149,22 @@ export const setFeedbackSeconds = (
 ): EguchiSessionPreferences => ({
   ...preferences,
   feedbackSeconds: normalizeFeedbackSeconds(feedbackSeconds),
+});
+
+export const setAdaptiveHintsEnabled = (
+  preferences: EguchiSessionPreferences,
+  enabled: boolean
+): EguchiSessionPreferences => ({
+  ...preferences,
+  adaptiveHintsEnabled: enabled,
+});
+
+export const setNoHintTrialsEnabled = (
+  preferences: EguchiSessionPreferences,
+  enabled: boolean
+): EguchiSessionPreferences => ({
+  ...preferences,
+  noHintTrialsEnabled: enabled,
 });
 
 export const setAutoUnlockEnabled = (

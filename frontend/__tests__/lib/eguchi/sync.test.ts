@@ -63,6 +63,8 @@ const trial = (id: string): EguchiTrialRecord => ({
   id,
   chordId: 'C-E-G',
   correct: true,
+  outcome: null,
+  promptDelayMs: null,
   timestamp: '2026-01-11T10:00:00.000Z',
 });
 

@@ -1,4 +1,5 @@
 import { CHORD_BY_ID, ORDERED_CHORD_IDS, type EguchiChordId } from './chords';
+import { createLearningPathStateForUnlocked } from './learning-path';
 import { getDayKey, type EguchiDailySummary, type EguchiProgress } from './progress';
 
 export type AutoUnlockConfig = {
@@ -114,9 +115,13 @@ export const unlockNextLevelManually = (progress: EguchiProgress): EguchiProgres
   if (!nextChordId) {
     return progress;
   }
+  const unlockedChordIds = [...progress.unlockedChordIds, nextChordId];
   return {
     ...progress,
-    unlockedChordIds: [...progress.unlockedChordIds, nextChordId],
+    unlockedChordIds,
+    learningPath: createLearningPathStateForUnlocked(unlockedChordIds, {
+      introduceNewest: true,
+    }),
   };
 };
 
@@ -124,9 +129,11 @@ export const lockLastUnlockedLevel = (progress: EguchiProgress): EguchiProgress 
   if (progress.unlockedChordIds.length <= 1) {
     return progress;
   }
+  const unlockedChordIds = progress.unlockedChordIds.slice(0, -1);
   return {
     ...progress,
-    unlockedChordIds: progress.unlockedChordIds.slice(0, -1),
+    unlockedChordIds,
+    learningPath: createLearningPathStateForUnlocked(unlockedChordIds),
   };
 };
 

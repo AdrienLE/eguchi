@@ -96,10 +96,7 @@ export type EguchiChordId = (typeof EGUCHI_CHORDS)[number]['id'];
 export type EguchiChord = (typeof EGUCHI_CHORDS)[number];
 
 export const ORDERED_CHORD_IDS: EguchiChordId[] = EGUCHI_CHORDS.map(chord => chord.id);
-export const DEFAULT_UNLOCKED_CHORD_IDS: EguchiChordId[] = [
-  ORDERED_CHORD_IDS[0],
-  ORDERED_CHORD_IDS[1],
-];
+export const DEFAULT_UNLOCKED_CHORD_IDS: EguchiChordId[] = [ORDERED_CHORD_IDS[0]];
 export const DEFAULT_START_SET_IDS = DEFAULT_UNLOCKED_CHORD_IDS;
 
 export const CHORD_BY_ID = Object.fromEntries(

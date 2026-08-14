@@ -21,7 +21,7 @@ describe('eguchi progression', () => {
   });
 
   test('getNextLevelProgress reports next chord and streak', () => {
-    const base = createDefaultEguchiProgress();
+    const base = unlockNextLevelManually(createDefaultEguchiProgress());
     const dayOne = new Date('2026-01-10T10:00:00.000Z');
     const dayTwo = new Date('2026-01-11T10:00:00.000Z');
     const withDayOne = recordTrial(base, {
@@ -56,7 +56,7 @@ describe('eguchi progression', () => {
     const base = createDefaultEguchiProgress();
     const next = unlockNextLevelManually(base);
     expect(next.unlockedChordIds.length).toBe(base.unlockedChordIds.length + 1);
-    expect(next.unlockedChordIds[2]).toBe(ORDERED_CHORD_IDS[2]);
+    expect(next.unlockedChordIds[1]).toBe(ORDERED_CHORD_IDS[1]);
   });
 
   test('lockLastUnlockedLevel keeps at least one chord', () => {
@@ -85,7 +85,7 @@ describe('eguchi progression', () => {
     );
     expect(first.unlocked).toBe(true);
     expect(first.progress.lastAutoUnlockDayKey).toBe('2026-01-12');
-    expect(first.progress.unlockedChordIds).toEqual(ORDERED_CHORD_IDS.slice(0, 3));
+    expect(first.progress.unlockedChordIds).toEqual(ORDERED_CHORD_IDS.slice(0, 2));
 
     const second = maybeApplyAutoUnlock(
       first.progress,

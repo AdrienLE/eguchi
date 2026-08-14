@@ -3,11 +3,13 @@ import {
   getEnabledImportModesLabel,
   loadEguchiSessionPreferences,
   saveEguchiSessionPreferences,
+  setAdaptiveHintsEnabled,
   setAutoAdvanceEnabled,
   setAutoUnlockEnabled,
   setDailyAttemptTarget,
   setFeedbackSeconds,
   setImportModeEnabled,
+  setNoHintTrialsEnabled,
   setPerfectDaysRequired,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
@@ -39,6 +41,8 @@ describe('eguchi session preferences', () => {
     expect(defaults.importModes.bullet).toBe(false);
     expect(defaults.autoAdvanceEnabled).toBe(true);
     expect(defaults.feedbackSeconds).toBe(2);
+    expect(defaults.adaptiveHintsEnabled).toBe(true);
+    expect(defaults.noHintTrialsEnabled).toBe(true);
     expect(defaults.autoUnlockEnabled).toBe(false);
     expect(defaults.perfectDaysRequired).toBe(14);
     expect(defaults.dailyAttemptTarget).toBe(100);
@@ -49,6 +53,8 @@ describe('eguchi session preferences', () => {
       importModes: { rapid: false, blitz: false, bullet: false },
       autoAdvanceEnabled: 'yes',
       feedbackSeconds: 99,
+      adaptiveHintsEnabled: 'yes',
+      noHintTrialsEnabled: 'yes',
       autoUnlockEnabled: 'yes',
       perfectDaysRequired: 0,
       dailyAttemptTarget: 200,
@@ -60,6 +66,8 @@ describe('eguchi session preferences', () => {
     expect(loaded.importModes.bullet).toBe(false);
     expect(loaded.autoAdvanceEnabled).toBe(true);
     expect(loaded.feedbackSeconds).toBe(8);
+    expect(loaded.adaptiveHintsEnabled).toBe(true);
+    expect(loaded.noHintTrialsEnabled).toBe(true);
     expect(loaded.autoUnlockEnabled).toBe(false);
     expect(loaded.perfectDaysRequired).toBe(1);
     expect(loaded.dailyAttemptTarget).toBe(100);
@@ -89,6 +97,14 @@ describe('eguchi session preferences', () => {
     const defaults = createDefaultEguchiSessionPreferences();
     const disabled = setAutoAdvanceEnabled(defaults, false);
     expect(disabled.autoAdvanceEnabled).toBe(false);
+  });
+
+  test('adaptive hint setters update the experimental modes', () => {
+    const defaults = createDefaultEguchiSessionPreferences();
+    const withoutHints = setAdaptiveHintsEnabled(defaults, false);
+    const withoutProbes = setNoHintTrialsEnabled(withoutHints, false);
+    expect(withoutHints.adaptiveHintsEnabled).toBe(false);
+    expect(withoutProbes.noHintTrialsEnabled).toBe(false);
   });
 
   test('auto unlock setters clamp and update', () => {

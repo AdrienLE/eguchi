@@ -1,6 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
-import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,13 +12,25 @@ import {
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import {
+  TrainingAnimalTile,
+  type TrainingTileReaction,
+} from '@/components/eguchi/TrainingAnimalTile';
 import { useAuth } from '@/auth/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { resolveAudioPlaybackSource } from '@/lib/eguchi/audio-assets';
-import { pickRandomAudioEntry, type AudioEntry } from '@/lib/eguchi/audio-pack';
+import type { AudioEntry } from '@/lib/eguchi/audio-pack';
+import { pickTrainingAudioEntry } from '@/lib/eguchi/audio-selection';
 import { getChordAnimalImageSource, type AnimalEmotion } from '@/lib/eguchi/animal-assets';
 import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
-import { getNextLevelProgress, maybeApplyAutoUnlock } from '@/lib/eguchi/progression';
+import {
+  advanceLearningPath,
+  getActiveTrainingChordIds,
+  getTrainingAudioOctaves,
+  getTrialHintDelayMs,
+  type TrainingOutcome,
+} from '@/lib/eguchi/learning-path';
+import { maybeApplyAutoUnlock } from '@/lib/eguchi/progression';
 import {
   createDefaultEguchiProgress,
   createEguchiTrialId,
@@ -33,12 +44,7 @@ import {
   queueEguchiTrialEvent,
   syncEguchiStateBestEffort,
 } from '@/lib/eguchi/sync';
-import {
-  AUTO_ADVANCE_TICK_MS,
-  getAutoAdvanceDurationMs,
-  getAutoAdvanceProgress,
-  pickRandomChordId,
-} from '@/lib/eguchi/training-loop';
+import { getAutoAdvanceDurationMs, pickRandomChordId } from '@/lib/eguchi/training-loop';
 import {
   didPlaybackStart,
   getPlaybackRetryDelayMs,
@@ -48,9 +54,9 @@ import {
   type PlaybackOrigin,
 } from '@/lib/eguchi/audio-playback';
 import {
+  classifyTrainingOutcome,
   getAnimalImageRecyclingKey,
-  getCountdownVisibleSegmentCount,
-  getFeedbackAnimalEmotion,
+  getSuccessTileReaction,
 } from '@/lib/eguchi/training-feedback';
 import {
   createDefaultEguchiSessionPreferences,
@@ -67,11 +73,11 @@ const GRID_MAX_COLUMNS = 6;
 const GRID_BASE_RESERVED_HEIGHT = 30;
 const PLAYBACK_START_CONFIRMATION_TIMEOUT_MS = 650;
 const FEEDBACK_TO_TRIAL_AUDIO_SETTLE_MS = 220;
-const COUNTDOWN_RING_SIZE = 58;
-const COUNTDOWN_RING_SEGMENT_COUNT = 40;
-const COUNTDOWN_RING_SEGMENT_WIDTH = 3;
-const COUNTDOWN_RING_SEGMENT_HEIGHT = 8;
-const COUNTDOWN_RING_SEGMENT_RADIUS = 23;
+
+type TileReactionState = {
+  reaction: TrainingTileReaction;
+  nonce: number;
+};
 
 type PlayCurrentAudioOptions = {
   chordId?: EguchiChordId | null;
@@ -96,8 +102,6 @@ const getReadableTextColor = (hex: string) => {
   return luminance > 0.6 ? '#111111' : '#FFFFFF';
 };
 
-const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
-const clampProgress = (value: number) => Math.max(0, Math.min(1, value));
 const getAnimalImageFailureKey = (chordId: EguchiChordId, emotion?: AnimalEmotion) =>
   `${chordId}__${emotion ?? 'default'}`;
 
@@ -217,17 +221,19 @@ export default function HomeScreen() {
     null
   );
   const [isLoading, setIsLoading] = useState(true);
-  const defaultSessionPreferences = useRef(createDefaultEguchiSessionPreferences());
-  const unlockedChordIds = progress?.unlockedChordIds.length
-    ? progress.unlockedChordIds
-    : DEFAULT_UNLOCKED_CHORD_IDS;
-  const unlockedChords = unlockedChordIds.map(id => CHORD_BY_ID[id]);
-  const unlockedChordKey = unlockedChordIds.join('|');
-  const [feedbackChordId, setFeedbackChordId] = useState<EguchiChordId | null>(null);
-  const [lastResult, setLastResult] = useState<'correct' | 'incorrect' | null>(null);
+  const progressRef = useRef<EguchiProgress>(createDefaultEguchiProgress());
+  const sessionPreferencesRef = useRef<EguchiSessionPreferences>(
+    createDefaultEguchiSessionPreferences()
+  );
+  const [visibleChordIds, setVisibleChordIds] = useState<EguchiChordId[]>(
+    DEFAULT_UNLOCKED_CHORD_IDS
+  );
+  const visibleChords = visibleChordIds.map(id => CHORD_BY_ID[id]);
+  const [tileReactions, setTileReactions] = useState<
+    Partial<Record<EguchiChordId, TileReactionState>>
+  >({});
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const advanceTicker = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [autoAdvanceRemainingMs, setAutoAdvanceRemainingMs] = useState<number | null>(null);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const activeSoundOriginRef = useRef<PlaybackOrigin | null>(null);
   const pendingPlaybackRequestRef = useRef<{
@@ -243,11 +249,11 @@ export default function HomeScreen() {
   const [startupAutoplayPending, setStartupAutoplayPending] = useState(false);
   const currentChordRef = useRef<EguchiChordId | null>(null);
   const currentAudioRef = useRef<AudioEntry | null>(null);
-  const unlockedChordIdsRef = useRef<EguchiChordId[]>(DEFAULT_UNLOCKED_CHORD_IDS);
+  const currentHintDelayMsRef = useRef<number | null>(0);
+  const hintShownRef = useRef(false);
+  const hadIncorrectTapRef = useRef(false);
   const hasInitializedTrialRef = useRef(false);
-  const previousUnlockedChordKeyRef = useRef(unlockedChordKey);
   const hasAnsweredCurrentTrialRef = useRef(false);
-  const [unlockAnnouncement, setUnlockAnnouncement] = useState<string | null>(null);
   const [failedAnimalImageKeys, setFailedAnimalImageKeys] = useState<Set<string>>(new Set());
   const syncInFlightRef = useRef(false);
 
@@ -256,12 +262,46 @@ export default function HomeScreen() {
       clearTimeout(advanceTimer.current);
       advanceTimer.current = null;
     }
-    if (advanceTicker.current) {
-      clearInterval(advanceTicker.current);
-      advanceTicker.current = null;
-    }
-    setAutoAdvanceRemainingMs(null);
   }, []);
+
+  const clearHintTimer = useCallback(() => {
+    if (hintTimer.current) {
+      clearTimeout(hintTimer.current);
+      hintTimer.current = null;
+    }
+  }, []);
+
+  const triggerTileReaction = useCallback(
+    (chordId: EguchiChordId, reaction: Exclude<TrainingTileReaction, null>) => {
+      setTileReactions(previous => ({
+        ...previous,
+        [chordId]: {
+          reaction,
+          nonce: (previous[chordId]?.nonce ?? 0) + 1,
+        },
+      }));
+    },
+    []
+  );
+
+  const scheduleTrialHint = useCallback(
+    (chordId: EguchiChordId) => {
+      clearHintTimer();
+      const delayMs = currentHintDelayMsRef.current;
+      if (delayMs === null || hasAnsweredCurrentTrialRef.current) {
+        return;
+      }
+      hintTimer.current = setTimeout(() => {
+        hintTimer.current = null;
+        if (hasAnsweredCurrentTrialRef.current || currentChordRef.current !== chordId) {
+          return;
+        }
+        hintShownRef.current = true;
+        triggerTileReaction(chordId, 'hint');
+      }, delayMs);
+    },
+    [clearHintTimer, triggerTileReaction]
+  );
 
   const stopSound = useCallback(async () => {
     if (soundRef.current) {
@@ -324,12 +364,18 @@ export default function HomeScreen() {
         loadEguchiProgress(),
         loadEguchiSessionPreferences(),
       ]);
+      progressRef.current = loadedProgress;
+      sessionPreferencesRef.current = loadedSessionPreferences;
       setProgress(loadedProgress);
       setSessionPreferences(loadedSessionPreferences);
     } catch (error) {
       console.warn('Failed to load Eguchi training data', error);
-      setProgress(createDefaultEguchiProgress());
-      setSessionPreferences(createDefaultEguchiSessionPreferences());
+      const fallbackProgress = createDefaultEguchiProgress();
+      const fallbackPreferences = createDefaultEguchiSessionPreferences();
+      progressRef.current = fallbackProgress;
+      sessionPreferencesRef.current = fallbackPreferences;
+      setProgress(fallbackProgress);
+      setSessionPreferences(fallbackPreferences);
     } finally {
       setIsLoading(false);
     }
@@ -526,6 +572,16 @@ export default function HomeScreen() {
         hasPlayedAnyAudioRef.current = true;
         setStartupAutoplayPending(false);
         clearStartupPlaybackWatchdog();
+        if ((origin === 'new-trial' || origin === 'retry') && !hasAnsweredCurrentTrialRef.current) {
+          scheduleTrialHint(chordId);
+        } else if (
+          origin === 'answer-feedback' &&
+          hadIncorrectTapRef.current &&
+          !hasAnsweredCurrentTrialRef.current
+        ) {
+          hintShownRef.current = true;
+          triggerTileReaction(chordId, 'hint');
+        }
       } catch (error) {
         clearPendingPlaybackRequest();
         if (createdSound && soundRef.current === createdSound) {
@@ -564,20 +620,27 @@ export default function HomeScreen() {
         }, retryDelayMs);
       }
     },
-    [clearPlaybackRetry, clearStartupPlaybackWatchdog, ensureTrainingAudioMode, stopSound]
+    [
+      clearPlaybackRetry,
+      clearStartupPlaybackWatchdog,
+      ensureTrainingAudioMode,
+      scheduleTrialHint,
+      stopSound,
+      triggerTileReaction,
+    ]
   );
 
-  useEffect(() => {
-    unlockedChordIdsRef.current = unlockedChordIds;
-  }, [unlockedChordIds]);
-
   const startNewTrial = useCallback(() => {
-    const activeUnlockedChordIds = unlockedChordIdsRef.current.length
-      ? unlockedChordIdsRef.current
-      : DEFAULT_UNLOCKED_CHORD_IDS;
+    const activeProgress = progressRef.current;
+    const activeSessionPreferences = sessionPreferencesRef.current;
+    const activeUnlockedChordIds = getActiveTrainingChordIds(
+      activeProgress.learningPath,
+      activeProgress.unlockedChordIds
+    );
 
     if (!activeUnlockedChordIds.length) {
       clearAdvanceTimer();
+      clearHintTimer();
       clearStartupPlaybackWatchdog();
       currentChordRef.current = null;
       currentAudioRef.current = null;
@@ -586,15 +649,23 @@ export default function HomeScreen() {
     }
 
     clearAdvanceTimer();
+    clearHintTimer();
     clearStartupPlaybackWatchdog();
     hasAnsweredCurrentTrialRef.current = false;
-    setFeedbackChordId(null);
-    setLastResult(null);
+    hintShownRef.current = false;
+    hadIncorrectTapRef.current = false;
+    setTileReactions({});
+    setVisibleChordIds(activeUnlockedChordIds);
 
     const nextChordId = pickRandomChordId(activeUnlockedChordIds);
     currentChordRef.current = nextChordId;
+    currentHintDelayMsRef.current = getTrialHintDelayMs(activeProgress.learningPath, {
+      adaptiveHintsEnabled: activeSessionPreferences.adaptiveHintsEnabled,
+      noHintTrialsEnabled: activeSessionPreferences.noHintTrialsEnabled,
+    });
 
-    const nextAudio = pickRandomAudioEntry(nextChordId);
+    const audioOctaves = getTrainingAudioOctaves(activeProgress.learningPath);
+    const nextAudio = pickTrainingAudioEntry(nextChordId, { octaves: audioOctaves });
     if (!nextAudio) {
       console.warn('No audio file available for chord', nextChordId);
     }
@@ -604,6 +675,9 @@ export default function HomeScreen() {
       chord: nextChordId,
       animal: CHORD_BY_ID[nextChordId]?.animal,
       file: nextAudio?.fileName ?? 'missing',
+      learningPhase: activeProgress.learningPath.phase,
+      hintDelayMs: currentHintDelayMsRef.current,
+      audioOctaves,
     });
 
     if (!hasStartedTraining) {
@@ -635,7 +709,13 @@ export default function HomeScreen() {
       entry: nextAudio,
       origin: 'new-trial',
     });
-  }, [clearAdvanceTimer, clearStartupPlaybackWatchdog, hasStartedTraining, playCurrentAudio]);
+  }, [
+    clearAdvanceTimer,
+    clearHintTimer,
+    clearStartupPlaybackWatchdog,
+    hasStartedTraining,
+    playCurrentAudio,
+  ]);
 
   const handleAnswer = useCallback(
     (id: EguchiChordId) => {
@@ -647,60 +727,99 @@ export default function HomeScreen() {
       if (!expectedId) return;
       const expectedAudio = currentAudioRef.current;
 
+      const selectedChord = CHORD_BY_ID[id];
+      const expectedChord = CHORD_BY_ID[expectedId];
+      const isCorrect = id === expectedId;
+
+      if (!isCorrect) {
+        hadIncorrectTapRef.current = true;
+        clearHintTimer();
+        clearStartupPlaybackWatchdog();
+        clearPlaybackRetry();
+        playbackRequestIdRef.current += 1;
+        triggerTileReaction(id, 'not-me');
+        console.log('[Eguchi] Gentle correction', {
+          selected: id,
+          selectedAnimal: selectedChord?.animal,
+          expected: expectedId,
+          expectedAnimal: expectedChord?.animal,
+        });
+        void playCurrentAudio({
+          chordId: expectedId,
+          entry: expectedAudio,
+          origin: 'answer-feedback',
+        });
+        return;
+      }
+
       hasAnsweredCurrentTrialRef.current = true;
+      clearHintTimer();
       clearStartupPlaybackWatchdog();
       clearPlaybackRetry();
       playbackRequestIdRef.current += 1;
 
-      const selectedChord = CHORD_BY_ID[id];
-      const expectedChord = CHORD_BY_ID[expectedId];
-      const isCorrect = id === expectedId;
       const trialTimestamp = new Date().toISOString();
       const trialId = createEguchiTrialId(trialTimestamp);
-      const activeSessionPreferences = sessionPreferences ?? defaultSessionPreferences.current;
-      const autoAdvanceDurationMs = getAutoAdvanceDurationMs(
+      const activeSessionPreferences = sessionPreferencesRef.current;
+      const outcome: TrainingOutcome = classifyTrainingOutcome({
+        hadIncorrectTap: hadIncorrectTapRef.current,
+        hintShown: hintShownRef.current,
+      });
+      const trialHintDelayMs = currentHintDelayMsRef.current;
+      const configuredFeedbackMs = getAutoAdvanceDurationMs(
         activeSessionPreferences.feedbackSeconds
       );
+      const autoAdvanceDurationMs =
+        outcome === 'independent'
+          ? Math.max(1200, Math.min(configuredFeedbackMs, 2400))
+          : Math.max(800, Math.min(configuredFeedbackMs, 1600));
+      const tileReaction = getSuccessTileReaction(outcome);
 
-      setFeedbackChordId(expectedId);
-      setLastResult(isCorrect ? 'correct' : 'incorrect');
-      setUnlockAnnouncement(null);
       setProgress(previous => {
         const currentProgress = previous ?? createDefaultEguchiProgress();
         const afterRecord = recordTrial(currentProgress, {
           id: trialId,
           chordId: expectedId,
-          correct: isCorrect,
+          correct: outcome !== 'corrected',
+          outcome,
+          promptDelayMs: trialHintDelayMs,
           timestamp: trialTimestamp,
         });
-        const autoUnlockResult = maybeApplyAutoUnlock(afterRecord, {
-          autoUnlockEnabled: activeSessionPreferences.autoUnlockEnabled,
-          perfectDaysRequired: activeSessionPreferences.perfectDaysRequired,
-          dailyAttemptTarget: activeSessionPreferences.dailyAttemptTarget,
-        });
+        const learningResult = advanceLearningPath(
+          afterRecord.learningPath,
+          afterRecord.unlockedChordIds,
+          outcome
+        );
+        let nextProgress: EguchiProgress = {
+          ...afterRecord,
+          unlockedChordIds: learningResult.unlockedChordIds,
+          learningPath: learningResult.state,
+        };
+        if (!activeSessionPreferences.adaptiveHintsEnabled) {
+          nextProgress = maybeApplyAutoUnlock(nextProgress, {
+            autoUnlockEnabled: activeSessionPreferences.autoUnlockEnabled,
+            perfectDaysRequired: activeSessionPreferences.perfectDaysRequired,
+            dailyAttemptTarget: activeSessionPreferences.dailyAttemptTarget,
+          }).progress;
+        }
+        progressRef.current = nextProgress;
 
-        if (autoUnlockResult.unlocked) {
-          const unlockedChordId =
-            autoUnlockResult.progress.unlockedChordIds[
-              autoUnlockResult.progress.unlockedChordIds.length - 1
-            ];
-          const unlockedAnimal = unlockedChordId ? CHORD_BY_ID[unlockedChordId]?.animal : null;
-          setUnlockAnnouncement(
-            unlockedAnimal ? `New friend unlocked: ${unlockedAnimal}.` : 'New friend unlocked.'
-          );
-          console.log('[Eguchi] Auto-unlocked next level', {
-            unlockedCount: autoUnlockResult.progress.unlockedChordIds.length,
-            unlockDay: autoUnlockResult.progress.lastAutoUnlockDayKey,
+        if (learningResult.unlockedChordId) {
+          console.log('[Eguchi] Learning path introduced a new friend', {
+            chord: learningResult.unlockedChordId,
+            animal: CHORD_BY_ID[learningResult.unlockedChordId]?.animal,
           });
         }
 
         void (async () => {
           try {
-            await saveEguchiProgress(autoUnlockResult.progress);
+            await saveEguchiProgress(nextProgress);
             await queueEguchiTrialEvent({
               id: trialId,
               chordId: expectedId,
-              correct: isCorrect,
+              correct: outcome !== 'corrected',
+              outcome,
+              promptDelayMs: trialHintDelayMs,
               timestamp: trialTimestamp,
             });
             await markEguchiProgressDirty();
@@ -709,7 +828,7 @@ export default function HomeScreen() {
             console.warn('Failed to save Eguchi progress', error);
           }
         })();
-        return autoUnlockResult.progress;
+        return nextProgress;
       });
 
       console.log('[Eguchi] Answer selected', {
@@ -717,8 +836,9 @@ export default function HomeScreen() {
         selectedAnimal: selectedChord?.animal,
         expected: expectedId,
         expectedAnimal: expectedChord?.animal,
-        correct: isCorrect,
+        outcome,
       });
+      triggerTileReaction(expectedId, tileReaction);
       void playCurrentAudio({
         chordId: expectedId,
         entry: expectedAudio,
@@ -726,13 +846,6 @@ export default function HomeScreen() {
       });
 
       clearAdvanceTimer();
-      const countdownStartedAt = Date.now();
-      setAutoAdvanceRemainingMs(autoAdvanceDurationMs);
-      advanceTicker.current = setInterval(() => {
-        const elapsed = Date.now() - countdownStartedAt;
-        const remaining = Math.max(0, autoAdvanceDurationMs - elapsed);
-        setAutoAdvanceRemainingMs(remaining);
-      }, AUTO_ADVANCE_TICK_MS);
       advanceTimer.current = setTimeout(() => {
         clearAdvanceTimer();
         startNewTrial();
@@ -740,13 +853,15 @@ export default function HomeScreen() {
     },
     [
       clearAdvanceTimer,
+      clearHintTimer,
       clearPlaybackRetry,
+      clearStartupPlaybackWatchdog,
       hasStartedTraining,
       isLoading,
       playCurrentAudio,
-      sessionPreferences,
       startNewTrial,
       token,
+      triggerTileReaction,
     ]
   );
 
@@ -792,8 +907,17 @@ export default function HomeScreen() {
   const isReady = !isLoading && progress !== null && sessionPreferences !== null;
 
   useEffect(() => {
+    if (progress) progressRef.current = progress;
+  }, [progress]);
+
+  useEffect(() => {
+    if (sessionPreferences) sessionPreferencesRef.current = sessionPreferences;
+  }, [sessionPreferences]);
+
+  useEffect(() => {
     return () => {
       clearAdvanceTimer();
+      clearHintTimer();
       clearPlaybackRetry();
       clearStartupPlaybackWatchdog();
       setStartupAutoplayPending(false);
@@ -801,12 +925,17 @@ export default function HomeScreen() {
       pendingPlaybackRequestRef.current = null;
       void stopSound();
     };
-  }, [clearAdvanceTimer, clearPlaybackRetry, clearStartupPlaybackWatchdog, stopSound]);
+  }, [
+    clearAdvanceTimer,
+    clearHintTimer,
+    clearPlaybackRetry,
+    clearStartupPlaybackWatchdog,
+    stopSound,
+  ]);
 
   useEffect(() => {
     if (!isReady) {
       hasInitializedTrialRef.current = false;
-      previousUnlockedChordKeyRef.current = unlockedChordKey;
       return;
     }
 
@@ -815,74 +944,12 @@ export default function HomeScreen() {
     }
 
     hasInitializedTrialRef.current = true;
-    previousUnlockedChordKeyRef.current = unlockedChordKey;
     startNewTrial();
-  }, [isReady, startNewTrial, unlockedChordKey]);
+  }, [isReady, startNewTrial]);
 
-  useEffect(() => {
-    if (!isReady) {
-      previousUnlockedChordKeyRef.current = unlockedChordKey;
-      return;
-    }
-
-    if (!hasInitializedTrialRef.current) {
-      previousUnlockedChordKeyRef.current = unlockedChordKey;
-      return;
-    }
-
-    if (previousUnlockedChordKeyRef.current === unlockedChordKey) {
-      return;
-    }
-
-    previousUnlockedChordKeyRef.current = unlockedChordKey;
-    if (lastResult !== null || autoAdvanceRemainingMs !== null) {
-      return;
-    }
-
-    startNewTrial();
-  }, [autoAdvanceRemainingMs, isReady, lastResult, startNewTrial, unlockedChordKey]);
-
-  const progressionStatus = useMemo(() => {
-    if (!progress) {
-      return null;
-    }
-    const activeSessionPreferences = sessionPreferences ?? defaultSessionPreferences.current;
-    return getNextLevelProgress(progress, {
-      autoUnlockEnabled: activeSessionPreferences.autoUnlockEnabled,
-      perfectDaysRequired: activeSessionPreferences.perfectDaysRequired,
-      dailyAttemptTarget: activeSessionPreferences.dailyAttemptTarget,
-    });
-  }, [progress, sessionPreferences]);
   const buttonBackground = theme.tint;
   const startBadgeTextColor = theme.isDark ? '#06202B' : '#FFFFFF';
-  const autoAdvanceMs = getAutoAdvanceDurationMs(
-    (sessionPreferences ?? defaultSessionPreferences.current).feedbackSeconds
-  );
-  const missionProgress = progressionStatus
-    ? clampProgress(
-        progressionStatus.todaySummary.attempts / Math.max(1, progressionStatus.dailyAttemptTarget)
-      )
-    : 0;
-  const successProgress = progressionStatus
-    ? clampProgress(
-        progressionStatus.todaySummary.correct /
-          Math.max(1, progressionStatus.todaySummary.attempts)
-      )
-    : 0;
-  const streakProgress = progressionStatus
-    ? progressionStatus.isMaxLevel
-      ? 1
-      : clampProgress(
-          progressionStatus.perfectDayStreak / Math.max(1, progressionStatus.perfectDaysRequired)
-        )
-    : 0;
-  const feedbackChord = feedbackChordId ? CHORD_BY_ID[feedbackChordId] : null;
   const showStartOverlay = !isLoading && !hasStartedTraining;
-  const autoAdvanceProgress =
-    autoAdvanceRemainingMs === null
-      ? 0
-      : getAutoAdvanceProgress(autoAdvanceRemainingMs, autoAdvanceMs);
-  const showCenterFlash = Boolean(feedbackChord && lastResult && autoAdvanceRemainingMs !== null);
   const resolveAnimalImageCandidate = useCallback(
     (
       chordId: EguchiChordId,
@@ -915,22 +982,6 @@ export default function HomeScreen() {
     },
     [failedAnimalImageKeys]
   );
-  const feedbackEmotion = getFeedbackAnimalEmotion(lastResult);
-  const feedbackChordImageCandidate =
-    feedbackChord && showCenterFlash
-      ? resolveAnimalImageCandidate(feedbackChord.id, {
-          emotion: feedbackEmotion,
-        })
-      : null;
-  const feedbackChordImageSource = feedbackChordImageCandidate?.source ?? null;
-  const feedbackImageRecyclingKey =
-    feedbackChord && feedbackEmotion
-      ? getAnimalImageRecyclingKey(
-          'center',
-          feedbackChord.id,
-          feedbackChordImageCandidate?.emotion ?? feedbackEmotion
-        )
-      : undefined;
   const handleViewportLayout = useCallback(
     (width: number, height: number) => {
       setViewportSize(previous => {
@@ -954,49 +1005,18 @@ export default function HomeScreen() {
       bottomSectionHeight -
       CONTENT_VERTICAL_PADDING * 2 -
       GRID_BASE_RESERVED_HEIGHT;
-    return getGridLayout(unlockedChords.length, availableWidth, availableHeight);
+    return getGridLayout(visibleChords.length, availableWidth, availableHeight);
   }, [
     bottomSectionHeight,
-    unlockedChords.length,
+    visibleChords.length,
     viewportSize.height,
     viewportSize.width,
     windowHeight,
     windowWidth,
   ]);
   const gridWidth = gridLayout.columns * gridLayout.tileSize + GRID_GAP * (gridLayout.columns - 1);
-  const gridRows = Math.max(1, Math.ceil(unlockedChords.length / Math.max(1, gridLayout.columns)));
+  const gridRows = Math.max(1, Math.ceil(visibleChords.length / Math.max(1, gridLayout.columns)));
   const gridHeight = gridRows * gridLayout.tileSize + GRID_GAP * (gridRows - 1);
-  const feedbackViewportShortSide = Math.min(
-    viewportSize.width || windowWidth,
-    viewportSize.height || windowHeight
-  );
-  const centerCardSize = Math.max(170, Math.min(430, Math.floor(feedbackViewportShortSide * 0.52)));
-  const centerEmojiSize = Math.floor(centerCardSize * 0.58);
-  const countdownVisibleSegmentCount = getCountdownVisibleSegmentCount(
-    autoAdvanceProgress,
-    COUNTDOWN_RING_SEGMENT_COUNT
-  );
-  const countdownRingSegments = useMemo(
-    () =>
-      Array.from({ length: COUNTDOWN_RING_SEGMENT_COUNT }, (_, index) => {
-        const angleDeg = (index / COUNTDOWN_RING_SEGMENT_COUNT) * 360;
-        const angleRad = (angleDeg * Math.PI) / 180;
-        return {
-          index,
-          isVisible: index < countdownVisibleSegmentCount,
-          left:
-            COUNTDOWN_RING_SIZE / 2 -
-            COUNTDOWN_RING_SEGMENT_WIDTH / 2 +
-            Math.sin(angleRad) * COUNTDOWN_RING_SEGMENT_RADIUS,
-          top:
-            COUNTDOWN_RING_SIZE / 2 -
-            COUNTDOWN_RING_SEGMENT_HEIGHT / 2 -
-            Math.cos(angleRad) * COUNTDOWN_RING_SEGMENT_RADIUS,
-          transform: [{ rotate: `${angleDeg}deg` }],
-        };
-      }),
-    [countdownVisibleSegmentCount]
-  );
 
   return (
     <ThemedView style={styles.container}>
@@ -1011,10 +1031,11 @@ export default function HomeScreen() {
         {isLoading ? <ActivityIndicator /> : null}
         <View style={[styles.gridStage, { width: gridWidth, height: gridHeight }]}>
           <View style={[styles.grid, { width: gridWidth }]}>
-            {unlockedChords.map(chord => {
+            {visibleChords.map(chord => {
               const tileTextColor = getReadableTextColor(chord.color.hex);
               const animalImageCandidate = resolveAnimalImageCandidate(chord.id);
               const animalImageSource = animalImageCandidate?.source ?? null;
+              const tileReaction = tileReactions[chord.id];
               const tileImageRecyclingKey = getAnimalImageRecyclingKey(
                 'tile',
                 chord.id,
@@ -1022,43 +1043,29 @@ export default function HomeScreen() {
               );
 
               return (
-                <Pressable
+                <TrainingAnimalTile
                   key={chord.id}
-                  accessibilityRole="button"
+                  animal={chord.animal}
+                  backgroundColor={chord.color.hex}
                   disabled={isLoading}
+                  emoji={ANIMAL_EMOJIS[chord.id]}
+                  imageRecyclingKey={tileImageRecyclingKey}
+                  imageSource={animalImageSource}
+                  onImageError={() => {
+                    console.log('[Eguchi] Animal image missing, using emoji fallback', {
+                      chord: chord.id,
+                      emotion: animalImageCandidate?.emotion ?? 'default',
+                      uri:
+                        typeof animalImageSource === 'number' ? 'bundle' : animalImageSource?.uri,
+                    });
+                    markAnimalImageFailed(chord.id, animalImageCandidate?.emotion);
+                  }}
                   onPress={() => handleAnswer(chord.id)}
-                  style={[
-                    styles.tile,
-                    { width: gridLayout.tileSize, height: gridLayout.tileSize },
-                    { backgroundColor: chord.color.hex },
-                    isLoading && styles.buttonDisabled,
-                  ]}
-                >
-                  {animalImageSource ? (
-                    <Image
-                      key={tileImageRecyclingKey}
-                      recyclingKey={tileImageRecyclingKey}
-                      source={animalImageSource}
-                      style={styles.tileImage}
-                      contentFit="contain"
-                      onError={() => {
-                        console.log('[Eguchi] Animal image missing, using emoji fallback', {
-                          chord: chord.id,
-                          emotion: animalImageCandidate?.emotion ?? 'default',
-                          uri:
-                            typeof animalImageSource === 'number'
-                              ? 'bundle'
-                              : animalImageSource.uri,
-                        });
-                        markAnimalImageFailed(chord.id, animalImageCandidate?.emotion);
-                      }}
-                    />
-                  ) : (
-                    <ThemedText style={[styles.tileEmoji, { color: tileTextColor }]}>
-                      {ANIMAL_EMOJIS[chord.id]}
-                    </ThemedText>
-                  )}
-                </Pressable>
+                  reaction={tileReaction?.reaction ?? null}
+                  reactionNonce={tileReaction?.nonce ?? 0}
+                  size={gridLayout.tileSize}
+                  textColor={tileTextColor}
+                />
               );
             })}
           </View>
@@ -1087,151 +1094,8 @@ export default function HomeScreen() {
               <ThemedText style={styles.startupHint}>Tap to start sound</ThemedText>
             ) : null}
           </View>
-          {progressionStatus ? (
-            <View
-              style={[
-                styles.missionCard,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}
-            >
-              <ThemedText style={styles.missionTitle}>🎯 Today</ThemedText>
-              <View style={styles.missionRow}>
-                <ThemedText style={styles.missionLabel}>🧩 Rounds</ThemedText>
-                <ThemedText style={styles.missionValue}>
-                  {progressionStatus.todaySummary.attempts}/{progressionStatus.dailyAttemptTarget}
-                </ThemedText>
-              </View>
-              <View style={[styles.progressTrack, { backgroundColor: theme.track }]}>
-                <View style={[styles.progressFill, { width: `${missionProgress * 100}%` }]} />
-              </View>
-
-              <View style={styles.missionRow}>
-                <ThemedText style={styles.missionLabel}>✅ Great taps</ThemedText>
-                <ThemedText style={styles.missionValue}>
-                  {formatPercent(successProgress)}
-                </ThemedText>
-              </View>
-              <View style={[styles.progressTrack, { backgroundColor: theme.track }]}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    styles.successFill,
-                    { width: `${successProgress * 100}%` },
-                  ]}
-                />
-              </View>
-
-              <View style={styles.missionRow}>
-                <ThemedText style={styles.missionLabel}>⭐ Star days</ThemedText>
-                <ThemedText style={styles.missionValue}>
-                  {progressionStatus.perfectDayStreak}/{progressionStatus.perfectDaysRequired}
-                </ThemedText>
-              </View>
-              <View style={[styles.progressTrack, { backgroundColor: theme.track }]}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    styles.streakFill,
-                    { width: `${streakProgress * 100}%` },
-                  ]}
-                />
-              </View>
-
-              <ThemedText style={styles.nextFriendText}>
-                {progressionStatus.nextChordAnimal
-                  ? `🪄 Keep going to meet ${progressionStatus.nextChordAnimal}.`
-                  : '🏆 All animal sounds unlocked.'}
-              </ThemedText>
-              {unlockAnnouncement ? (
-                <View
-                  style={[
-                    styles.unlockBanner,
-                    {
-                      backgroundColor: theme.successSurface,
-                      borderColor: theme.successBorder,
-                    },
-                  ]}
-                >
-                  <ThemedText style={[styles.unlockBannerText, { color: theme.successText }]}>
-                    {unlockAnnouncement}
-                  </ThemedText>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
         </View>
       </ScrollView>
-      <Modal
-        visible={showCenterFlash && Boolean(feedbackChord)}
-        transparent
-        animationType="none"
-        presentationStyle="overFullScreen"
-        statusBarTranslucent
-      >
-        <View style={styles.feedbackOverlay}>
-          {feedbackChord ? (
-            <View style={styles.overlayFeedbackStack}>
-              <View
-                style={[
-                  styles.centerFlashCard,
-                  {
-                    backgroundColor: feedbackChord.color.hex,
-                    width: centerCardSize,
-                    height: centerCardSize,
-                    borderRadius: Math.floor(centerCardSize * 0.12),
-                  },
-                ]}
-              >
-                {feedbackChordImageSource ? (
-                  <Image
-                    key={feedbackImageRecyclingKey}
-                    recyclingKey={feedbackImageRecyclingKey}
-                    source={feedbackChordImageSource}
-                    style={styles.centerFlashImage}
-                    contentFit="contain"
-                    onError={() => {
-                      console.log('[Eguchi] Center flash image missing, using emoji fallback', {
-                        chord: feedbackChord.id,
-                        emotion: feedbackChordImageCandidate?.emotion ?? 'default',
-                        uri:
-                          typeof feedbackChordImageSource === 'number'
-                            ? 'bundle'
-                            : feedbackChordImageSource.uri,
-                      });
-                      markAnimalImageFailed(feedbackChord.id, feedbackChordImageCandidate?.emotion);
-                    }}
-                  />
-                ) : (
-                  <ThemedText
-                    style={[
-                      styles.centerFlashEmoji,
-                      { fontSize: centerEmojiSize, lineHeight: Math.round(centerEmojiSize * 1.06) },
-                    ]}
-                  >
-                    {ANIMAL_EMOJIS[feedbackChord.id]}
-                  </ThemedText>
-                )}
-              </View>
-              <View style={styles.overlayCountdownRing}>
-                {countdownRingSegments.map(segment => (
-                  <View
-                    key={segment.index}
-                    style={[
-                      styles.overlayCountdownSegment,
-                      {
-                        left: segment.left,
-                        top: segment.top,
-                        opacity: segment.isVisible ? 0.9 : 0.12,
-                        transform: segment.transform,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
-        </View>
-      </Modal>
       <Modal
         visible={showStartOverlay}
         transparent
@@ -1281,71 +1145,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 8,
   },
-  missionCard: {
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 7,
-  },
-  missionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  missionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  missionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  missionValue: {
-    fontSize: 14,
-    flexShrink: 1,
-    textAlign: 'right',
-  },
-  progressTrack: {
-    width: '100%',
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: '#E2E2E2',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#2E7D32',
-  },
-  successFill: {
-    backgroundColor: '#1F9D55',
-  },
-  streakFill: {
-    backgroundColor: '#F4A100',
-  },
-  nextFriendText: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 18,
-    opacity: 0.85,
-  },
-  unlockBanner: {
-    borderRadius: 10,
-    backgroundColor: '#E9F7EF',
-    borderWidth: 1,
-    borderColor: '#9CD7B0',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  unlockBannerText: {
-    color: '#166534',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
   replayContainer: {
     width: '100%',
     justifyContent: 'center',
@@ -1381,13 +1180,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 30,
-    paddingHorizontal: 24,
-  },
-  feedbackOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(8, 10, 14, 0.62)',
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: 24,
   },
   startCard: {
@@ -1447,55 +1239,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     position: 'relative',
   },
-  tile: {
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 6,
-  },
-  tileImage: {
-    width: '94%',
-    height: '94%',
-  },
-  tileEmoji: { fontSize: 116, lineHeight: 124 },
   buttonDisabled: {
     opacity: 0.5,
-  },
-  overlayFeedbackStack: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    zIndex: 1,
-  },
-  centerFlashCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000000',
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  centerFlashImage: {
-    width: '90%',
-    height: '90%',
-  },
-  overlayCountdownRing: {
-    width: COUNTDOWN_RING_SIZE,
-    height: COUNTDOWN_RING_SIZE,
-  },
-  overlayCountdownSegment: {
-    position: 'absolute',
-    width: COUNTDOWN_RING_SEGMENT_WIDTH,
-    height: COUNTDOWN_RING_SEGMENT_HEIGHT,
-    borderRadius: COUNTDOWN_RING_SEGMENT_WIDTH,
-    backgroundColor: '#FFFFFF',
-  },
-  centerFlashEmoji: {
-    fontSize: 182,
-    lineHeight: 192,
   },
 });

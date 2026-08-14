@@ -1,5 +1,6 @@
 import type { AnimalEmotion } from './animal-assets';
 import type { EguchiChordId } from './chords';
+import type { TrainingOutcome } from './learning-path';
 
 export type TrainingAnswerResult = 'correct' | 'incorrect' | null;
 
@@ -9,11 +10,24 @@ export const getFeedbackAnimalEmotion = (
   if (result === 'correct') {
     return 'happy';
   }
-  if (result === 'incorrect') {
-    return 'sad';
-  }
   return undefined;
 };
+
+export const classifyTrainingOutcome = ({
+  hadIncorrectTap,
+  hintShown,
+}: {
+  hadIncorrectTap: boolean;
+  hintShown: boolean;
+}): TrainingOutcome => {
+  if (hadIncorrectTap) {
+    return 'corrected';
+  }
+  return hintShown ? 'assisted' : 'independent';
+};
+
+export const getSuccessTileReaction = (outcome: TrainingOutcome): 'celebrate' | 'assisted' =>
+  outcome === 'independent' ? 'celebrate' : 'assisted';
 
 export const getAnimalImageRecyclingKey = (
   scope: string,

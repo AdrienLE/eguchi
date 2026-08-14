@@ -1,14 +1,31 @@
 import {
+  classifyTrainingOutcome,
   getAnimalImageRecyclingKey,
   getCountdownVisibleSegmentCount,
   getFeedbackAnimalEmotion,
+  getSuccessTileReaction,
 } from '@/lib/eguchi/training-feedback';
 
 describe('eguchi training feedback helpers', () => {
-  test('uses sad feedback emotion for incorrect answers', () => {
-    expect(getFeedbackAnimalEmotion('incorrect')).toBe('sad');
+  test('never uses sad artwork as answer feedback', () => {
+    expect(getFeedbackAnimalEmotion('incorrect')).toBeUndefined();
     expect(getFeedbackAnimalEmotion('correct')).toBe('happy');
     expect(getFeedbackAnimalEmotion(null)).toBeUndefined();
+  });
+
+  test('classifies completed rounds by independence and correction', () => {
+    expect(classifyTrainingOutcome({ hadIncorrectTap: false, hintShown: false })).toBe(
+      'independent'
+    );
+    expect(classifyTrainingOutcome({ hadIncorrectTap: false, hintShown: true })).toBe('assisted');
+    expect(classifyTrainingOutcome({ hadIncorrectTap: true, hintShown: false })).toBe('corrected');
+    expect(classifyTrainingOutcome({ hadIncorrectTap: true, hintShown: true })).toBe('corrected');
+  });
+
+  test('reserves the large celebration for independent recognition', () => {
+    expect(getSuccessTileReaction('independent')).toBe('celebrate');
+    expect(getSuccessTileReaction('assisted')).toBe('assisted');
+    expect(getSuccessTileReaction('corrected')).toBe('assisted');
   });
 
   test('image recycling keys change when emotion changes', () => {

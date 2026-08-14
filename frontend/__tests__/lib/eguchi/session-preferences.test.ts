@@ -126,6 +126,7 @@ describe('eguchi session preferences', () => {
     const updated = setPlayroomBackgroundId(defaults, 'lavender');
     expect(updated.playroomBackgroundId).toBe('lavender');
     expect(defaults.playroomBackgroundId).toBe('pink');
+    expect(setPlayroomBackgroundId(defaults, 'pink')).toBe(defaults);
   });
 
   test('save writes to expected storage key', async () => {

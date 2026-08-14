@@ -202,10 +202,13 @@ export const setDailyAttemptTarget = (
 export const setPlayroomBackgroundId = (
   preferences: EguchiSessionPreferences,
   playroomBackgroundId: PlayroomBackgroundId
-): EguchiSessionPreferences => ({
-  ...preferences,
-  playroomBackgroundId,
-});
+): EguchiSessionPreferences =>
+  preferences.playroomBackgroundId === playroomBackgroundId
+    ? preferences
+    : {
+        ...preferences,
+        playroomBackgroundId,
+      };
 
 export const getEnabledImportModes = (preferences: EguchiSessionPreferences): ImportSpeed[] =>
   IMPORT_SPEEDS.filter(mode => preferences.importModes[mode]);

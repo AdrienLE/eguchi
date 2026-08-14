@@ -9,6 +9,7 @@
 - Auth-gated routing for app entry has been removed in the UI shell (`frontend/app/_layout.tsx`), while auth modules remain in repo for now.
 - Caregiver settings now include audio pack cache management (download all, clear cache, progress UI, and cache metadata) via `frontend/lib/eguchi/audio-cache.ts` and `frontend/app/settings.tsx`.
 - Adaptive progression status and experimental no-wink controls are visible in Caregiver Settings, with manual level controls and legacy day-based auto-unlock retained as a fallback (`frontend/lib/eguchi/learning-path.ts`, `frontend/app/settings.tsx`).
+- The child playroom now defaults to soft pink and offers six persistent caregiver-selectable pastel backgrounds without changing the animal learning colors (`frontend/lib/eguchi/playroom-backgrounds.ts`, `frontend/app/settings.tsx`).
 - Visual assets are currently checked in as plain happy/sad animal PNGs under `frontend/assets/images/eguchi/animals/`.
 - The accessory image pipeline has been removed from the active app and deferred until it can produce clean production art.
 - Backend APIs are template defaults (nugget + profile settings) and not tied to Eguchi data (`backend/main.py`).

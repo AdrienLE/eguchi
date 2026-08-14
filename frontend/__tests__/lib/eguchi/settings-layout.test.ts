@@ -1,4 +1,7 @@
-import { getSettingsAnimalGridLayout } from '@/lib/eguchi/settings-layout';
+import {
+  getPlayroomPaletteLayout,
+  getSettingsAnimalGridLayout,
+} from '@/lib/eguchi/settings-layout';
 
 describe('settings layout helpers', () => {
   test('fits five compact animal cards on iPad portrait and landscape widths', () => {
@@ -19,5 +22,11 @@ describe('settings layout helpers', () => {
     expect(getSettingsAnimalGridLayout(600).columns).toBe(4);
     expect(getSettingsAnimalGridLayout(520).columns).toBe(3);
     expect(getSettingsAnimalGridLayout(390).columns).toBe(2);
+  });
+
+  test('lays out playroom colors as balanced rows across iPad and phone widths', () => {
+    expect(getPlayroomPaletteLayout(1180)).toEqual({ columns: 3, choiceWidth: 238 });
+    expect(getPlayroomPaletteLayout(820)).toEqual({ columns: 3, choiceWidth: 238 });
+    expect(getPlayroomPaletteLayout(390)).toEqual({ columns: 2, choiceWidth: 157 });
   });
 });

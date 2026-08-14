@@ -64,6 +64,7 @@ The app defines a fixed **unlock order**. Conceptually, the first 9 form “Stag
 
 - No menus before training starts.
 - No text is required for the child to operate the app.
+- The playroom background is caregiver-selectable from a small pastel palette and defaults to soft pink. This personalization must not change the fixed instructional color of any animal tile.
 
 ---
 
@@ -120,6 +121,7 @@ Add a separate **Stage 3** mode after the main chord set is mastered:
 - **Manual level:** caregiver override for the active animal level.
 - **Legacy auto unlock:** when adaptive learning is off, configure day streak and daily target attempts.
 - **Color/animal mapping:** optional customization; reset-to-default button.
+- **Playroom color:** choose a soft background independently from the instructional tile colors.
 - **Animal looks:** plain friendly animal art only in child feedback. Accessory controls are deferred.
 - **Audio packs:** download/delete, show disk usage, “download all for offline.”
 - **Notifications:** daily gentle reminders (on/off; select times).

@@ -38,4 +38,3 @@ export const normalizePlayroomBackgroundId = (value: unknown): PlayroomBackgroun
 
 export const getPlayroomBackground = (id: PlayroomBackgroundId): PlayroomBackground =>
   PLAYROOM_BACKGROUND_BY_ID.get(id) ?? PLAYROOM_BACKGROUNDS[0];
-

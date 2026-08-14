@@ -63,6 +63,7 @@ import {
   loadEguchiSessionPreferences,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
+import { getPlayroomBackground } from '@/lib/eguchi/playroom-backgrounds';
 import { getEguchiTheme } from '@/lib/eguchi/theme';
 
 const CONTENT_HORIZONTAL_PADDING = 24;
@@ -948,6 +949,10 @@ export default function HomeScreen() {
   }, [isReady, startNewTrial]);
 
   const buttonBackground = theme.tint;
+  const playroomBackground = getPlayroomBackground(
+    sessionPreferences?.playroomBackgroundId ?? 'pink'
+  );
+  const playroomTextColor = getReadableTextColor(playroomBackground.color);
   const startBadgeTextColor = theme.isDark ? '#06202B' : '#FFFFFF';
   const showStartOverlay = !isLoading && !hasStartedTraining;
   const resolveAnimalImageCandidate = useCallback(
@@ -1019,7 +1024,7 @@ export default function HomeScreen() {
   const gridHeight = gridRows * gridLayout.tileSize + GRID_GAP * (gridRows - 1);
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: playroomBackground.color }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -1091,7 +1096,9 @@ export default function HomeScreen() {
               <ThemedText style={styles.replayEmoji}>🔊</ThemedText>
             </Pressable>
             {startupAutoplayPending ? (
-              <ThemedText style={styles.startupHint}>Tap to start sound</ThemedText>
+              <ThemedText style={[styles.startupHint, { color: playroomTextColor }]}>
+                Tap to start sound
+              </ThemedText>
             ) : null}
           </View>
         </View>

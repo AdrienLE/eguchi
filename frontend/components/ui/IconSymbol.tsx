@@ -20,6 +20,7 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   minus: 'remove',
   plus: 'add',
+  checkmark: 'check',
   'person.crop.circle': 'account-circle',
   xmark: 'close',
 } as IconMapping;

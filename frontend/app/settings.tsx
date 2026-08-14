@@ -34,6 +34,7 @@ import {
 import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
 import { getCaregiverLearningSummary } from '@/lib/eguchi/caregiver-learning-summary';
 import { CHORD_BY_ID, ORDERED_CHORD_IDS } from '@/lib/eguchi/chords';
+import { PLAYROOM_BACKGROUNDS } from '@/lib/eguchi/playroom-backgrounds';
 import { getNextLevelProgress } from '@/lib/eguchi/progression';
 import {
   MIN_UNLOCKED_CHORD_COUNT,
@@ -55,6 +56,7 @@ import {
   setFeedbackSeconds,
   setNoHintTrialsEnabled,
   setPerfectDaysRequired,
+  setPlayroomBackgroundId,
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
 import {
@@ -66,6 +68,7 @@ import {
 import {
   ANIMAL_GRID_GAP,
   SETTINGS_CONTENT_MAX_WIDTH,
+  getPlayroomPaletteLayout,
   getSettingsAnimalGridLayout,
 } from '@/lib/eguchi/settings-layout';
 import { getEguchiTheme } from '@/lib/eguchi/theme';
@@ -475,6 +478,7 @@ export default function SettingsScreen() {
 
   const snapshot = getProgressSnapshot(progress);
   const currentLevel = progress.unlockedChordIds.length;
+  const playroomPaletteLayout = getPlayroomPaletteLayout(windowWidth);
   const animalGridLayout = getSettingsAnimalGridLayout(windowWidth);
   const animalGridCardWidth = animalGridLayout.cardWidth;
   const levelProgress = clampProgress(
@@ -625,6 +629,63 @@ export default function SettingsScreen() {
                 {token ? 'Sign Out' : 'Sign In'}
               </ThemedText>
             </Pressable>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Playroom Color</ThemedText>
+          </View>
+
+          <View
+            style={[
+              styles.appearanceCard,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
+            <ThemedText style={[styles.controlDetail, { color: theme.subtleText }]}>
+              Pick a soft background for the space behind the animals.
+            </ThemedText>
+            <View style={styles.paletteGrid}>
+              {PLAYROOM_BACKGROUNDS.map(background => {
+                const isSelected = sessionPreferences.playroomBackgroundId === background.id;
+                return (
+                  <Pressable
+                    key={background.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${background.label} playroom background`}
+                    accessibilityState={{ selected: isSelected }}
+                    disabled={loading}
+                    onPress={() =>
+                      handleSessionUpdate(previous =>
+                        setPlayroomBackgroundId(previous, background.id)
+                      )
+                    }
+                    style={({ pressed }) => [
+                      styles.paletteChoice,
+                      { width: playroomPaletteLayout.choiceWidth },
+                      {
+                        backgroundColor: background.color,
+                        borderColor: isSelected ? tintColor : theme.borderMuted,
+                      },
+                      isSelected && styles.paletteChoiceSelected,
+                      pressed && styles.paletteChoicePressed,
+                      loading && styles.buttonDisabled,
+                    ]}
+                  >
+                    <ThemedText style={styles.paletteLabel}>{background.label}</ThemedText>
+                    {isSelected ? (
+                      <View style={styles.paletteSelectedBadge}>
+                        <IconSymbol name="checkmark" size={15} color="#27323A" weight="bold" />
+                      </View>
+                    ) : (
+                      <View style={styles.paletteBadgeSpacer} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <ThemedText style={[styles.controlDetail, { color: theme.subtleText }]}>
+              Animal tiles keep their learning colors, so the ear-training cues do not change.
+            </ThemedText>
           </View>
 
           <View style={styles.sectionHeader}>
@@ -1309,6 +1370,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 10,
+  },
+  appearanceCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  paletteGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  paletteChoice: {
+    minHeight: 58,
+    borderWidth: 2,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  paletteChoiceSelected: {
+    shadowColor: '#1B7188',
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  paletteChoicePressed: {
+    opacity: 0.78,
+  },
+  paletteLabel: {
+    color: '#27323A',
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  paletteSelectedBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paletteBadgeSpacer: {
+    width: 24,
+    height: 24,
   },
   levelCard: {
     borderWidth: 1,

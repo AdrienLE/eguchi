@@ -303,36 +303,37 @@ export function TrainingAnimalTile({
           },
         ]}
       >
-        {imageSource ? (
-          <Image
-            key={imageRecyclingKey}
-            recyclingKey={imageRecyclingKey}
-            source={imageSource}
-            style={styles.image}
-            contentFit="contain"
-            onError={onImageError}
-          />
-        ) : (
-          <ThemedText
-            style={[
-              styles.emoji,
-              {
-                color: textColor,
-                fontSize: Math.max(22, Math.floor(size * 0.58)),
-                lineHeight: Math.max(26, Math.floor(size * 0.64)),
-              },
-            ]}
-          >
-            {emoji}
-          </ThemedText>
-        )}
+        <View style={styles.artBackdrop}>
+          {imageSource ? (
+            <Image
+              key={imageRecyclingKey}
+              recyclingKey={imageRecyclingKey}
+              source={imageSource}
+              style={styles.image}
+              contentFit="contain"
+              onError={onImageError}
+            />
+          ) : (
+            <ThemedText
+              style={[
+                styles.emoji,
+                {
+                  color: textColor,
+                  fontSize: Math.max(22, Math.floor(size * 0.52)),
+                  lineHeight: Math.max(26, Math.floor(size * 0.58)),
+                },
+              ]}
+            >
+              {emoji}
+            </ThemedText>
+          )}
+        </View>
       </Animated.View>
       <Animated.View pointerEvents="none" style={[styles.sparkleLayer, { opacity: sparkles }]}>
         <ThemedText style={[styles.sparkle, styles.sparkleTop]}>✦</ThemedText>
         <ThemedText style={[styles.sparkle, styles.sparkleLeft]}>✧</ThemedText>
         <ThemedText style={[styles.sparkle, styles.sparkleRight]}>✦</ThemedText>
       </Animated.View>
-      {reaction === 'not-me' ? <View pointerEvents="none" style={styles.curiousDot} /> : null}
     </Pressable>
   );
 }
@@ -363,9 +364,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
+  artBackdrop: {
+    width: '90%',
+    height: '90%',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   image: {
-    width: '94%',
-    height: '94%',
+    width: '96%',
+    height: '96%',
   },
   emoji: {
     textAlign: 'center',
@@ -392,14 +401,5 @@ const styles = StyleSheet.create({
   sparkleRight: {
     bottom: -8,
     right: -10,
-  },
-  curiousDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.84)',
-    position: 'absolute',
-    right: 10,
-    top: 10,
   },
 });

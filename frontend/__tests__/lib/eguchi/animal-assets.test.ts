@@ -23,7 +23,9 @@ describe('eguchi animal assets', () => {
   });
 
   test('native source uses bundled assets first, then emoji fallback', () => {
-    expect(Object.keys(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID).length > 0).toBe(true);
+    expect(Object.keys(CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID).sort()).toEqual(
+      [...ORDERED_CHORD_IDS].sort()
+    );
     expect(getChordAnimalImageSource('C-E-G', 'ios')).toBe(
       CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['C-E-G']
     );

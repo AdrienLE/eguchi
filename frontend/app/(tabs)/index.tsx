@@ -21,6 +21,7 @@ import { resolveAudioPlaybackSource } from '@/lib/eguchi/audio-assets';
 import type { AudioEntry } from '@/lib/eguchi/audio-pack';
 import { pickTrainingAudioEntry } from '@/lib/eguchi/audio-selection';
 import { getAnimalAnimationProfile } from '@/lib/eguchi/animal-animation';
+import { getAnimalReactionFrames } from '@/lib/eguchi/animal-animation-assets';
 import { getChordAnimalImageSource, type AnimalEmotion } from '@/lib/eguchi/animal-assets';
 import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
 import {
@@ -1061,6 +1062,10 @@ export default function HomeScreen() {
                 <TrainingAnimalTile
                   key={chord.id}
                   animal={chord.animal}
+                  animationFrames={getAnimalReactionFrames(
+                    chord.id,
+                    tileReaction?.reaction ?? null
+                  )}
                   backgroundColor={chord.color.hex}
                   disabled={isLoading}
                   emoji={ANIMAL_EMOJIS[chord.id]}

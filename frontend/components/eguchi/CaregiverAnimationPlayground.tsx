@@ -9,6 +9,7 @@ import {
   getAnimalAnimationProfile,
   type AnimalAnimationDemoId,
 } from '@/lib/eguchi/animal-animation';
+import { getAnimalReactionFrames } from '@/lib/eguchi/animal-animation-assets';
 import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
 import { CHORD_BY_ID } from '@/lib/eguchi/chords';
 import { getAnimalImageRecyclingKey } from '@/lib/eguchi/training-feedback';
@@ -97,6 +98,7 @@ export function CaregiverAnimationPlayground() {
           >
             <TrainingAnimalTile
               animal="Fox animation preview"
+              animationFrames={getAnimalReactionFrames(FOX_CHORD_ID, activeDemo?.reaction ?? null)}
               backgroundColor={FOX_CHORD.color.hex}
               disabled={false}
               emoji="🦊"

@@ -1,0 +1,25 @@
+{
+  "asset_id": "fox-reaction-frames",
+  "category": "animations",
+  "generation_mode": "built-in image_gen edits",
+  "canonical_reference": "../../animals/fox.png",
+  "sequences": {
+    "not-me": {
+      "frames": 4,
+      "description": "curious neutral head tilt with genuinely redrawn head, ears, eyes, and neck"
+    },
+    "assisted": {
+      "frames": 4,
+      "description": "gentle crouch, airborne hop, descent, and soft landing"
+    },
+    "celebrate": {
+      "frames": 6,
+      "description": "excited crouch, jump, raised-paw apex, alternating midair wiggle, and joyful landing"
+    }
+  },
+  "post_processing": "flat green chroma-key removal with soft matte and despill; fixed-cell extraction; 1024x1024 RGBA normalization; disconnected artifact cleanup",
+  "output_format": "png",
+  "background": "transparent",
+  "generated_at_local_date": "2026-08-14",
+  "style_notes": "identity-preserving Fox poses; no sadness, shadows, text, motion marks, or detached effects"
+}

@@ -2,6 +2,7 @@ import type { AnimalAnimationReaction } from './animal-animation';
 import type { EguchiChordId } from './chords';
 
 export type AnimalReactionPose = {
+  kind: 'wink' | 'head-tilt' | 'seated-smile' | 'jump';
   source: number;
   durationMs: number;
   alignment?: {
@@ -16,8 +17,9 @@ type AnimatedReaction = Exclude<AnimalAnimationReaction, null>;
 const FOX_WINK = require('../../assets/images/eguchi/animals/fox__wink.png');
 
 const FOX_REACTION_POSES: Readonly<Record<AnimatedReaction, AnimalReactionPose>> = {
-  hint: { source: FOX_WINK, durationMs: 420 },
+  hint: { kind: 'wink', source: FOX_WINK, durationMs: 420 },
   'not-me': {
+    kind: 'head-tilt',
     source: require('../../assets/images/eguchi/animations/fox/not-me.png'),
     durationMs: 760,
     alignment: {
@@ -27,21 +29,23 @@ const FOX_REACTION_POSES: Readonly<Record<AnimatedReaction, AnimalReactionPose>>
     },
   },
   assisted: {
-    source: require('../../assets/images/eguchi/animations/fox/happy-warm.png'),
-    durationMs: 760,
-    alignment: {
-      offsetXRatio: -0.064,
-      offsetYRatio: 0.08,
-      scale: 1.14,
-    },
-  },
-  celebrate: {
+    kind: 'seated-smile',
     source: require('../../assets/images/eguchi/animations/fox/happy-big.png'),
-    durationMs: 920,
+    durationMs: 760,
     alignment: {
       offsetXRatio: 0.083,
       offsetYRatio: -0.008,
       scale: 1.14,
+    },
+  },
+  celebrate: {
+    kind: 'jump',
+    source: require('../../assets/images/eguchi/animations/fox/celebrate-03.png'),
+    durationMs: 920,
+    alignment: {
+      offsetXRatio: 0.077,
+      offsetYRatio: 0.004,
+      scale: 0.93,
     },
   },
 };

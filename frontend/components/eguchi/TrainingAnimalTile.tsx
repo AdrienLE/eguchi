@@ -71,7 +71,7 @@ export function TrainingAnimalTile({
   const hasAnimationPose = Boolean(animationPose);
   const animationPoseKey =
     animationPose && reaction
-      ? `${imageRecyclingKey}:pose:${reaction}:${reactionNonce}:${animationPose.source}`
+      ? `${imageRecyclingKey}:pose:${reaction}:${reactionNonce}:${animationPose.kind}`
       : null;
   const { canDisplayPose, shouldPreloadPose } = getAnimalReactionDisplayState(
     animationPoseKey,

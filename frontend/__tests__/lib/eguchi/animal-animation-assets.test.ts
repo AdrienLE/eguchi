@@ -28,6 +28,11 @@ describe('animal reaction pose assets', () => {
     ).toBe(true);
   });
 
+  test('uses a seated smile for helped rounds and a jump for independent celebration', () => {
+    expect(getAnimalReactionPose('C-E-G', 'assisted')?.kind).toBe('seated-smile');
+    expect(getAnimalReactionPose('C-E-G', 'celebrate')?.kind).toBe('jump');
+  });
+
   test('aligns generated poses to the normal Fox instead of shifting the whole character', () => {
     expect(getAnimalReactionPose('C-E-G', 'hint')?.alignment).toBeUndefined();
     expect(getAnimalReactionPose('C-E-G', 'not-me')?.alignment).toEqual({
@@ -36,14 +41,14 @@ describe('animal reaction pose assets', () => {
       scale: 0.91,
     });
     expect(getAnimalReactionPose('C-E-G', 'assisted')?.alignment).toEqual({
-      offsetXRatio: -0.064,
-      offsetYRatio: 0.08,
-      scale: 1.14,
-    });
-    expect(getAnimalReactionPose('C-E-G', 'celebrate')?.alignment).toEqual({
       offsetXRatio: 0.083,
       offsetYRatio: -0.008,
       scale: 1.14,
+    });
+    expect(getAnimalReactionPose('C-E-G', 'celebrate')?.alignment).toEqual({
+      offsetXRatio: 0.077,
+      offsetYRatio: 0.004,
+      scale: 0.93,
     });
   });
 });

@@ -4,6 +4,7 @@ import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View } from
 import { ThemedText } from '@/components/ThemedText';
 import type { AnimalAnimationReaction, AnimalMotionTarget } from '@/lib/eguchi/animal-animation';
 import type { AnimalReactionPose } from '@/lib/eguchi/animal-animation-assets';
+import { getAnimalReactionDisplayState } from '@/lib/eguchi/animal-reaction-display';
 
 export type TrainingTileReaction = AnimalAnimationReaction;
 
@@ -56,6 +57,8 @@ export function TrainingAnimalTile({
   textColor,
 }: TrainingAnimalTileProps) {
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [failedAnimationPoseKey, setFailedAnimationPoseKey] = useState<string | null>(null);
+  const [loadedAnimationPoseKey, setLoadedAnimationPoseKey] = useState<string | null>(null);
   const [showAnimationPose, setShowAnimationPose] = useState(false);
   const [showHintImage, setShowHintImage] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -66,6 +69,15 @@ export function TrainingAnimalTile({
   const sparkles = useRef(new Animated.Value(0)).current;
   const hasHintImage = Boolean(imageSource && hintImageSource);
   const hasAnimationPose = Boolean(animationPose);
+  const animationPoseKey =
+    animationPose && reaction
+      ? `${imageRecyclingKey}:pose:${reaction}:${reactionNonce}:${animationPose.source}`
+      : null;
+  const { canDisplayPose, shouldPreloadPose } = getAnimalReactionDisplayState(
+    animationPoseKey,
+    loadedAnimationPoseKey,
+    failedAnimationPoseKey
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -100,12 +112,12 @@ export function TrainingAnimalTile({
 
   useEffect(() => {
     setShowAnimationPose(false);
-    if (!reaction || !animationPose) return undefined;
+    if (!canDisplayPose || !animationPose) return undefined;
 
     setShowAnimationPose(true);
     const resetTimer = setTimeout(() => setShowAnimationPose(false), animationPose.durationMs);
     return () => clearTimeout(resetTimer);
-  }, [animationPose, reaction, reactionNonce]);
+  }, [animationPose, animationPoseKey, canDisplayPose]);
 
   useEffect(() => {
     scale.stopAnimation();
@@ -330,21 +342,36 @@ export function TrainingAnimalTile({
     { scale },
   ];
   const artworkMotionStyle = hasAnimationPose ? undefined : { transform: motionTransform };
+  const displayAnimationPose = showAnimationPose && canDisplayPose && Boolean(animationPose);
+  const animationPoseAlignmentStyle =
+    displayAnimationPose && animationPose?.alignment
+      ? {
+          transform: [
+            { scale: animationPose.alignment.scale },
+            { translateX: size * animationPose.alignment.offsetXRatio },
+            { translateY: size * animationPose.alignment.offsetYRatio },
+          ],
+        }
+      : undefined;
   const displayedImageSource =
-    showAnimationPose && animationPose
+    displayAnimationPose && animationPose
       ? animationPose.source
       : showHintImage && hintImageSource
         ? hintImageSource
         : imageSource;
   const displayedImageRecyclingKey =
-    showAnimationPose && animationPose
-      ? `${imageRecyclingKey}:pose:${reaction}:${reactionNonce}`
+    displayAnimationPose && animationPose
+      ? animationPoseKey
       : showHintImage && hintImageSource
         ? hintImageRecyclingKey
         : imageRecyclingKey;
   const displayedImageErrorHandler =
-    showAnimationPose && animationPose
-      ? onAnimationPoseError
+    displayAnimationPose && animationPose
+      ? () => {
+          setShowAnimationPose(false);
+          setFailedAnimationPoseKey(animationPoseKey);
+          onAnimationPoseError?.();
+        }
       : showHintImage && hintImageSource
         ? onHintImageError
         : onImageError;
@@ -377,7 +404,7 @@ export function TrainingAnimalTile({
                 key={displayedImageRecyclingKey}
                 recyclingKey={displayedImageRecyclingKey}
                 source={displayedImageSource}
-                style={styles.image}
+                style={[styles.image, animationPoseAlignmentStyle]}
                 contentFit="contain"
                 onError={displayedImageErrorHandler}
               />
@@ -395,6 +422,20 @@ export function TrainingAnimalTile({
                 {emoji}
               </ThemedText>
             )}
+            {shouldPreloadPose && animationPose && animationPoseKey ? (
+              <Image
+                key={`${animationPoseKey}:preload`}
+                recyclingKey={`${animationPoseKey}:preload`}
+                source={animationPose.source}
+                style={[styles.image, styles.preloadedImage]}
+                contentFit="contain"
+                onLoad={() => setLoadedAnimationPoseKey(animationPoseKey)}
+                onError={() => {
+                  setFailedAnimationPoseKey(animationPoseKey);
+                  onAnimationPoseError?.();
+                }}
+              />
+            ) : null}
           </View>
         </Animated.View>
       </Animated.View>
@@ -450,6 +491,10 @@ const styles = StyleSheet.create({
   image: {
     width: '96%',
     height: '96%',
+  },
+  preloadedImage: {
+    position: 'absolute',
+    opacity: 0,
   },
   emoji: {
     textAlign: 'center',

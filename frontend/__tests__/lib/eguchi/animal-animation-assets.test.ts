@@ -27,4 +27,23 @@ describe('animal reaction pose assets', () => {
         (getAnimalReactionPose('C-E-G', 'assisted')?.durationMs ?? 0)
     ).toBe(true);
   });
+
+  test('aligns generated poses to the normal Fox instead of shifting the whole character', () => {
+    expect(getAnimalReactionPose('C-E-G', 'hint')?.alignment).toBeUndefined();
+    expect(getAnimalReactionPose('C-E-G', 'not-me')?.alignment).toEqual({
+      offsetXRatio: -0.012,
+      offsetYRatio: 0.032,
+      scale: 0.91,
+    });
+    expect(getAnimalReactionPose('C-E-G', 'assisted')?.alignment).toEqual({
+      offsetXRatio: -0.064,
+      offsetYRatio: 0.08,
+      scale: 1.14,
+    });
+    expect(getAnimalReactionPose('C-E-G', 'celebrate')?.alignment).toEqual({
+      offsetXRatio: 0.083,
+      offsetYRatio: -0.008,
+      scale: 1.14,
+    });
+  });
 });

@@ -15,6 +15,7 @@ import {
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { ThemedView } from '@/components/ThemedView';
+import { CaregiverAnimationPlayground } from '@/components/eguchi/CaregiverAnimationPlayground';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useAuth } from '@/auth/AuthContext';
 import { Colors } from '@/constants/Colors';
@@ -687,6 +688,12 @@ export default function SettingsScreen() {
               Animal tiles keep their learning colors, so the ear-training cues do not change.
             </ThemedText>
           </View>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Animation Playground</ThemedText>
+          </View>
+
+          <CaregiverAnimationPlayground />
 
           <View style={styles.sectionHeader}>
             <ThemedText type="subtitle">Practice Progress</ThemedText>

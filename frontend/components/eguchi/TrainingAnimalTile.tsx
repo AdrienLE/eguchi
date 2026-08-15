@@ -2,9 +2,9 @@ import { Image } from 'expo-image';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
-import type { AnimalMotionTarget } from '@/lib/eguchi/animal-animation';
+import type { AnimalAnimationReaction, AnimalMotionTarget } from '@/lib/eguchi/animal-animation';
 
-export type TrainingTileReaction = 'hint' | 'not-me' | 'assisted' | 'celebrate' | null;
+export type TrainingTileReaction = AnimalAnimationReaction;
 
 type TrainingAnimalTileProps = {
   animal: string;

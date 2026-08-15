@@ -1,6 +1,7 @@
 import {
   CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID,
   CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID,
+  CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID,
   CHORD_ANIMAL_WEB_PATH_BY_ID,
   CHORD_ANIMAL_WEB_SLUG_BY_ID,
   getChordAnimalWebPath,
@@ -46,10 +47,25 @@ describe('eguchi animal assets', () => {
     );
   });
 
-  test('web paths only expose base happy and sad animal art', () => {
+  test('wink emotion uses the Fox pilot frame and keeps other animals on their base art', () => {
+    expect(getChordAnimalWebPath('C-E-G', 'wink')).toBe(
+      '/assets/images/eguchi/animals/fox__wink.png'
+    );
+    expect(getChordAnimalImageSource('C-E-G', 'ios', { emotion: 'wink' })).toBe(
+      CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID['C-E-G']
+    );
+    expect(getChordAnimalImageSource('F-A-C', 'ios', { emotion: 'wink' })).toBe(
+      CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['F-A-C']
+    );
+  });
+
+  test('web paths expose the configured animation emotion suffix', () => {
     expect(getChordAnimalWebPath('C-E-G')).toBe('/assets/images/eguchi/animals/fox.png');
     expect(getChordAnimalWebPath('C-E-G', 'sad')).toBe(
       '/assets/images/eguchi/animals/fox__sad.png'
+    );
+    expect(getChordAnimalWebPath('C-E-G', 'wink')).toBe(
+      '/assets/images/eguchi/animals/fox__wink.png'
     );
   });
 });

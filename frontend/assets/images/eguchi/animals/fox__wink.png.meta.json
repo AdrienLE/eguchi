@@ -1,0 +1,13 @@
+{
+  "asset_id": "fox__wink",
+  "category": "animals",
+  "emotion": "wink",
+  "generation_mode": "built-in image_gen edit",
+  "source_image_path": "/Users/adrien/projects/eguchi-ear-trainer/frontend/assets/images/eguchi/animals/fox.png",
+  "generated_image_path": "/Users/adrien/.codex/generated_images/019ffea1-7588-7b41-8151-0078011046e1/exec-eed69dfd-a1c0-4564-928a-92c70ba4bc26.png",
+  "post_processing": "local chroma-key removal with soft matte and despill, resized to 1024x1024 RGBA",
+  "output_format": "png",
+  "background": "transparent",
+  "generated_at_local_date": "2026-08-14",
+  "style_notes": "identity-preserving Fox pilot frame; viewer-left eye closed; centered silhouette and transparent canvas retained"
+}

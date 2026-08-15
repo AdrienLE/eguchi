@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
+import type { AnimalMotionTarget } from '@/lib/eguchi/animal-animation';
 
 export type TrainingTileReaction = 'hint' | 'not-me' | 'assisted' | 'celebrate' | null;
 
@@ -10,8 +11,12 @@ type TrainingAnimalTileProps = {
   backgroundColor: string;
   disabled: boolean;
   emoji: string;
+  hintImageRecyclingKey?: string;
+  hintImageSource?: ComponentProps<typeof Image>['source'] | null;
   imageRecyclingKey: string;
   imageSource: ComponentProps<typeof Image>['source'] | null;
+  motionTarget: AnimalMotionTarget;
+  onHintImageError?: () => void;
   onImageError: () => void;
   onPress: () => void;
   reaction: TrainingTileReaction;
@@ -32,8 +37,12 @@ export function TrainingAnimalTile({
   backgroundColor,
   disabled,
   emoji,
+  hintImageRecyclingKey,
+  hintImageSource,
   imageRecyclingKey,
   imageSource,
+  motionTarget,
+  onHintImageError,
   onImageError,
   onPress,
   reaction,
@@ -42,12 +51,14 @@ export function TrainingAnimalTile({
   textColor,
 }: TrainingAnimalTileProps) {
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [showHintImage, setShowHintImage] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   const lift = useRef(new Animated.Value(0)).current;
   const tilt = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
   const glow = useRef(new Animated.Value(0)).current;
   const sparkles = useRef(new Animated.Value(0)).current;
+  const hasHintImage = Boolean(imageSource && hintImageSource);
 
   useEffect(() => {
     let mounted = true;
@@ -60,6 +71,25 @@ export function TrainingAnimalTile({
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    setShowHintImage(false);
+    if (reaction !== 'hint' || !hasHintImage) return undefined;
+
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const showTimer = setTimeout(
+      () => {
+        setShowHintImage(true);
+        hideTimer = setTimeout(() => setShowHintImage(false), reduceMotion ? 420 : 240);
+      },
+      reduceMotion ? 0 : 70
+    );
+
+    return () => {
+      clearTimeout(showTimer);
+      if (hideTimer) clearTimeout(hideTimer);
+    };
+  }, [hasHintImage, reaction, reactionNonce, reduceMotion]);
 
   useEffect(() => {
     scale.stopAnimation();
@@ -99,7 +129,7 @@ export function TrainingAnimalTile({
     }
 
     if (reaction === 'hint') {
-      const animation = Animated.parallel([
+      const hintAnimations = [
         Animated.sequence([
           Animated.timing(scale, {
             toValue: 1.055,
@@ -126,7 +156,8 @@ export function TrainingAnimalTile({
             useNativeDriver: true,
           }),
         ]),
-      ]);
+      ];
+      const animation = Animated.parallel(hintAnimations);
       animation.start();
       return () => animation.stop();
     }
@@ -267,10 +298,21 @@ export function TrainingAnimalTile({
     inputRange: [-1, 1],
     outputRange: ['-7deg', '7deg'],
   });
-  const spinRotation = spin.interpolate({
+  const tileSpinRotation = spin.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   });
+  const artworkCelebrationRotation = spin.interpolate({
+    inputRange: [0, 0.34, 0.68, 1],
+    outputRange: ['0deg', '-9deg', '9deg', '0deg'],
+  });
+  const celebrationRotation =
+    motionTarget === 'artwork' ? artworkCelebrationRotation : tileSpinRotation;
+  const motionTransform = [
+    { translateY: lift },
+    { rotate: reaction === 'celebrate' ? celebrationRotation : tiltRotation },
+    { scale },
+  ];
 
   return (
     <Pressable
@@ -294,40 +336,52 @@ export function TrainingAnimalTile({
         style={[
           styles.tile,
           { backgroundColor },
-          {
-            transform: [
-              { translateY: lift },
-              { rotate: reaction === 'celebrate' ? spinRotation : tiltRotation },
-              { scale },
-            ],
-          },
+          motionTarget === 'tile' && { transform: motionTransform },
         ]}
       >
-        <View style={styles.artBackdrop}>
-          {imageSource ? (
-            <Image
-              key={imageRecyclingKey}
-              recyclingKey={imageRecyclingKey}
-              source={imageSource}
-              style={styles.image}
-              contentFit="contain"
-              onError={onImageError}
-            />
-          ) : (
-            <ThemedText
-              style={[
-                styles.emoji,
-                {
-                  color: textColor,
-                  fontSize: Math.max(22, Math.floor(size * 0.52)),
-                  lineHeight: Math.max(26, Math.floor(size * 0.58)),
-                },
-              ]}
-            >
-              {emoji}
-            </ThemedText>
-          )}
-        </View>
+        <Animated.View
+          style={[styles.artMotion, motionTarget === 'artwork' && { transform: motionTransform }]}
+        >
+          <View style={styles.artBackdrop}>
+            {imageSource ? (
+              <>
+                <Image
+                  key={imageRecyclingKey}
+                  recyclingKey={imageRecyclingKey}
+                  source={imageSource}
+                  style={styles.image}
+                  contentFit="contain"
+                  onError={onImageError}
+                />
+                {hintImageSource && showHintImage ? (
+                  <View pointerEvents="none" style={styles.hintImageLayer}>
+                    <Image
+                      key={hintImageRecyclingKey}
+                      recyclingKey={hintImageRecyclingKey}
+                      source={hintImageSource}
+                      style={styles.image}
+                      contentFit="contain"
+                      onError={onHintImageError}
+                    />
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <ThemedText
+                style={[
+                  styles.emoji,
+                  {
+                    color: textColor,
+                    fontSize: Math.max(22, Math.floor(size * 0.52)),
+                    lineHeight: Math.max(26, Math.floor(size * 0.58)),
+                  },
+                ]}
+              >
+                {emoji}
+              </ThemedText>
+            )}
+          </View>
+        </Animated.View>
       </Animated.View>
       <Animated.View pointerEvents="none" style={[styles.sparkleLayer, { opacity: sparkles }]}>
         <ThemedText style={[styles.sparkle, styles.sparkleTop]}>✦</ThemedText>
@@ -364,6 +418,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
+  artMotion: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   artBackdrop: {
     width: '90%',
     height: '90%',
@@ -375,6 +435,11 @@ const styles = StyleSheet.create({
   image: {
     width: '96%',
     height: '96%',
+  },
+  hintImageLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emoji: {
     textAlign: 'center',

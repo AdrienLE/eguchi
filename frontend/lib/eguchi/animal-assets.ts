@@ -1,7 +1,7 @@
 import { Platform, type PlatformOSType } from 'react-native';
 import type { EguchiChordId } from './chords';
 
-export type AnimalEmotion = 'happy' | 'sad';
+export type AnimalEmotion = 'happy' | 'sad' | 'wink';
 
 export const CHORD_ANIMAL_WEB_SLUG_BY_ID: Record<EguchiChordId, string> = {
   'C-E-G': 'fox',
@@ -76,6 +76,12 @@ export const CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID: Partial<
   'Eb-G-Bb': require('../../assets/images/eguchi/animals/crab__sad.png'),
 };
 
+export const CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID: Partial<
+  Record<EguchiChordId, AnimalBundleSource>
+> = {
+  'C-E-G': require('../../assets/images/eguchi/animals/fox__wink.png'),
+};
+
 type AnimalImageSource = AnimalBundleSource | { uri: string };
 type AnimalImageOptions = {
   emotion?: AnimalEmotion;
@@ -86,7 +92,7 @@ export const getChordAnimalWebPath = (
   emotion: AnimalEmotion = 'happy'
 ): string => {
   const slug = CHORD_ANIMAL_WEB_SLUG_BY_ID[chordId];
-  const emotionSuffix = emotion === 'sad' ? '__sad' : '';
+  const emotionSuffix = emotion === 'happy' ? '' : `__${emotion}`;
   return `/assets/images/eguchi/animals/${slug}${emotionSuffix}.png`;
 };
 
@@ -97,9 +103,13 @@ export const getChordAnimalImageSource = (
 ): AnimalImageSource | null => {
   const emotion = options.emotion ?? 'happy';
   const sadBundledSource = CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID[chordId];
+  const winkBundledSource = CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID[chordId];
   const bundledSource = CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID[chordId];
   if (emotion === 'sad' && sadBundledSource) {
     return sadBundledSource;
+  }
+  if (emotion === 'wink' && winkBundledSource) {
+    return winkBundledSource;
   }
 
   if (bundledSource) {

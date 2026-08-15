@@ -20,6 +20,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { resolveAudioPlaybackSource } from '@/lib/eguchi/audio-assets';
 import type { AudioEntry } from '@/lib/eguchi/audio-pack';
 import { pickTrainingAudioEntry } from '@/lib/eguchi/audio-selection';
+import { getAnimalAnimationProfile } from '@/lib/eguchi/animal-animation';
 import { getChordAnimalImageSource, type AnimalEmotion } from '@/lib/eguchi/animal-assets';
 import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
 import {
@@ -1034,14 +1035,27 @@ export default function HomeScreen() {
           <View style={[styles.grid, { width: gridWidth }]}>
             {visibleChords.map(chord => {
               const tileTextColor = getReadableTextColor(chord.color.hex);
+              const animationProfile = getAnimalAnimationProfile(chord.id);
               const animalImageCandidate = resolveAnimalImageCandidate(chord.id);
               const animalImageSource = animalImageCandidate?.source ?? null;
+              const hintImageCandidate = animationProfile.hintEmotion
+                ? resolveAnimalImageCandidate(chord.id, {
+                    emotion: animationProfile.hintEmotion,
+                  })
+                : null;
+              const hintImageSource =
+                hintImageCandidate?.emotion === animationProfile.hintEmotion
+                  ? hintImageCandidate.source
+                  : null;
               const tileReaction = tileReactions[chord.id];
               const tileImageRecyclingKey = getAnimalImageRecyclingKey(
                 'tile',
                 chord.id,
                 animalImageCandidate?.emotion ?? 'happy'
               );
+              const hintImageRecyclingKey = animationProfile.hintEmotion
+                ? getAnimalImageRecyclingKey('hint', chord.id, animationProfile.hintEmotion)
+                : undefined;
 
               return (
                 <TrainingAnimalTile
@@ -1050,8 +1064,20 @@ export default function HomeScreen() {
                   backgroundColor={chord.color.hex}
                   disabled={isLoading}
                   emoji={ANIMAL_EMOJIS[chord.id]}
+                  hintImageRecyclingKey={hintImageRecyclingKey}
+                  hintImageSource={hintImageSource}
                   imageRecyclingKey={tileImageRecyclingKey}
                   imageSource={animalImageSource}
+                  motionTarget={animationProfile.motionTarget}
+                  onHintImageError={() => {
+                    if (!animationProfile.hintEmotion) return;
+                    console.log('[Eguchi] Animal hint frame missing, keeping the color cue', {
+                      chord: chord.id,
+                      emotion: animationProfile.hintEmotion,
+                      uri: typeof hintImageSource === 'number' ? 'bundle' : hintImageSource?.uri,
+                    });
+                    markAnimalImageFailed(chord.id, animationProfile.hintEmotion);
+                  }}
                   onImageError={() => {
                     console.log('[Eguchi] Animal image missing, using emoji fallback', {
                       chord: chord.id,

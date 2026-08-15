@@ -4,6 +4,8 @@ import type { EguchiChordId } from './chords';
 export type AnimalMotionTarget = 'tile' | 'artwork';
 export type AnimalAnimationReaction = 'hint' | 'not-me' | 'assisted' | 'celebrate' | null;
 
+export const ANIMATION_PLAYGROUND_DEFAULT_EXPANDED = false;
+
 export type AnimalAnimationDemoId = 'hint' | 'not-me' | 'assisted' | 'independent';
 
 export type AnimalAnimationDemo = {

@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import {
+  ANIMATION_PLAYGROUND_DEFAULT_EXPANDED,
   ANIMAL_ANIMATION_DEMOS,
   getAnimalAnimationProfile,
   type AnimalAnimationDemoId,
@@ -23,6 +25,7 @@ export function CaregiverAnimationPlayground() {
   const theme = getEguchiTheme(colorScheme);
   const { width } = useWindowDimensions();
   const tileSize = width < 480 ? 164 : 206;
+  const [expanded, setExpanded] = useState(ANIMATION_PLAYGROUND_DEFAULT_EXPANDED);
   const [activeDemoId, setActiveDemoId] = useState<AnimalAnimationDemoId | null>(null);
   const [reactionNonce, setReactionNonce] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
@@ -56,71 +59,104 @@ export function CaregiverAnimationPlayground() {
 
   return (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <ThemedText style={[styles.intro, { color: theme.subtleText }]}>
-        Keep your eye on Fox, then tap any reaction below. These demos never change practice
-        progress.
-      </ThemedText>
-
-      <View
-        style={[
-          styles.stage,
-          { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
-        ]}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          expanded ? 'Hide Fox animation previews' : 'Show Fox animation previews'
+        }
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded(previous => !previous)}
+        style={({ pressed }) => [styles.disclosure, pressed && styles.buttonPressed]}
       >
-        <TrainingAnimalTile
-          animal="Fox animation preview"
-          backgroundColor={FOX_CHORD.color.hex}
-          disabled={false}
-          emoji="🦊"
-          hintImageRecyclingKey={getAnimalImageRecyclingKey('caregiver-hint', FOX_CHORD_ID, 'wink')}
-          hintImageSource={hintImageSource}
-          imageRecyclingKey={getAnimalImageRecyclingKey('caregiver', FOX_CHORD_ID, 'happy')}
-          imageSource={imageSource}
-          motionTarget={FOX_ANIMATION_PROFILE.motionTarget}
-          onHintImageError={() => setHintImageFailed(true)}
-          onImageError={() => setImageFailed(true)}
-          onPress={handleReplayCurrent}
-          reaction={activeDemo?.reaction ?? null}
-          reactionNonce={reactionNonce}
-          size={tileSize}
-          textColor="#3C2415"
+        <View style={styles.disclosureText}>
+          <ThemedText style={styles.disclosureTitle}>Fox animation previews</ThemedText>
+          <ThemedText style={[styles.disclosureDetail, { color: theme.subtleText }]}>
+            Optional visual test tools
+          </ThemedText>
+        </View>
+        <IconSymbol
+          name="chevron.right"
+          size={22}
+          color={theme.subtleText}
+          style={expanded ? styles.disclosureIconExpanded : undefined}
         />
-        <ThemedText
-          accessibilityLiveRegion="polite"
-          style={[styles.nowPlaying, { color: theme.subtleText }]}
-        >
-          {activeDemo ? `${activeDemo.label}: ${activeDemo.detail}` : 'Choose a reaction below.'}
-        </ThemedText>
-      </View>
+      </Pressable>
 
-      <View style={styles.demoGrid}>
-        {ANIMAL_ANIMATION_DEMOS.map(demo => {
-          const isActive = activeDemoId === demo.id;
-          return (
-            <Pressable
-              key={demo.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Preview ${demo.label}`}
-              accessibilityState={{ selected: isActive }}
-              onPress={() => handleSelectDemo(demo.id)}
-              style={({ pressed }) => [
-                styles.demoButton,
-                {
-                  backgroundColor: isActive ? theme.successSurface : theme.surfaceMuted,
-                  borderColor: isActive ? theme.successBorder : theme.borderMuted,
-                },
-                isActive && styles.demoButtonActive,
-                pressed && styles.buttonPressed,
-              ]}
+      {expanded ? (
+        <View style={styles.expandedContent}>
+          <ThemedText style={[styles.intro, { color: theme.subtleText }]}>
+            Keep your eye on Fox, then tap any reaction below. These demos never change practice
+            progress.
+          </ThemedText>
+
+          <View
+            style={[
+              styles.stage,
+              { backgroundColor: theme.surfaceMuted, borderColor: theme.borderMuted },
+            ]}
+          >
+            <TrainingAnimalTile
+              animal="Fox animation preview"
+              backgroundColor={FOX_CHORD.color.hex}
+              disabled={false}
+              emoji="🦊"
+              hintImageRecyclingKey={getAnimalImageRecyclingKey(
+                'caregiver-hint',
+                FOX_CHORD_ID,
+                'wink'
+              )}
+              hintImageSource={hintImageSource}
+              imageRecyclingKey={getAnimalImageRecyclingKey('caregiver', FOX_CHORD_ID, 'happy')}
+              imageSource={imageSource}
+              motionTarget={FOX_ANIMATION_PROFILE.motionTarget}
+              onHintImageError={() => setHintImageFailed(true)}
+              onImageError={() => setImageFailed(true)}
+              onPress={handleReplayCurrent}
+              reaction={activeDemo?.reaction ?? null}
+              reactionNonce={reactionNonce}
+              size={tileSize}
+              textColor="#3C2415"
+            />
+            <ThemedText
+              accessibilityLiveRegion="polite"
+              style={[styles.nowPlaying, { color: theme.subtleText }]}
             >
-              <ThemedText style={styles.demoButtonLabel}>{demo.label}</ThemedText>
-              <ThemedText style={[styles.demoButtonDetail, { color: theme.subtleText }]}>
-                {demo.detail}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-      </View>
+              {activeDemo
+                ? `${activeDemo.label}: ${activeDemo.detail}`
+                : 'Choose a reaction below.'}
+            </ThemedText>
+          </View>
+
+          <View style={styles.demoGrid}>
+            {ANIMAL_ANIMATION_DEMOS.map(demo => {
+              const isActive = activeDemoId === demo.id;
+              return (
+                <Pressable
+                  key={demo.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Preview ${demo.label}`}
+                  accessibilityState={{ selected: isActive }}
+                  onPress={() => handleSelectDemo(demo.id)}
+                  style={({ pressed }) => [
+                    styles.demoButton,
+                    {
+                      backgroundColor: isActive ? theme.successSurface : theme.surfaceMuted,
+                      borderColor: isActive ? theme.successBorder : theme.borderMuted,
+                    },
+                    isActive && styles.demoButtonActive,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <ThemedText style={styles.demoButtonLabel}>{demo.label}</ThemedText>
+                  <ThemedText style={[styles.demoButtonDetail, { color: theme.subtleText }]}>
+                    {demo.detail}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -131,7 +167,35 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 14,
+  },
+  disclosure: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
+  },
+  disclosureText: {
+    flex: 1,
+    gap: 2,
+  },
+  disclosureTitle: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '800',
+  },
+  disclosureDetail: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  disclosureIconExpanded: {
+    transform: [{ rotate: '90deg' }],
+  },
+  expandedContent: {
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(127, 127, 127, 0.28)',
   },
   intro: {
     fontSize: 13,

@@ -690,12 +690,6 @@ export default function SettingsScreen() {
           </View>
 
           <View style={styles.sectionHeader}>
-            <ThemedText type="subtitle">Animation Playground</ThemedText>
-          </View>
-
-          <CaregiverAnimationPlayground />
-
-          <View style={styles.sectionHeader}>
             <ThemedText type="subtitle">Practice Progress</ThemedText>
             {savingSession ? <ActivityIndicator size="small" color={tintColor} /> : null}
           </View>
@@ -1250,6 +1244,8 @@ export default function SettingsScreen() {
               <ThemedText style={styles.dangerButtonText}>Reset Progress</ThemedText>
             </Pressable>
           </View>
+
+          <CaregiverAnimationPlayground />
         </View>
       </ScrollView>
       <Modal

@@ -22,7 +22,11 @@ import type { AudioEntry } from '@/lib/eguchi/audio-pack';
 import { pickTrainingAudioEntry } from '@/lib/eguchi/audio-selection';
 import { getAnimalAnimationProfile } from '@/lib/eguchi/animal-animation';
 import { getAnimalReactionPose } from '@/lib/eguchi/animal-animation-assets';
-import { getChordAnimalImageSource, type AnimalEmotion } from '@/lib/eguchi/animal-assets';
+import {
+  CHORD_ANIMAL_EMOJI_BY_ID,
+  getChordAnimalImageSource,
+  type AnimalEmotion,
+} from '@/lib/eguchi/animal-assets';
 import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
 import {
   advanceLearningPath,
@@ -191,23 +195,6 @@ const getGridLayout = (tileCount: number, availableWidth: number, availableHeigh
     columns: best.columns,
     tileSize: Math.max(GRID_MIN_TILE_SIZE, best.tileSize),
   };
-};
-
-const ANIMAL_EMOJIS: Record<EguchiChordId, string> = {
-  'C-E-G': '🦊',
-  'F-A-C': '🐋',
-  'G-B-D': '🐸',
-  'E-G-C': '🐯',
-  'A-C-F': '🐙',
-  'B-D-G': '🐣',
-  'G-C-E': '🐰',
-  'C-F-A': '🐢',
-  'D-G-B': '🐦',
-  'A-C#-E': '🦁',
-  'D-F#-A': '🦜',
-  'E-G#-B': '🐠',
-  'Bb-D-F': '🦭',
-  'Eb-G-Bb': '🦀',
 };
 
 export default function HomeScreen() {
@@ -1065,7 +1052,7 @@ export default function HomeScreen() {
                   animationPose={getAnimalReactionPose(chord.id, tileReaction?.reaction ?? null)}
                   backgroundColor={chord.color.hex}
                   disabled={isLoading}
-                  emoji={ANIMAL_EMOJIS[chord.id]}
+                  emoji={CHORD_ANIMAL_EMOJI_BY_ID[chord.id]}
                   hintImageRecyclingKey={hintImageRecyclingKey}
                   hintImageSource={hintImageSource}
                   imageRecyclingKey={tileImageRecyclingKey}

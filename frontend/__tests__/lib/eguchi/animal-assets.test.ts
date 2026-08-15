@@ -1,5 +1,6 @@
 import {
   CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID,
+  CHORD_ANIMAL_EMOJI_BY_ID,
   CHORD_ANIMAL_SAD_BUNDLE_SOURCE_BY_ID,
   CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID,
   CHORD_ANIMAL_WEB_PATH_BY_ID,
@@ -13,6 +14,11 @@ describe('eguchi animal assets', () => {
   test('web slugs and paths cover every chord id', () => {
     expect(Object.keys(CHORD_ANIMAL_WEB_SLUG_BY_ID).sort()).toEqual([...ORDERED_CHORD_IDS].sort());
     expect(Object.keys(CHORD_ANIMAL_WEB_PATH_BY_ID).sort()).toEqual([...ORDERED_CHORD_IDS].sort());
+  });
+
+  test('provides one shared emoji fallback for every selectable animal', () => {
+    expect(Object.keys(CHORD_ANIMAL_EMOJI_BY_ID)).toEqual(ORDERED_CHORD_IDS);
+    expect(Object.values(CHORD_ANIMAL_EMOJI_BY_ID).every(Boolean)).toBe(true);
   });
 
   test('web source prefers bundled images when available', () => {
@@ -47,7 +53,8 @@ describe('eguchi animal assets', () => {
     );
   });
 
-  test('wink emotion uses the Fox pilot frame and keeps other animals on their base art', () => {
+  test('wink emotion uses a dedicated bundled frame for every animal', () => {
+    expect(Object.keys(CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID)).toEqual(ORDERED_CHORD_IDS);
     expect(getChordAnimalWebPath('C-E-G', 'wink')).toBe(
       '/assets/images/eguchi/animals/fox__wink.png'
     );
@@ -55,7 +62,7 @@ describe('eguchi animal assets', () => {
       CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID['C-E-G']
     );
     expect(getChordAnimalImageSource('F-A-C', 'ios', { emotion: 'wink' })).toBe(
-      CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID['F-A-C']
+      CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID['F-A-C']
     );
   });
 

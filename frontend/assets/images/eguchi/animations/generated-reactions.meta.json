@@ -1,0 +1,30 @@
+{
+  "generator": "built-in image_gen",
+  "generated_at_local_date": "2026-08-14",
+  "reference_pattern": "../animals/{animal}.png",
+  "animals": [
+    "whale",
+    "frog",
+    "tiger",
+    "octopus",
+    "chick",
+    "bunny",
+    "turtle",
+    "bluebird",
+    "lion",
+    "parrot",
+    "fish",
+    "seal",
+    "crab"
+  ],
+  "files_per_animal": ["wink.png", "not-me.png", "warm-smile.png", "celebrate.png"],
+  "prompt_spec": {
+    "wink": "friendly single-eye wink with an otherwise familiar pose",
+    "not_me": "neutral curious head tilt around 15 degrees, never sad",
+    "warm_smile": "calm seated or naturally settled eyes-closed smile",
+    "celebrate": "unmistakably airborne joyful pose with raised limbs as anatomy permits"
+  },
+  "generation_layout": "square 2x2 sheet on flat #00FF00 chroma key with no dividers, text, shadows, props, or detached effects",
+  "post_processing": "chroma removal, quadrant extraction, then canonical center and extent normalization with scripts/normalize_eguchi_reaction_assets.py",
+  "output": "1024x1024 RGBA PNG with transparent padding"
+}

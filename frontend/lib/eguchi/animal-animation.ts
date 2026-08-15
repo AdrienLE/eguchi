@@ -37,7 +37,7 @@ export const ANIMAL_ANIMATION_DEMOS: readonly AnimalAnimationDemo[] = [
   {
     id: 'independent',
     label: 'Big celebration',
-    detail: 'Fox’s biggest happy smile, with glow and sparkles',
+    detail: 'A joyful airborne jump, with glow and sparkles',
     reaction: 'celebrate',
   },
 ] as const;
@@ -47,16 +47,10 @@ export type AnimalAnimationProfile = {
   motionTarget: AnimalMotionTarget;
 };
 
-const DEFAULT_ANIMATION_PROFILE: AnimalAnimationProfile = {
-  motionTarget: 'tile',
+const ANIMATION_PROFILE: AnimalAnimationProfile = {
+  hintEmotion: 'wink',
+  motionTarget: 'artwork',
 };
 
-const ANIMATION_PROFILE_BY_CHORD_ID: Partial<Record<EguchiChordId, AnimalAnimationProfile>> = {
-  'C-E-G': {
-    hintEmotion: 'wink',
-    motionTarget: 'artwork',
-  },
-};
-
-export const getAnimalAnimationProfile = (chordId: EguchiChordId): AnimalAnimationProfile =>
-  ANIMATION_PROFILE_BY_CHORD_ID[chordId] ?? DEFAULT_ANIMATION_PROFILE;
+export const getAnimalAnimationProfile = (_chordId: EguchiChordId): AnimalAnimationProfile =>
+  ANIMATION_PROFILE;

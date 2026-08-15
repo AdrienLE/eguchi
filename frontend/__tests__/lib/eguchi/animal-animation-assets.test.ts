@@ -1,39 +1,52 @@
 import { getAnimalReactionPose } from '@/lib/eguchi/animal-animation-assets';
+import { ORDERED_CHORD_IDS } from '@/lib/eguchi/chords';
+
+const REACTIONS = ['hint', 'not-me', 'assisted', 'celebrate'] as const;
+
+const EXPECTED_KIND_BY_REACTION = {
+  hint: 'wink',
+  'not-me': 'head-tilt',
+  assisted: 'seated-smile',
+  celebrate: 'jump',
+} as const;
 
 describe('animal reaction pose assets', () => {
-  test('gives the Fox one replacement artwork pose for every reaction', () => {
-    const poses = ['hint', 'not-me', 'assisted', 'celebrate'].map(reaction =>
-      getAnimalReactionPose('C-E-G', reaction as 'hint' | 'not-me' | 'assisted' | 'celebrate')
-    );
+  test('gives every animal one distinct artwork pose for every reaction', () => {
+    expect(ORDERED_CHORD_IDS.length).toBe(14);
 
-    expect(poses.every(Boolean)).toBe(true);
-    expect(new Set(poses).size).toBe(4);
-  });
+    for (const chordId of ORDERED_CHORD_IDS) {
+      const poses = REACTIONS.map(reaction => getAnimalReactionPose(chordId, reaction));
 
-  test('keeps the pilot poses scoped to Fox', () => {
-    expect(getAnimalReactionPose('F-A-C', 'not-me')).toBeNull();
-    expect(getAnimalReactionPose('C-E-G', null)).toBeNull();
-  });
-
-  test('uses valid display durations and makes the independent smile last longest', () => {
-    for (const reaction of ['hint', 'not-me', 'assisted', 'celebrate'] as const) {
-      const pose = getAnimalReactionPose('C-E-G', reaction);
-      expect(pose?.source).toBeTruthy();
-      expect((pose?.durationMs ?? 0) >= 400).toBe(true);
+      expect(poses.every(Boolean)).toBe(true);
+      expect(new Set(poses).size).toBe(REACTIONS.length);
     }
-
-    expect(
-      (getAnimalReactionPose('C-E-G', 'celebrate')?.durationMs ?? 0) >
-        (getAnimalReactionPose('C-E-G', 'assisted')?.durationMs ?? 0)
-    ).toBe(true);
   });
 
-  test('uses a seated smile for helped rounds and a jump for independent celebration', () => {
-    expect(getAnimalReactionPose('C-E-G', 'assisted')?.kind).toBe('seated-smile');
-    expect(getAnimalReactionPose('C-E-G', 'celebrate')?.kind).toBe('jump');
+  test('uses the expected semantic kind and a valid duration for every pose', () => {
+    for (const chordId of ORDERED_CHORD_IDS) {
+      for (const reaction of REACTIONS) {
+        const pose = getAnimalReactionPose(chordId, reaction);
+
+        expect(pose?.kind).toBe(EXPECTED_KIND_BY_REACTION[reaction]);
+        expect(pose?.source).toBeTruthy();
+        expect(Number.isInteger(pose?.durationMs ?? Number.NaN)).toBe(true);
+        expect((pose?.durationMs ?? 0) >= 400).toBe(true);
+      }
+
+      expect(
+        (getAnimalReactionPose(chordId, 'celebrate')?.durationMs ?? 0) >
+          (getAnimalReactionPose(chordId, 'assisted')?.durationMs ?? 0)
+      ).toBe(true);
+    }
   });
 
-  test('aligns generated poses to the normal Fox instead of shifting the whole character', () => {
+  test('returns null when there is no active reaction', () => {
+    for (const chordId of ORDERED_CHORD_IDS) {
+      expect(getAnimalReactionPose(chordId, null)).toBeNull();
+    }
+  });
+
+  test('preserves the hand-tuned alignment of the original Fox poses', () => {
     expect(getAnimalReactionPose('C-E-G', 'hint')?.alignment).toBeUndefined();
     expect(getAnimalReactionPose('C-E-G', 'not-me')?.alignment).toEqual({
       offsetXRatio: -0.012,
@@ -50,5 +63,13 @@ describe('animal reaction pose assets', () => {
       offsetYRatio: 0.004,
       scale: 0.93,
     });
+  });
+
+  test('uses normalized alignment for every non-Fox pose', () => {
+    for (const chordId of ORDERED_CHORD_IDS.slice(1)) {
+      for (const reaction of REACTIONS) {
+        expect(getAnimalReactionPose(chordId, reaction)?.alignment).toBeUndefined();
+      }
+    }
   });
 });

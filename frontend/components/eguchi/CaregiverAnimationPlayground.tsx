@@ -10,15 +10,13 @@ import {
   type AnimalAnimationDemoId,
 } from '@/lib/eguchi/animal-animation';
 import { getAnimalReactionPose } from '@/lib/eguchi/animal-animation-assets';
-import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
-import { CHORD_BY_ID } from '@/lib/eguchi/chords';
+import { CHORD_ANIMAL_EMOJI_BY_ID, getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
+import { CHORD_BY_ID, EGUCHI_CHORDS, type EguchiChordId } from '@/lib/eguchi/chords';
 import { getAnimalImageRecyclingKey } from '@/lib/eguchi/training-feedback';
 import { getEguchiTheme } from '@/lib/eguchi/theme';
 import { TrainingAnimalTile } from './TrainingAnimalTile';
 
-const FOX_CHORD_ID = 'C-E-G' as const;
-const FOX_CHORD = CHORD_BY_ID[FOX_CHORD_ID];
-const FOX_ANIMATION_PROFILE = getAnimalAnimationProfile(FOX_CHORD_ID);
+const DEFAULT_ANIMAL_CHORD_ID = 'C-E-G' as const;
 const DEMO_BY_ID = new Map(ANIMAL_ANIMATION_DEMOS.map(demo => [demo.id, demo]));
 
 export function CaregiverAnimationPlayground() {
@@ -27,25 +25,38 @@ export function CaregiverAnimationPlayground() {
   const { width } = useWindowDimensions();
   const tileSize = width < 480 ? 164 : 206;
   const [expanded, setExpanded] = useState(ANIMATION_PLAYGROUND_DEFAULT_EXPANDED);
+  const [selectedChordId, setSelectedChordId] = useState<EguchiChordId>(DEFAULT_ANIMAL_CHORD_ID);
   const [activeDemoId, setActiveDemoId] = useState<AnimalAnimationDemoId | null>(null);
   const [reactionNonce, setReactionNonce] = useState(0);
-  const [imageFailed, setImageFailed] = useState(false);
-  const [hintImageFailed, setHintImageFailed] = useState(false);
+  const [failedBaseImages, setFailedBaseImages] = useState<Partial<Record<EguchiChordId, true>>>(
+    {}
+  );
+  const [failedHintImages, setFailedHintImages] = useState<Partial<Record<EguchiChordId, true>>>(
+    {}
+  );
+  const selectedChord = CHORD_BY_ID[selectedChordId];
+  const animationProfile = getAnimalAnimationProfile(selectedChordId);
+  const hintEmotion = animationProfile.hintEmotion;
 
   const imageSource = useMemo(
-    () => (imageFailed ? null : getChordAnimalImageSource(FOX_CHORD_ID)),
-    [imageFailed]
+    () => (failedBaseImages[selectedChordId] ? null : getChordAnimalImageSource(selectedChordId)),
+    [failedBaseImages, selectedChordId]
   );
   const hintImageSource = useMemo(
     () =>
-      hintImageFailed
+      !hintEmotion || failedHintImages[selectedChordId]
         ? null
-        : getChordAnimalImageSource(FOX_CHORD_ID, undefined, {
-            emotion: FOX_ANIMATION_PROFILE.hintEmotion,
+        : getChordAnimalImageSource(selectedChordId, undefined, {
+            emotion: hintEmotion,
           }),
-    [hintImageFailed]
+    [failedHintImages, hintEmotion, selectedChordId]
   );
   const activeDemo = activeDemoId ? DEMO_BY_ID.get(activeDemoId) : undefined;
+
+  const handleSelectAnimal = useCallback((chordId: EguchiChordId) => {
+    setSelectedChordId(chordId);
+    setReactionNonce(previous => previous + 1);
+  }, []);
 
   const handleSelectDemo = useCallback((id: AnimalAnimationDemoId) => {
     const demo = DEMO_BY_ID.get(id);
@@ -58,17 +69,31 @@ export function CaregiverAnimationPlayground() {
     handleSelectDemo(activeDemo?.id ?? 'hint');
   }, [activeDemo?.id, handleSelectDemo]);
 
+  const handleBaseImageError = useCallback((chordId: EguchiChordId) => {
+    setFailedBaseImages(previous =>
+      previous[chordId] ? previous : { ...previous, [chordId]: true }
+    );
+  }, []);
+
+  const handleHintImageError = useCallback((chordId: EguchiChordId) => {
+    setFailedHintImages(previous =>
+      previous[chordId] ? previous : { ...previous, [chordId]: true }
+    );
+  }, []);
+
   return (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={expanded ? 'Hide Fox reaction previews' : 'Show Fox reaction previews'}
+        accessibilityLabel={
+          expanded ? 'Hide animal reaction previews' : 'Show animal reaction previews'
+        }
         accessibilityState={{ expanded }}
         onPress={() => setExpanded(previous => !previous)}
         style={({ pressed }) => [styles.disclosure, pressed && styles.buttonPressed]}
       >
         <View style={styles.disclosureText}>
-          <ThemedText style={styles.disclosureTitle}>Fox reaction previews</ThemedText>
+          <ThemedText style={styles.disclosureTitle}>Animal reaction previews</ThemedText>
           <ThemedText style={[styles.disclosureDetail, { color: theme.subtleText }]}>
             Optional visual test tools
           </ThemedText>
@@ -84,9 +109,45 @@ export function CaregiverAnimationPlayground() {
       {expanded ? (
         <View style={styles.expandedContent}>
           <ThemedText style={[styles.intro, { color: theme.subtleText }]}>
-            Keep your eye on Fox, then tap any reaction below. These demos never change practice
+            Choose an animal, then tap any reaction below. These demos never change practice
             progress.
           </ThemedText>
+
+          <ThemedText style={styles.selectorLabel}>Choose an animal</ThemedText>
+          <View style={styles.animalGrid}>
+            {EGUCHI_CHORDS.map(chord => {
+              const isSelected = selectedChordId === chord.id;
+              return (
+                <Pressable
+                  key={chord.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Preview reactions for ${chord.animal}`}
+                  accessibilityHint="Changes the animal shown in the reaction preview"
+                  accessibilityState={{ selected: isSelected }}
+                  onPress={() => handleSelectAnimal(chord.id)}
+                  style={({ pressed }) => [
+                    styles.animalButton,
+                    {
+                      backgroundColor: isSelected ? theme.successSurface : theme.surfaceMuted,
+                      borderColor: isSelected ? theme.successBorder : theme.borderMuted,
+                    },
+                    isSelected && styles.animalButtonActive,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <ThemedText style={styles.animalEmoji}>
+                    {CHORD_ANIMAL_EMOJI_BY_ID[chord.id]}
+                  </ThemedText>
+                  <ThemedText
+                    numberOfLines={1}
+                    style={[styles.animalButtonLabel, isSelected && styles.animalButtonLabelActive]}
+                  >
+                    {chord.animal}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
 
           <View
             style={[
@@ -95,22 +156,22 @@ export function CaregiverAnimationPlayground() {
             ]}
           >
             <TrainingAnimalTile
-              animal="Fox reaction preview"
-              animationPose={getAnimalReactionPose(FOX_CHORD_ID, activeDemo?.reaction ?? null)}
-              backgroundColor={FOX_CHORD.color.hex}
+              animal={`Preview ${selectedChord.animal} ${activeDemo?.label ?? 'Wink hint'}`}
+              animationPose={getAnimalReactionPose(selectedChordId, activeDemo?.reaction ?? null)}
+              backgroundColor={selectedChord.color.hex}
               disabled={false}
-              emoji="🦊"
-              hintImageRecyclingKey={getAnimalImageRecyclingKey(
-                'caregiver-hint',
-                FOX_CHORD_ID,
-                'wink'
-              )}
+              emoji={CHORD_ANIMAL_EMOJI_BY_ID[selectedChordId]}
+              hintImageRecyclingKey={
+                hintEmotion
+                  ? getAnimalImageRecyclingKey('caregiver-hint', selectedChordId, hintEmotion)
+                  : undefined
+              }
               hintImageSource={hintImageSource}
-              imageRecyclingKey={getAnimalImageRecyclingKey('caregiver', FOX_CHORD_ID, 'happy')}
+              imageRecyclingKey={getAnimalImageRecyclingKey('caregiver', selectedChordId, 'happy')}
               imageSource={imageSource}
-              motionTarget={FOX_ANIMATION_PROFILE.motionTarget}
-              onHintImageError={() => setHintImageFailed(true)}
-              onImageError={() => setImageFailed(true)}
+              motionTarget={animationProfile.motionTarget}
+              onHintImageError={() => handleHintImageError(selectedChordId)}
+              onImageError={() => handleBaseImageError(selectedChordId)}
               onPress={handleReplayCurrent}
               reaction={activeDemo?.reaction ?? null}
               reactionNonce={reactionNonce}
@@ -122,8 +183,8 @@ export function CaregiverAnimationPlayground() {
               style={[styles.nowPlaying, { color: theme.subtleText }]}
             >
               {activeDemo
-                ? `${activeDemo.label}: ${activeDemo.detail}`
-                : 'Choose a reaction below.'}
+                ? `${selectedChord.animal}, ${activeDemo.label}: ${activeDemo.detail}`
+                : `Choose a reaction for ${selectedChord.animal}.`}
             </ThemedText>
           </View>
 
@@ -134,7 +195,7 @@ export function CaregiverAnimationPlayground() {
                 <Pressable
                   key={demo.id}
                   accessibilityRole="button"
-                  accessibilityLabel={`Preview ${demo.label}`}
+                  accessibilityLabel={`Preview ${demo.label} for ${selectedChord.animal}`}
                   accessibilityState={{ selected: isActive }}
                   onPress={() => handleSelectDemo(demo.id)}
                   style={({ pressed }) => [
@@ -200,6 +261,49 @@ const styles = StyleSheet.create({
   intro: {
     fontSize: 13,
     lineHeight: 19,
+  },
+  selectorLabel: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '800',
+  },
+  animalGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  animalButton: {
+    minWidth: 96,
+    maxWidth: 144,
+    minHeight: 48,
+    flexBasis: 104,
+    flexGrow: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  animalButtonActive: {
+    borderWidth: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+  },
+  animalEmoji: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  animalButtonLabel: {
+    flexShrink: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  animalButtonLabelActive: {
+    fontWeight: '900',
   },
   stage: {
     minHeight: 244,

@@ -3,6 +3,23 @@ import type { EguchiChordId } from './chords';
 
 export type AnimalEmotion = 'happy' | 'sad' | 'wink';
 
+export const CHORD_ANIMAL_EMOJI_BY_ID: Record<EguchiChordId, string> = {
+  'C-E-G': '🦊',
+  'F-A-C': '🐋',
+  'G-B-D': '🐸',
+  'E-G-C': '🐯',
+  'A-C-F': '🐙',
+  'B-D-G': '🐣',
+  'G-C-E': '🐰',
+  'C-F-A': '🐢',
+  'D-G-B': '🐦',
+  'A-C#-E': '🦁',
+  'D-F#-A': '🦜',
+  'E-G#-B': '🐠',
+  'Bb-D-F': '🦭',
+  'Eb-G-Bb': '🦀',
+};
+
 export const CHORD_ANIMAL_WEB_SLUG_BY_ID: Record<EguchiChordId, string> = {
   'C-E-G': 'fox',
   'F-A-C': 'whale',
@@ -80,6 +97,19 @@ export const CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID: Partial<
   Record<EguchiChordId, AnimalBundleSource>
 > = {
   'C-E-G': require('../../assets/images/eguchi/animals/fox__wink.png'),
+  'F-A-C': require('../../assets/images/eguchi/animations/whale/wink.png'),
+  'G-B-D': require('../../assets/images/eguchi/animations/frog/wink.png'),
+  'E-G-C': require('../../assets/images/eguchi/animations/tiger/wink.png'),
+  'A-C-F': require('../../assets/images/eguchi/animations/octopus/wink.png'),
+  'B-D-G': require('../../assets/images/eguchi/animations/chick/wink.png'),
+  'G-C-E': require('../../assets/images/eguchi/animations/bunny/wink.png'),
+  'C-F-A': require('../../assets/images/eguchi/animations/turtle/wink.png'),
+  'D-G-B': require('../../assets/images/eguchi/animations/bluebird/wink.png'),
+  'A-C#-E': require('../../assets/images/eguchi/animations/lion/wink.png'),
+  'D-F#-A': require('../../assets/images/eguchi/animations/parrot/wink.png'),
+  'E-G#-B': require('../../assets/images/eguchi/animations/fish/wink.png'),
+  'Bb-D-F': require('../../assets/images/eguchi/animations/seal/wink.png'),
+  'Eb-G-Bb': require('../../assets/images/eguchi/animations/crab/wink.png'),
 };
 
 type AnimalImageSource = AnimalBundleSource | { uri: string };

@@ -73,7 +73,7 @@ export function TrainingAnimalTile({
     animationPose && reaction
       ? `${imageRecyclingKey}:pose:${reaction}:${reactionNonce}:${animationPose.kind}`
       : null;
-  const { canDisplayPose, shouldPreloadPose } = getAnimalReactionDisplayState(
+  const { canDisplayPose, shouldMountPose } = getAnimalReactionDisplayState(
     animationPoseKey,
     loadedAnimationPoseKey,
     failedAnimationPoseKey
@@ -353,28 +353,11 @@ export function TrainingAnimalTile({
           ],
         }
       : undefined;
-  const displayedImageSource =
-    displayAnimationPose && animationPose
-      ? animationPose.source
-      : showHintImage && hintImageSource
-        ? hintImageSource
-        : imageSource;
-  const displayedImageRecyclingKey =
-    displayAnimationPose && animationPose
-      ? animationPoseKey
-      : showHintImage && hintImageSource
-        ? hintImageRecyclingKey
-        : imageRecyclingKey;
-  const displayedImageErrorHandler =
-    displayAnimationPose && animationPose
-      ? () => {
-          setShowAnimationPose(false);
-          setFailedAnimationPoseKey(animationPoseKey);
-          onAnimationPoseError?.();
-        }
-      : showHintImage && hintImageSource
-        ? onHintImageError
-        : onImageError;
+  const displayedBaseImageSource = showHintImage && hintImageSource ? hintImageSource : imageSource;
+  const displayedBaseImageRecyclingKey =
+    showHintImage && hintImageSource ? hintImageRecyclingKey : imageRecyclingKey;
+  const displayedBaseImageErrorHandler =
+    showHintImage && hintImageSource ? onHintImageError : onImageError;
 
   return (
     <Pressable
@@ -399,14 +382,14 @@ export function TrainingAnimalTile({
       >
         <Animated.View style={[styles.artMotion, motionTarget === 'artwork' && artworkMotionStyle]}>
           <View style={styles.artBackdrop}>
-            {displayedImageSource ? (
+            {displayedBaseImageSource ? (
               <Image
-                key={displayedImageRecyclingKey}
-                recyclingKey={displayedImageRecyclingKey}
-                source={displayedImageSource}
-                style={[styles.image, animationPoseAlignmentStyle]}
+                key={displayedBaseImageRecyclingKey}
+                recyclingKey={displayedBaseImageRecyclingKey}
+                source={displayedBaseImageSource}
+                style={[styles.image, displayAnimationPose && styles.hiddenImage]}
                 contentFit="contain"
-                onError={displayedImageErrorHandler}
+                onError={displayedBaseImageErrorHandler}
               />
             ) : (
               <ThemedText
@@ -417,20 +400,27 @@ export function TrainingAnimalTile({
                     fontSize: Math.max(22, Math.floor(size * 0.52)),
                     lineHeight: Math.max(26, Math.floor(size * 0.58)),
                   },
+                  displayAnimationPose && styles.hiddenImage,
                 ]}
               >
                 {emoji}
               </ThemedText>
             )}
-            {shouldPreloadPose && animationPose && animationPoseKey ? (
+            {shouldMountPose && animationPose && animationPoseKey ? (
               <Image
-                key={`${animationPoseKey}:preload`}
-                recyclingKey={`${animationPoseKey}:preload`}
+                key={animationPoseKey}
+                recyclingKey={animationPoseKey}
                 source={animationPose.source}
-                style={[styles.image, styles.preloadedImage]}
+                style={[
+                  styles.image,
+                  styles.animationPoseImage,
+                  animationPoseAlignmentStyle,
+                  !displayAnimationPose && styles.hiddenImage,
+                ]}
                 contentFit="contain"
                 onLoad={() => setLoadedAnimationPoseKey(animationPoseKey)}
                 onError={() => {
+                  setShowAnimationPose(false);
                   setFailedAnimationPoseKey(animationPoseKey);
                   onAnimationPoseError?.();
                 }}
@@ -492,8 +482,10 @@ const styles = StyleSheet.create({
     width: '96%',
     height: '96%',
   },
-  preloadedImage: {
+  animationPoseImage: {
     position: 'absolute',
+  },
+  hiddenImage: {
     opacity: 0,
   },
   emoji: {

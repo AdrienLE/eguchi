@@ -9,7 +9,7 @@ import {
   getAnimalAnimationProfile,
   type AnimalAnimationDemoId,
 } from '@/lib/eguchi/animal-animation';
-import { getAnimalReactionFrames } from '@/lib/eguchi/animal-animation-assets';
+import { getAnimalReactionPose } from '@/lib/eguchi/animal-animation-assets';
 import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
 import { CHORD_BY_ID } from '@/lib/eguchi/chords';
 import { getAnimalImageRecyclingKey } from '@/lib/eguchi/training-feedback';
@@ -62,15 +62,13 @@ export function CaregiverAnimationPlayground() {
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={
-          expanded ? 'Hide Fox animation previews' : 'Show Fox animation previews'
-        }
+        accessibilityLabel={expanded ? 'Hide Fox reaction previews' : 'Show Fox reaction previews'}
         accessibilityState={{ expanded }}
         onPress={() => setExpanded(previous => !previous)}
         style={({ pressed }) => [styles.disclosure, pressed && styles.buttonPressed]}
       >
         <View style={styles.disclosureText}>
-          <ThemedText style={styles.disclosureTitle}>Fox animation previews</ThemedText>
+          <ThemedText style={styles.disclosureTitle}>Fox reaction previews</ThemedText>
           <ThemedText style={[styles.disclosureDetail, { color: theme.subtleText }]}>
             Optional visual test tools
           </ThemedText>
@@ -97,8 +95,8 @@ export function CaregiverAnimationPlayground() {
             ]}
           >
             <TrainingAnimalTile
-              animal="Fox animation preview"
-              animationFrames={getAnimalReactionFrames(FOX_CHORD_ID, activeDemo?.reaction ?? null)}
+              animal="Fox reaction preview"
+              animationPose={getAnimalReactionPose(FOX_CHORD_ID, activeDemo?.reaction ?? null)}
               backgroundColor={FOX_CHORD.color.hex}
               disabled={false}
               emoji="🦊"

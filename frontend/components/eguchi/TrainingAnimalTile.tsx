@@ -3,13 +3,13 @@ import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import type { AnimalAnimationReaction, AnimalMotionTarget } from '@/lib/eguchi/animal-animation';
-import type { AnimalAnimationFrame } from '@/lib/eguchi/animal-animation-assets';
+import type { AnimalReactionPose } from '@/lib/eguchi/animal-animation-assets';
 
 export type TrainingTileReaction = AnimalAnimationReaction;
 
 type TrainingAnimalTileProps = {
   animal: string;
-  animationFrames?: readonly AnimalAnimationFrame[] | null;
+  animationPose?: AnimalReactionPose | null;
   backgroundColor: string;
   disabled: boolean;
   emoji: string;
@@ -18,7 +18,7 @@ type TrainingAnimalTileProps = {
   imageRecyclingKey: string;
   imageSource: ComponentProps<typeof Image>['source'] | null;
   motionTarget: AnimalMotionTarget;
-  onAnimationFrameError?: () => void;
+  onAnimationPoseError?: () => void;
   onHintImageError?: () => void;
   onImageError: () => void;
   onPress: () => void;
@@ -37,7 +37,7 @@ const TIMING = {
 
 export function TrainingAnimalTile({
   animal,
-  animationFrames,
+  animationPose,
   backgroundColor,
   disabled,
   emoji,
@@ -46,7 +46,7 @@ export function TrainingAnimalTile({
   imageRecyclingKey,
   imageSource,
   motionTarget,
-  onAnimationFrameError,
+  onAnimationPoseError,
   onHintImageError,
   onImageError,
   onPress,
@@ -56,7 +56,7 @@ export function TrainingAnimalTile({
   textColor,
 }: TrainingAnimalTileProps) {
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [animationFrameIndex, setAnimationFrameIndex] = useState<number | null>(null);
+  const [showAnimationPose, setShowAnimationPose] = useState(false);
   const [showHintImage, setShowHintImage] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   const lift = useRef(new Animated.Value(0)).current;
@@ -65,7 +65,7 @@ export function TrainingAnimalTile({
   const glow = useRef(new Animated.Value(0)).current;
   const sparkles = useRef(new Animated.Value(0)).current;
   const hasHintImage = Boolean(imageSource && hintImageSource);
-  const hasAnimationFrames = Boolean(animationFrames?.length);
+  const hasAnimationPose = Boolean(animationPose);
 
   useEffect(() => {
     let mounted = true;
@@ -81,7 +81,7 @@ export function TrainingAnimalTile({
 
   useEffect(() => {
     setShowHintImage(false);
-    if (reaction !== 'hint' || !hasHintImage || hasAnimationFrames) return undefined;
+    if (reaction !== 'hint' || !hasHintImage || hasAnimationPose) return undefined;
 
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const showTimer = setTimeout(
@@ -96,44 +96,16 @@ export function TrainingAnimalTile({
       clearTimeout(showTimer);
       if (hideTimer) clearTimeout(hideTimer);
     };
-  }, [hasAnimationFrames, hasHintImage, reaction, reactionNonce, reduceMotion]);
+  }, [hasAnimationPose, hasHintImage, reaction, reactionNonce, reduceMotion]);
 
   useEffect(() => {
-    setAnimationFrameIndex(null);
-    if (!reaction || !animationFrames?.length) return undefined;
+    setShowAnimationPose(false);
+    if (!reaction || !animationPose) return undefined;
 
-    if (reduceMotion) {
-      const representativeIndex =
-        reaction === 'hint'
-          ? Math.min(1, animationFrames.length - 1)
-          : Math.floor((animationFrames.length - 1) / 2);
-      setAnimationFrameIndex(representativeIndex);
-      const resetTimer = setTimeout(
-        () => setAnimationFrameIndex(null),
-        Math.max(420, animationFrames[representativeIndex].durationMs)
-      );
-      return () => clearTimeout(resetTimer);
-    }
-
-    let frameIndex = 0;
-    let frameTimer: ReturnType<typeof setTimeout> | null = null;
-    const showNextFrame = () => {
-      if (frameIndex >= animationFrames.length) {
-        setAnimationFrameIndex(null);
-        return;
-      }
-      setAnimationFrameIndex(frameIndex);
-      frameTimer = setTimeout(() => {
-        frameIndex += 1;
-        showNextFrame();
-      }, animationFrames[frameIndex].durationMs);
-    };
-
-    showNextFrame();
-    return () => {
-      if (frameTimer) clearTimeout(frameTimer);
-    };
-  }, [animationFrames, reaction, reactionNonce, reduceMotion]);
+    setShowAnimationPose(true);
+    const resetTimer = setTimeout(() => setShowAnimationPose(false), animationPose.durationMs);
+    return () => clearTimeout(resetTimer);
+  }, [animationPose, reaction, reactionNonce]);
 
   useEffect(() => {
     scale.stopAnimation();
@@ -357,9 +329,25 @@ export function TrainingAnimalTile({
     { rotate: reaction === 'celebrate' ? celebrationRotation : tiltRotation },
     { scale },
   ];
-  const activeAnimationFrame =
-    animationFrameIndex === null ? null : (animationFrames?.[animationFrameIndex] ?? null);
-  const artworkMotionStyle = hasAnimationFrames ? undefined : { transform: motionTransform };
+  const artworkMotionStyle = hasAnimationPose ? undefined : { transform: motionTransform };
+  const displayedImageSource =
+    showAnimationPose && animationPose
+      ? animationPose.source
+      : showHintImage && hintImageSource
+        ? hintImageSource
+        : imageSource;
+  const displayedImageRecyclingKey =
+    showAnimationPose && animationPose
+      ? `${imageRecyclingKey}:pose:${reaction}:${reactionNonce}`
+      : showHintImage && hintImageSource
+        ? hintImageRecyclingKey
+        : imageRecyclingKey;
+  const displayedImageErrorHandler =
+    showAnimationPose && animationPose
+      ? onAnimationPoseError
+      : showHintImage && hintImageSource
+        ? onHintImageError
+        : onImageError;
 
   return (
     <Pressable
@@ -384,40 +372,15 @@ export function TrainingAnimalTile({
       >
         <Animated.View style={[styles.artMotion, motionTarget === 'artwork' && artworkMotionStyle]}>
           <View style={styles.artBackdrop}>
-            {imageSource ? (
-              <>
-                <Image
-                  key={imageRecyclingKey}
-                  recyclingKey={imageRecyclingKey}
-                  source={imageSource}
-                  style={styles.image}
-                  contentFit="contain"
-                  onError={onImageError}
-                />
-                {activeAnimationFrame ? (
-                  <View pointerEvents="none" style={styles.animationImageLayer}>
-                    <Image
-                      key={`${imageRecyclingKey}:animation:${reaction}:${reactionNonce}:${animationFrameIndex}`}
-                      recyclingKey={`${imageRecyclingKey}:animation:${reaction}:${reactionNonce}:${animationFrameIndex}`}
-                      source={activeAnimationFrame.source}
-                      style={styles.image}
-                      contentFit="contain"
-                      onError={onAnimationFrameError}
-                    />
-                  </View>
-                ) : hintImageSource && showHintImage ? (
-                  <View pointerEvents="none" style={styles.animationImageLayer}>
-                    <Image
-                      key={hintImageRecyclingKey}
-                      recyclingKey={hintImageRecyclingKey}
-                      source={hintImageSource}
-                      style={styles.image}
-                      contentFit="contain"
-                      onError={onHintImageError}
-                    />
-                  </View>
-                ) : null}
-              </>
+            {displayedImageSource ? (
+              <Image
+                key={displayedImageRecyclingKey}
+                recyclingKey={displayedImageRecyclingKey}
+                source={displayedImageSource}
+                style={styles.image}
+                contentFit="contain"
+                onError={displayedImageErrorHandler}
+              />
             ) : (
               <ThemedText
                 style={[
@@ -487,11 +450,6 @@ const styles = StyleSheet.create({
   image: {
     width: '96%',
     height: '96%',
-  },
-  animationImageLayer: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   emoji: {
     textAlign: 'center',

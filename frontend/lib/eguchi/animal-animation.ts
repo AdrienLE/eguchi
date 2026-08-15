@@ -30,14 +30,14 @@ export const ANIMAL_ANIMATION_DEMOS: readonly AnimalAnimationDemo[] = [
   },
   {
     id: 'assisted',
-    label: 'Helped hop',
-    detail: 'A warm response after using the hint',
+    label: 'Warm smile',
+    detail: 'A gentle happy response after using the hint',
     reaction: 'assisted',
   },
   {
     id: 'independent',
     label: 'Big celebration',
-    detail: 'A hop, wiggle, glow, and sparkles',
+    detail: 'Fox’s biggest happy smile, with glow and sparkles',
     reaction: 'celebrate',
   },
 ] as const;

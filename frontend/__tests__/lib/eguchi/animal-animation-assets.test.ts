@@ -1,23 +1,30 @@
-import { getAnimalReactionFrames } from '@/lib/eguchi/animal-animation-assets';
+import { getAnimalReactionPose } from '@/lib/eguchi/animal-animation-assets';
 
-describe('animal reaction frame assets', () => {
-  test('gives the Fox a real artwork sequence for every reaction', () => {
-    expect(getAnimalReactionFrames('C-E-G', 'hint')?.length).toBe(3);
-    expect(getAnimalReactionFrames('C-E-G', 'not-me')?.length).toBe(6);
-    expect(getAnimalReactionFrames('C-E-G', 'assisted')?.length).toBe(6);
-    expect(getAnimalReactionFrames('C-E-G', 'celebrate')?.length).toBe(8);
+describe('animal reaction pose assets', () => {
+  test('gives the Fox one replacement artwork pose for every reaction', () => {
+    const poses = ['hint', 'not-me', 'assisted', 'celebrate'].map(reaction =>
+      getAnimalReactionPose('C-E-G', reaction as 'hint' | 'not-me' | 'assisted' | 'celebrate')
+    );
+
+    expect(poses.every(Boolean)).toBe(true);
+    expect(new Set(poses).size).toBe(4);
   });
 
-  test('keeps the generated pilot sequences scoped to Fox', () => {
-    expect(getAnimalReactionFrames('F-A-C', 'not-me')).toBeNull();
-    expect(getAnimalReactionFrames('C-E-G', null)).toBeNull();
+  test('keeps the pilot poses scoped to Fox', () => {
+    expect(getAnimalReactionPose('F-A-C', 'not-me')).toBeNull();
+    expect(getAnimalReactionPose('C-E-G', null)).toBeNull();
   });
 
-  test('uses only valid visible frame durations', () => {
+  test('uses valid display durations and makes the independent smile last longest', () => {
     for (const reaction of ['hint', 'not-me', 'assisted', 'celebrate'] as const) {
-      const frames = getAnimalReactionFrames('C-E-G', reaction);
-      expect(frames).not.toBeNull();
-      expect(frames?.every(frame => frame.source && frame.durationMs >= 50)).toBe(true);
+      const pose = getAnimalReactionPose('C-E-G', reaction);
+      expect(pose?.source).toBeTruthy();
+      expect((pose?.durationMs ?? 0) >= 400).toBe(true);
     }
+
+    expect(
+      (getAnimalReactionPose('C-E-G', 'celebrate')?.durationMs ?? 0) >
+        (getAnimalReactionPose('C-E-G', 'assisted')?.durationMs ?? 0)
+    ).toBe(true);
   });
 });

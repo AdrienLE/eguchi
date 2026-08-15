@@ -1,0 +1,16 @@
+{
+  "asset_id": "fox-reaction-poses",
+  "category": "reaction poses",
+  "generation_mode": "selected stills from the Fox pilot image-gen edits",
+  "canonical_reference": "../../animals/fox.png",
+  "poses": {
+    "not-me": "curious neutral head tilt with redrawn head, ears, eyes, and neck",
+    "assisted": "gentle open-eyed happy smile",
+    "celebrate": "larger eyes-closed happy smile"
+  },
+  "post_processing": "transparent 1024x1024 RGBA normalization",
+  "output_format": "png",
+  "background": "transparent",
+  "generated_at_local_date": "2026-08-14",
+  "style_notes": "identity-preserving Fox poses; no sadness, text, motion marks, or detached effects"
+}

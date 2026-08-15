@@ -27,5 +27,9 @@ describe('animal animation profiles', () => {
       'assisted',
       'independent',
     ]);
+    expect(ANIMAL_ANIMATION_DEMOS.find(demo => demo.id === 'assisted')?.label).toBe('Warm smile');
+    expect(ANIMAL_ANIMATION_DEMOS.find(demo => demo.id === 'independent')?.detail).toContain(
+      'biggest happy smile'
+    );
   });
 });

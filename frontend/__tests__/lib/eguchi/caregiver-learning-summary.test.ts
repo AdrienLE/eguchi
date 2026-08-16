@@ -26,7 +26,7 @@ describe('caregiver learning summary', () => {
     );
 
     expect(summary.stageLabel).toBe('Guided practice');
-    expect(summary.hintLabel).toBe('3 sec');
+    expect(summary.hintLabel).toBe('7 sec');
     expect(summary.audioRangeLabel).toBe('Octaves 3–4');
     expect(summary.recentIndependent).toBe(2);
     expect(summary.recentRounds).toBe(3);

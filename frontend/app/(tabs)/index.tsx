@@ -1011,6 +1011,10 @@ export default function HomeScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: playroomBackground.color }]}>
       <ScrollView
+        scrollEnabled={false}
+        bounces={false}
+        alwaysBounceVertical={false}
+        overScrollMode="never"
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         onLayout={event => {

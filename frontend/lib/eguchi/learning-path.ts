@@ -1,7 +1,7 @@
 import { ORDERED_CHORD_IDS, type EguchiChordId } from './chords';
 
 export const LEARNING_PATH_VERSION = 1;
-export const PROMPT_DELAY_STEPS_MS = [0, 750, 1500, 3000, 5000] as const;
+export const PROMPT_DELAY_STEPS_MS = [0, 3000, 5000, 7000, 9000] as const;
 export const MEET_ROUNDS_REQUIRED = 4;
 export const GUIDED_WINDOW_SIZE = 6;
 export const GUIDED_INDEPENDENT_REQUIRED = 4;

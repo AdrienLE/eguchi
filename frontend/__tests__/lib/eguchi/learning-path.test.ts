@@ -33,6 +33,10 @@ const advanceMany = (
   );
 
 describe('adaptive Eguchi learning path', () => {
+  test('uses toddler-paced delayed hints after the instant cue', () => {
+    expect(PROMPT_DELAY_STEPS_MS).toEqual([0, 3000, 5000, 7000, 9000]);
+  });
+
   test('starts by meeting only Fox with an immediate hint in one octave', () => {
     const state = createDefaultLearningPathState();
 
@@ -79,7 +83,7 @@ describe('adaptive Eguchi learning path', () => {
 
     expect(result.promptAdvanced).toBe(true);
     expect(result.state.promptStep).toBe(1);
-    expect(PROMPT_DELAY_STEPS_MS[result.state.promptStep]).toBe(750);
+    expect(PROMPT_DELAY_STEPS_MS[result.state.promptStep]).toBe(3000);
   });
 
   test('requires mostly independent answers before lengthening a delayed prompt', () => {
@@ -141,7 +145,7 @@ describe('adaptive Eguchi learning path', () => {
         adaptiveHintsEnabled: true,
         noHintTrialsEnabled: false,
       })
-    ).toBe(1500);
+    ).toBe(5000);
   });
 
   test('generalizes audio one stage at a time before introducing a new friend', () => {

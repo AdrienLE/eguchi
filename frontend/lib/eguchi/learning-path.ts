@@ -8,6 +8,7 @@ export const GUIDED_INDEPENDENT_REQUIRED = 4;
 export const INDEPENDENT_WINDOW_SIZE = 10;
 export const INDEPENDENT_MASTERY_REQUIRED = 8;
 export const NO_HINT_EVERY_N_ROUNDS = 4;
+export const DAILY_WARMUP_ROUNDS = 3;
 
 export type TrainingOutcome = 'independent' | 'assisted' | 'corrected';
 export type LearningPathPhase = 'meet' | 'guided' | 'independent';
@@ -140,6 +141,41 @@ export const getTrainingAudioOctaves = (state: EguchiLearningPathState): number[
   return [3, 4, 5];
 };
 
+export const getDailyWarmupRoundsRemaining = (todayCompletedRounds: number) => {
+  const completed = Number.isFinite(todayCompletedRounds) ? Math.max(0, todayCompletedRounds) : 0;
+  return Math.max(0, DAILY_WARMUP_ROUNDS - Math.floor(completed));
+};
+
+export const getWarmupLearningPathState = (
+  state: EguchiLearningPathState,
+  todayCompletedRounds: number
+): EguchiLearningPathState => {
+  if (getDailyWarmupRoundsRemaining(todayCompletedRounds) <= 0 || state.phase === 'meet') {
+    return state;
+  }
+
+  if (state.phase === 'guided') {
+    if (state.promptStep > 0) {
+      return {
+        ...state,
+        promptStep: state.promptStep - 1,
+      };
+    }
+    return {
+      ...state,
+      phase: 'meet',
+      audioStage: 0,
+    };
+  }
+
+  return {
+    ...state,
+    phase: 'guided',
+    promptStep: PROMPT_DELAY_STEPS_MS.length - 1,
+    audioStage: Math.max(0, state.audioStage - 1) as AudioGeneralizationStage,
+  };
+};
+
 export const getTrialHintDelayMs = (
   state: EguchiLearningPathState,
   options: { adaptiveHintsEnabled: boolean; noHintTrialsEnabled: boolean }
@@ -221,17 +257,20 @@ export const advanceLearningPath = (
 
   if (state.phase === 'guided') {
     const regressionWindow = recentOutcomes.slice(-3);
-    if (
-      state.promptStep > 0 &&
-      regressionWindow.length === 3 &&
-      countOutcome(regressionWindow, 'corrected') >= 2
-    ) {
+    if (regressionWindow.length === 3 && countOutcome(regressionWindow, 'corrected') >= 2) {
       return makeAdvanceResult(
-        {
-          ...state,
-          promptStep: state.promptStep - 1,
-          recentOutcomes: [],
-        },
+        state.promptStep > 0
+          ? {
+              ...state,
+              promptStep: state.promptStep - 1,
+              recentOutcomes: [],
+            }
+          : {
+              ...state,
+              phase: 'meet',
+              audioStage: 0,
+              recentOutcomes: [],
+            },
         unlockedChordIds,
         { promptRegressed: true }
       );

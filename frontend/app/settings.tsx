@@ -33,7 +33,10 @@ import {
   type EguchiAudioCacheMeta,
 } from '@/lib/eguchi/audio-cache';
 import { getChordAnimalImageSource } from '@/lib/eguchi/animal-assets';
-import { getCaregiverLearningSummary } from '@/lib/eguchi/caregiver-learning-summary';
+import {
+  getCaregiverLearningSummary,
+  getCaregiverLearningTimeline,
+} from '@/lib/eguchi/caregiver-learning-summary';
 import { CHORD_BY_ID, ORDERED_CHORD_IDS } from '@/lib/eguchi/chords';
 import { PLAYROOM_BACKGROUNDS } from '@/lib/eguchi/playroom-backgrounds';
 import { getNextLevelProgress } from '@/lib/eguchi/progression';
@@ -504,6 +507,9 @@ export default function SettingsScreen() {
     progress.learningPath,
     sessionPreferences.adaptiveHintsEnabled
   );
+  const learningTimeline = getCaregiverLearningTimeline(progress.learningPath, {
+    todayCompletedRounds: snapshot.todayAttempts,
+  });
   const progressMetrics = [
     {
       label: 'Today',
@@ -745,6 +751,104 @@ export default function SettingsScreen() {
                   {learningSummary.recentIndependent}/{learningSummary.recentRounds}
                 </ThemedText>
               </View>
+
+              <View style={styles.learningTimeline}>
+                <View style={styles.timelineHeaderRow}>
+                  <ThemedText style={styles.timelineTitle}>Color-wink timeline</ThemedText>
+                  {sessionPreferences.adaptiveHintsEnabled ? (
+                    <ThemedText style={[styles.timelinePausedBadge, { color: theme.subtleText }]}>
+                      {learningTimeline.dailyWarmupLabel}
+                    </ThemedText>
+                  ) : (
+                    <ThemedText style={[styles.timelinePausedBadge, { color: theme.subtleText }]}>
+                      Paused
+                    </ThemedText>
+                  )}
+                </View>
+                {learningTimeline.steps.map((step, index) => {
+                  const isCurrent = step.status === 'current';
+                  const isComplete = step.status === 'complete';
+                  return (
+                    <View key={step.id} style={styles.timelineStep}>
+                      <View style={styles.timelineMarkerColumn}>
+                        <View
+                          style={[
+                            styles.timelineDot,
+                            {
+                              backgroundColor: isCurrent
+                                ? tintColor
+                                : isComplete
+                                  ? theme.successText
+                                  : theme.surface,
+                              borderColor: isCurrent
+                                ? tintColor
+                                : isComplete
+                                  ? theme.successText
+                                  : theme.borderMuted,
+                            },
+                          ]}
+                        />
+                        {index < learningTimeline.steps.length - 1 ? (
+                          <View
+                            style={[
+                              styles.timelineConnector,
+                              {
+                                backgroundColor: isComplete ? theme.successText : theme.borderMuted,
+                              },
+                            ]}
+                          />
+                        ) : null}
+                      </View>
+                      <View style={styles.timelineStepText}>
+                        <View style={styles.timelineStepHeader}>
+                          <ThemedText
+                            style={[
+                              styles.timelineStepLabel,
+                              isCurrent && styles.timelineStepCurrent,
+                            ]}
+                          >
+                            {step.label}
+                          </ThemedText>
+                          <View
+                            style={[
+                              styles.timelinePill,
+                              {
+                                backgroundColor: isCurrent ? `${tintColor}18` : theme.surface,
+                                borderColor: isCurrent ? tintColor : theme.borderMuted,
+                              },
+                            ]}
+                          >
+                            <ThemedText
+                              style={[
+                                styles.timelinePillText,
+                                isCurrent ? { color: tintColor } : null,
+                              ]}
+                            >
+                              {step.hintLabel}
+                            </ThemedText>
+                          </View>
+                        </View>
+                        <ThemedText
+                          style={[styles.timelineStepDetail, { color: theme.subtleText }]}
+                        >
+                          {step.detail}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  );
+                })}
+                <View style={[styles.timelineRules, { borderTopColor: theme.borderMuted }]}>
+                  {learningTimeline.notes.map(note => (
+                    <ThemedText
+                      key={note}
+                      style={[styles.timelineRuleText, { color: theme.subtleText }]}
+                    >
+                      {note}
+                    </ThemedText>
+                  ))}
+                </View>
+              </View>
+
               <ThemedText style={[styles.controlDetail, { color: theme.subtleText }]}>
                 New friends arrive only after independent recognition generalizes across the audio
                 range.
@@ -1646,6 +1750,94 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: '800',
     marginBottom: 2,
+  },
+  learningTimeline: {
+    gap: 10,
+    marginTop: 4,
+  },
+  timelineHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timelineTitle: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  timelinePausedBadge: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+  },
+  timelineStep: {
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 54,
+  },
+  timelineMarkerColumn: {
+    width: 16,
+    alignItems: 'center',
+  },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    marginTop: 4,
+  },
+  timelineConnector: {
+    width: 2,
+    flex: 1,
+    borderRadius: 1,
+    marginTop: 3,
+  },
+  timelineStepText: {
+    flex: 1,
+    gap: 2,
+    paddingBottom: 7,
+  },
+  timelineStepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timelineStepLabel: {
+    flexShrink: 1,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '700',
+  },
+  timelineStepCurrent: {
+    fontWeight: '900',
+  },
+  timelinePill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  timelinePillText: {
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '800',
+  },
+  timelineStepDetail: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  timelineRules: {
+    borderTopWidth: 1,
+    paddingTop: 8,
+    gap: 4,
+  },
+  timelineRuleText: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   streakTrack: {
     width: '100%',

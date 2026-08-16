@@ -31,6 +31,8 @@ import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/l
 import {
   advanceLearningPath,
   getActiveTrainingChordIds,
+  getDailyWarmupRoundsRemaining,
+  getWarmupLearningPathState,
   getTrainingAudioOctaves,
   getTrialHintDelayMs,
   type TrainingOutcome,
@@ -39,6 +41,7 @@ import { maybeApplyAutoUnlock } from '@/lib/eguchi/progression';
 import {
   createDefaultEguchiProgress,
   createEguchiTrialId,
+  getProgressSnapshot,
   loadEguchiProgress,
   recordTrial,
   saveEguchiProgress,
@@ -619,8 +622,16 @@ export default function HomeScreen() {
   const startNewTrial = useCallback(() => {
     const activeProgress = progressRef.current;
     const activeSessionPreferences = sessionPreferencesRef.current;
+    const todayAttempts = getProgressSnapshot(activeProgress).todayAttempts;
+    const warmupRoundsRemaining = activeSessionPreferences.adaptiveHintsEnabled
+      ? getDailyWarmupRoundsRemaining(todayAttempts)
+      : 0;
+    const effectiveLearningPath =
+      warmupRoundsRemaining > 0
+        ? getWarmupLearningPathState(activeProgress.learningPath, todayAttempts)
+        : activeProgress.learningPath;
     const activeUnlockedChordIds = getActiveTrainingChordIds(
-      activeProgress.learningPath,
+      effectiveLearningPath,
       activeProgress.unlockedChordIds
     );
 
@@ -645,12 +656,13 @@ export default function HomeScreen() {
 
     const nextChordId = pickRandomChordId(activeUnlockedChordIds);
     currentChordRef.current = nextChordId;
-    currentHintDelayMsRef.current = getTrialHintDelayMs(activeProgress.learningPath, {
+    currentHintDelayMsRef.current = getTrialHintDelayMs(effectiveLearningPath, {
       adaptiveHintsEnabled: activeSessionPreferences.adaptiveHintsEnabled,
-      noHintTrialsEnabled: activeSessionPreferences.noHintTrialsEnabled,
+      noHintTrialsEnabled:
+        activeSessionPreferences.noHintTrialsEnabled && warmupRoundsRemaining <= 0,
     });
 
-    const audioOctaves = getTrainingAudioOctaves(activeProgress.learningPath);
+    const audioOctaves = getTrainingAudioOctaves(effectiveLearningPath);
     const nextAudio = pickTrainingAudioEntry(nextChordId, { octaves: audioOctaves });
     if (!nextAudio) {
       console.warn('No audio file available for chord', nextChordId);
@@ -662,6 +674,8 @@ export default function HomeScreen() {
       animal: CHORD_BY_ID[nextChordId]?.animal,
       file: nextAudio?.fileName ?? 'missing',
       learningPhase: activeProgress.learningPath.phase,
+      effectiveLearningPhase: effectiveLearningPath.phase,
+      warmupRoundsRemaining,
       hintDelayMs: currentHintDelayMsRef.current,
       audioOctaves,
     });

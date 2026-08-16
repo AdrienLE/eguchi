@@ -7,8 +7,10 @@ import {
   advanceLearningPath,
   createDefaultLearningPathState,
   getActiveTrainingChordIds,
+  getDailyWarmupRoundsRemaining,
   getTrainingAudioOctaves,
   getTrialHintDelayMs,
+  getWarmupLearningPathState,
   normalizeLearningPathState,
   type EguchiLearningPathState,
   type LearningPathAdvanceResult,
@@ -126,6 +128,26 @@ describe('adaptive Eguchi learning path', () => {
     expect(result.state.promptStep).toBe(2);
   });
 
+  test('can regress from guided instant cue back to a one-friend meet round', () => {
+    const guided: EguchiLearningPathState = {
+      ...createDefaultLearningPathState(),
+      phase: 'guided',
+      focusChordId: ORDERED_CHORD_IDS[1],
+      promptStep: 0,
+    };
+    const result = advanceMany(guided, ORDERED_CHORD_IDS.slice(0, 2), [
+      'corrected',
+      'assisted',
+      'corrected',
+    ]);
+
+    expect(result.promptRegressed).toBe(true);
+    expect(result.state.phase).toBe('meet');
+    expect(getActiveTrainingChordIds(result.state, result.unlockedChordIds)).toEqual([
+      ORDERED_CHORD_IDS[1],
+    ]);
+  });
+
   test('offers occasional no-hint probes only after hints have begun fading', () => {
     const probeTurn: EguchiLearningPathState = {
       ...createDefaultLearningPathState(),
@@ -146,6 +168,39 @@ describe('adaptive Eguchi learning path', () => {
         noHintTrialsEnabled: false,
       })
     ).toBe(5000);
+  });
+
+  test('uses one easier learning-path step for the first daily warmup rounds', () => {
+    const guided: EguchiLearningPathState = {
+      ...createDefaultLearningPathState(),
+      phase: 'guided',
+      promptStep: 3,
+      audioStage: 1,
+    };
+    const guidedWarmup = getWarmupLearningPathState(guided, 0);
+    expect(guidedWarmup.phase).toBe('guided');
+    expect(guidedWarmup.promptStep).toBe(2);
+    expect(getDailyWarmupRoundsRemaining(0)).toBe(3);
+
+    const guidedAfterWarmup = getWarmupLearningPathState(guided, 3);
+    expect(guidedAfterWarmup).toBe(guided);
+
+    const instantGuided: EguchiLearningPathState = {
+      ...guided,
+      promptStep: 0,
+    };
+    expect(getWarmupLearningPathState(instantGuided, 1).phase).toBe('meet');
+
+    const independent: EguchiLearningPathState = {
+      ...guided,
+      phase: 'independent',
+      promptStep: PROMPT_DELAY_STEPS_MS.length - 1,
+      audioStage: 2,
+    };
+    const independentWarmup = getWarmupLearningPathState(independent, 2);
+    expect(independentWarmup.phase).toBe('guided');
+    expect(independentWarmup.promptStep).toBe(PROMPT_DELAY_STEPS_MS.length - 1);
+    expect(independentWarmup.audioStage).toBe(1);
   });
 
   test('generalizes audio one stage at a time before introducing a new friend', () => {

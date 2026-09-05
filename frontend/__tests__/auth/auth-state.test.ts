@@ -1,6 +1,6 @@
 import jwtDecode from 'jwt-decode';
 
-import { TOKEN_KEY, resolveStoredAuthToken } from '@/auth/auth-state';
+import { TOKEN_KEY, resolveStoredAuthToken, getLogoutReturnTo } from '@/auth/auth-state';
 
 jest.mock('jwt-decode', () => jest.fn());
 
@@ -46,5 +46,22 @@ describe('auth-state', () => {
       token: null,
       shouldClearStoredToken: true,
     });
+  });
+});
+
+describe('logout redirects', () => {
+  test('iPad and Android logout do not access browser globals', () => {
+    for (const platform of ['ios', 'android']) {
+      const redirect = getLogoutReturnTo(platform, 'eguchieartrainer://redirect', () => {
+        throw new Error('window.location is unavailable');
+      });
+      expect(decodeURIComponent(redirect)).toBe('eguchieartrainer://redirect');
+    }
+  });
+
+  test('web logout returns to the current app origin', () => {
+    expect(
+      decodeURIComponent(getLogoutReturnTo('web', 'native://redirect', () => 'https://eguchi.test'))
+    ).toBe('https://eguchi.test/');
   });
 });

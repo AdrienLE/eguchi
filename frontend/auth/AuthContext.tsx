@@ -5,7 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, useAuthRequest, ResponseType } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import jwtDecode from 'jwt-decode';
-import { TOKEN_KEY, resolveStoredAuthToken } from './auth-state';
+import { TOKEN_KEY, resolveStoredAuthToken, getLogoutReturnTo } from './auth-state';
 
 // Close the Auth0 popup on web if a redirect back to the app occurred
 WebBrowser.maybeCompleteAuthSession();
@@ -299,9 +299,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    // Clear local token first
+    // Do not silently sign back in when the logout browser returns to the app.
+    nativeSilentAttemptedRef.current = true;
+    await AsyncStorage.removeItem(TOKEN_KEY);
     setTokenState(null);
-    AsyncStorage.removeItem(TOKEN_KEY).catch(() => {});
     try {
       if (Platform.OS === 'web') {
         sessionStorage.removeItem(SILENT_AUTH_ATTEMPT_KEY);
@@ -311,10 +312,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Construct Auth0 logout URL to clear Auth0 session
     const auth0Domain = process.env.EXPO_PUBLIC_AUTH0_DOMAIN;
     // Redirect to home page after logout
-    const returnTo = Platform.select({
-      web: encodeURIComponent(`${window.location.origin}/`),
-      default: encodeURIComponent(redirectUriNative),
-    });
+    const returnTo = getLogoutReturnTo(
+      Platform.OS,
+      redirectUriNative,
+      () => window.location.origin
+    );
     const logoutUrl = `https://${auth0Domain}/v2/logout?client_id=${process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID}&returnTo=${returnTo}`;
 
     // On web, redirect directly to Auth0 logout (no popup)

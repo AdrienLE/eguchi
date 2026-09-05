@@ -26,3 +26,10 @@ export const resolveStoredAuthToken = (
 
   return { token: null, shouldClearStoredToken: true };
 };
+
+// Resolve the browser origin lazily: native runtimes need not provide window.location.
+export const getLogoutReturnTo = (
+  platform: string,
+  nativeRedirectUri: string,
+  getWebOrigin: () => string
+) => encodeURIComponent(platform === 'web' ? `${getWebOrigin()}/` : nativeRedirectUri);

@@ -1,3 +1,4 @@
+import { useAuth } from '@/auth/AuthContext';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
@@ -10,6 +11,7 @@ import {
 import { loadEguchiSessionPreferences } from '@/lib/eguchi/session-preferences';
 
 export default function TabLayout() {
+  const { practiceStorage } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [playroomBackgroundId, setPlayroomBackgroundId] = useState<PlayroomBackgroundId>(
@@ -19,7 +21,7 @@ export default function TabLayout() {
 
   useEffect(() => {
     let isActive = true;
-    void loadEguchiSessionPreferences()
+    void loadEguchiSessionPreferences(practiceStorage)
       .then(preferences => {
         if (isActive) {
           setPlayroomBackgroundId(preferences.playroomBackgroundId);
@@ -31,7 +33,7 @@ export default function TabLayout() {
     return () => {
       isActive = false;
     };
-  }, [pathname]);
+  }, [pathname, practiceStorage]);
 
   return (
     <>

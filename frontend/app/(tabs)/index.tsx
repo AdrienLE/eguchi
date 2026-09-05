@@ -186,7 +186,7 @@ const getGridLayout = (tileCount: number, availableWidth: number, availableHeigh
 };
 
 export default function HomeScreen() {
-  const { token } = useAuth();
+  const { token, practiceStorage } = useAuth();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [bottomSectionHeight, setBottomSectionHeight] = useState(0);
@@ -335,8 +335,8 @@ export default function HomeScreen() {
     setIsLoading(true);
     try {
       const [loadedProgress, loadedSessionPreferences] = await Promise.all([
-        loadEguchiProgress(),
-        loadEguchiSessionPreferences(),
+        loadEguchiProgress(practiceStorage),
+        loadEguchiSessionPreferences(practiceStorage),
       ]);
       progressRef.current = loadedProgress;
       sessionPreferencesRef.current = loadedSessionPreferences;
@@ -353,7 +353,7 @@ export default function HomeScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [practiceStorage]);
 
   const syncTrainingData = useCallback(
     async (reloadAfterSync = false) => {
@@ -362,7 +362,7 @@ export default function HomeScreen() {
       }
       syncInFlightRef.current = true;
       try {
-        const result = await syncEguchiStateBestEffort(token);
+        const result = await syncEguchiStateBestEffort(token, practiceStorage);
         if (reloadAfterSync && result.ok) {
           await loadTrainingData();
         }
@@ -370,7 +370,7 @@ export default function HomeScreen() {
         syncInFlightRef.current = false;
       }
     },
-    [loadTrainingData, token]
+    [loadTrainingData, token, practiceStorage]
   );
 
   useFocusEffect(
@@ -764,15 +764,19 @@ export default function HomeScreen() {
 
         void (async () => {
           try {
-            await persistEguchiProgressChange(nextProgress, {
-              id: trialId,
-              chordId: expectedId,
-              correct: outcome !== 'corrected',
-              outcome,
-              promptDelayMs: trialHintDelayMs,
-              timestamp: trialTimestamp,
-            });
-            void syncEguchiStateBestEffort(token);
+            await persistEguchiProgressChange(
+              nextProgress,
+              {
+                id: trialId,
+                chordId: expectedId,
+                correct: outcome !== 'corrected',
+                outcome,
+                promptDelayMs: trialHintDelayMs,
+                timestamp: trialTimestamp,
+              },
+              practiceStorage
+            );
+            void syncEguchiStateBestEffort(token, practiceStorage);
           } catch (error) {
             console.warn('Failed to save Eguchi progress', error);
           }
@@ -810,6 +814,7 @@ export default function HomeScreen() {
       playCurrentAudio,
       startNewTrial,
       token,
+      practiceStorage,
       triggerTileReaction,
     ]
   );

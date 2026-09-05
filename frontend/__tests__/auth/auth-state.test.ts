@@ -20,7 +20,7 @@ describe('auth-state', () => {
   });
 
   test('keeps a valid stored token', () => {
-    mockedJwtDecode.mockReturnValue({ exp: 2_000 });
+    mockedJwtDecode.mockReturnValue({ exp: 2_000, iss: 'https://auth.test/', sub: 'account-a' });
 
     expect(resolveStoredAuthToken('token', 1_000_000)).toEqual({
       token: 'token',
@@ -29,7 +29,7 @@ describe('auth-state', () => {
   });
 
   test('clears an expired stored token', () => {
-    mockedJwtDecode.mockReturnValue({ exp: 1_000 });
+    mockedJwtDecode.mockReturnValue({ exp: 1_000, iss: 'https://auth.test/', sub: 'account-a' });
 
     expect(resolveStoredAuthToken('token', 2_000_000)).toEqual({
       token: null,
@@ -63,5 +63,13 @@ describe('logout redirects', () => {
     expect(
       decodeURIComponent(getLogoutReturnTo('web', 'native://redirect', () => 'https://eguchi.test'))
     ).toBe('https://eguchi.test/');
+  });
+});
+
+test('does not enable account sync for a token without issuer and subject', () => {
+  mockedJwtDecode.mockReturnValue({ exp: 2_000 });
+  expect(resolveStoredAuthToken('token', 1_000_000)).toEqual({
+    token: null,
+    shouldClearStoredToken: true,
   });
 });

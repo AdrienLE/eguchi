@@ -111,7 +111,7 @@ const sanitizeDecimalInput = (value: string) => {
 };
 
 export default function SettingsScreen() {
-  const { token, login, logout, loading: authLoading } = useAuth();
+  const { token, login, logout, loading: authLoading, practiceStorage } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = getEguchiTheme(colorScheme);
@@ -153,11 +153,11 @@ export default function SettingsScreen() {
       }
       syncInFlightRef.current = true;
       try {
-        const result = await syncEguchiStateBestEffort(token);
+        const result = await syncEguchiStateBestEffort(token, practiceStorage);
         if (reloadAfterSync && result.ok) {
           const [loadedProgress, loadedSessionPreferences] = await Promise.all([
-            loadEguchiProgress(),
-            loadEguchiSessionPreferences(),
+            loadEguchiProgress(practiceStorage),
+            loadEguchiSessionPreferences(practiceStorage),
           ]);
           setProgress(loadedProgress);
           setSessionPreferences(loadedSessionPreferences);
@@ -166,7 +166,7 @@ export default function SettingsScreen() {
         syncInFlightRef.current = false;
       }
     },
-    [token]
+    [token, practiceStorage]
   );
 
   useEffect(() => {
@@ -176,8 +176,8 @@ export default function SettingsScreen() {
       setLoading(true);
       try {
         const [loadedProgress, loadedSessionPreferences, loadedAudioMeta] = await Promise.all([
-          loadEguchiProgress(),
-          loadEguchiSessionPreferences(),
+          loadEguchiProgress(practiceStorage),
+          loadEguchiSessionPreferences(practiceStorage),
           loadEguchiAudioCacheMeta(),
         ]);
         if (isMounted) {
@@ -203,7 +203,7 @@ export default function SettingsScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [practiceStorage]);
 
   useEffect(() => {
     if (!loading) {
@@ -215,7 +215,7 @@ export default function SettingsScreen() {
     async (nextProgress: EguchiProgress) => {
       setSavingProgress(true);
       try {
-        await persistEguchiProgressChange(nextProgress);
+        await persistEguchiProgressChange(nextProgress, undefined, practiceStorage);
         void syncSettingsData();
       } catch (error) {
         console.warn('Failed to save Eguchi progress', error);
@@ -223,14 +223,14 @@ export default function SettingsScreen() {
         setSavingProgress(false);
       }
     },
-    [syncSettingsData]
+    [syncSettingsData, practiceStorage]
   );
 
   const persistSessionPreferences = useCallback(
     async (nextPreferences: EguchiSessionPreferences) => {
       setSavingSession(true);
       try {
-        await persistEguchiPreferencesChange(nextPreferences);
+        await persistEguchiPreferencesChange(nextPreferences, practiceStorage);
         void syncSettingsData();
       } catch (error) {
         console.warn('Failed to save Eguchi session preferences', error);
@@ -238,7 +238,7 @@ export default function SettingsScreen() {
         setSavingSession(false);
       }
     },
-    [syncSettingsData]
+    [syncSettingsData, practiceStorage]
   );
 
   const handleSetUnlockedLevel = useCallback(
@@ -264,7 +264,7 @@ export default function SettingsScreen() {
   const handleResetProgress = useCallback(async () => {
     setSavingProgress(true);
     try {
-      const reset = await resetEguchiSyncedProgress();
+      const reset = await resetEguchiSyncedProgress(practiceStorage);
       void syncSettingsData();
       console.log('[Eguchi] Progress reset to defaults');
       setProgress(reset);
@@ -274,7 +274,7 @@ export default function SettingsScreen() {
     } finally {
       setSavingProgress(false);
     }
-  }, [syncSettingsData]);
+  }, [syncSettingsData, practiceStorage]);
 
   const handleConfirmResetProgress = useCallback(async () => {
     setResetConfirmVisible(false);

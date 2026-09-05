@@ -1,5 +1,6 @@
 import { api, type ApiClient } from '@/lib/api';
 import { storage, STORAGE_KEYS, type StorageService } from '@/lib/storage';
+import { getEguchiAccountStorage } from './account-storage';
 import { AUDIO_PACK_HASH, AUDIO_PACK_NAME } from './audio-pack';
 import { isValidChordId, type EguchiChordId } from './chords';
 import {
@@ -375,7 +376,7 @@ const makeSkippedResult = (error: string | null): EguchiSyncResult => ({
 const performSync = async ({
   token,
   apiClient = api,
-  storageService = storage,
+  storageService = getEguchiAccountStorage(token),
 }: {
   token: string | null;
   apiClient?: SyncApiClient;
@@ -544,12 +545,17 @@ const performSync = async ({
   });
 };
 
-export const syncEguchiState = (options: Parameters<typeof performSync>[0]) =>
-  serialize(syncRequests, options.storageService ?? storage, () => performSync(options));
+export const syncEguchiState = (options: Parameters<typeof performSync>[0]) => {
+  const storageService = options.storageService ?? getEguchiAccountStorage(options.token);
+  return serialize(syncRequests, storageService, () => performSync({ ...options, storageService }));
+};
 
-export const syncEguchiStateBestEffort = async (token: string | null) => {
+export const syncEguchiStateBestEffort = async (
+  token: string | null,
+  storageService?: StorageService
+) => {
   try {
-    return await syncEguchiState({ token });
+    return await syncEguchiState({ token, storageService });
   } catch (error) {
     console.warn('Eguchi sync failed', error);
     return makeSkippedResult(error instanceof Error ? error.message : 'Eguchi sync failed.');

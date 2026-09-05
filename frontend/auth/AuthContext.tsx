@@ -1,16 +1,20 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppState, Platform } from 'react-native';
+import { ActivityIndicator, AppState, Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri, useAuthRequest, ResponseType } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import jwtDecode from 'jwt-decode';
 import { TOKEN_KEY, resolveStoredAuthToken, getLogoutReturnTo } from './auth-state';
 
+import { getEguchiAccountKey, getEguchiAccountStorage } from '@/lib/eguchi/account-storage';
+import type { StorageService } from '@/lib/storage';
+
 // Close the Auth0 popup on web if a redirect back to the app occurred
 WebBrowser.maybeCompleteAuthSession();
 
 interface AuthContextValue {
+  practiceStorage: StorageService;
   token: string | null;
   loading: boolean;
   login: () => void;
@@ -19,6 +23,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue>({
+  practiceStorage: getEguchiAccountStorage(null),
   token: null,
   loading: true,
   login: () => {},
@@ -38,6 +43,10 @@ const URL_SCHEME = process.env.EXPO_PUBLIC_URL_SCHEME || 'eguchieartrainer';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const setToken = (candidate: string | null) =>
+    setTokenState(resolveStoredAuthToken(candidate).token);
+  const practiceStorage = getEguchiAccountStorage(token);
+  const practiceOwner = getEguchiAccountKey(token);
   const router = useRouter();
   // Allow override via env; default to using native redirect flow when unset
   const authUseProxyEnv = process.env.EXPO_PUBLIC_AUTH_USE_PROXY;
@@ -79,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (accessToken) {
             console.log('Found access token in URL hash');
-            setTokenState(accessToken);
+            setToken(accessToken);
             await AsyncStorage.setItem(TOKEN_KEY, accessToken);
 
             // Clear silent auth attempt flag after a successful token reception
@@ -99,11 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const stored = await AsyncStorage.getItem(TOKEN_KEY);
         const storedTokenDecision = resolveStoredAuthToken(stored);
         if (storedTokenDecision.token) {
-          setTokenState(storedTokenDecision.token);
+          setToken(storedTokenDecision.token);
         } else if (storedTokenDecision.shouldClearStoredToken) {
           console.log('Stored Eguchi token expired or was invalid, clearing authentication');
           await AsyncStorage.removeItem(TOKEN_KEY);
-          setTokenState(null);
+          setToken(null);
 
           // Attempt silent re-auth only after this app had an Eguchi token. A fresh local-first
           // session stays signed out until the caregiver chooses account sync.
@@ -169,7 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (silentResponse?.type === 'success') {
       const newToken = silentResponse.params.access_token;
       if (newToken) {
-        setTokenState(newToken);
+        setToken(newToken);
         AsyncStorage.setItem(TOKEN_KEY, newToken).catch(() => {});
       }
     }
@@ -195,7 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (Platform.OS === 'web') {
       const handleAuthExpired = () => {
         console.log('Auth expired event received - clearing authentication');
-        setTokenState(null);
+        setToken(null);
         AsyncStorage.removeItem(TOKEN_KEY).catch(() => {});
 
         // Attempt silent re-auth once to refresh the session seamlessly on web
@@ -247,7 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (response?.type === 'success') {
       const newToken = response.params.access_token;
-      setTokenState(newToken);
+      setToken(newToken);
       AsyncStorage.setItem(TOKEN_KEY, newToken).catch(() => {});
       // Clear any previous silent attempt flags
       try {
@@ -302,7 +311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Do not silently sign back in when the logout browser returns to the app.
     nativeSilentAttemptedRef.current = true;
     await AsyncStorage.removeItem(TOKEN_KEY);
-    setTokenState(null);
+    setToken(null);
     try {
       if (Platform.OS === 'web') {
         sessionStorage.removeItem(SILENT_AUTH_ATTEMPT_KEY);
@@ -340,7 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (Platform.OS === 'web') return;
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active' && !token) {
+      if (state === 'active' && token && !resolveStoredAuthToken(token).token) {
         tryNativeSilentLogin().catch(() => {});
       }
     });
@@ -348,8 +357,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ token, loading, login, logout, validateToken }}>
-      {children}
+    <AuthContext.Provider value={{ token, loading, login, logout, validateToken, practiceStorage }}>
+      {loading ? (
+        <ActivityIndicator accessibilityLabel="Loading account" />
+      ) : (
+        <React.Fragment key={practiceOwner}>{children}</React.Fragment>
+      )}
     </AuthContext.Provider>
   );
 };

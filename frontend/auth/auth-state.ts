@@ -16,8 +16,14 @@ export const resolveStoredAuthToken = (
   }
 
   try {
-    const payload: { exp?: number } = jwtDecode(storedToken);
-    if (!payload.exp || payload.exp * 1000 > nowMs) {
+    const payload: { exp?: number; iss?: string; sub?: string } = jwtDecode(storedToken);
+    if (
+      typeof payload.iss === 'string' &&
+      payload.iss &&
+      typeof payload.sub === 'string' &&
+      payload.sub &&
+      (!payload.exp || payload.exp * 1000 > nowMs)
+    ) {
       return { token: storedToken, shouldClearStoredToken: false };
     }
   } catch {

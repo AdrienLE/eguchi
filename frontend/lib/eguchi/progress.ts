@@ -119,7 +119,7 @@ const sanitizeTrialHistory = (history: unknown): EguchiTrialRecord[] => {
     });
   }
 
-  return sanitized.slice(-MAX_TRIAL_HISTORY);
+  return sanitized;
 };
 
 export const mergeEguchiTrialHistories = (
@@ -135,16 +135,15 @@ export const mergeEguchiTrialHistories = (
     }
   }
 
-  return [...byId.values()]
-    .sort((left, right) => {
-      const timestampDelta =
-        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime();
-      return timestampDelta || left.id.localeCompare(right.id);
-    })
-    .slice(-MAX_TRIAL_HISTORY);
+  return [...byId.values()].sort((left, right) => {
+    const timestampDelta = new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime();
+    return timestampDelta || left.id.localeCompare(right.id);
+  });
 };
 
-const buildDailySummaries = (trialHistory: EguchiTrialRecord[]) => {
+const buildDailySummaries = (
+  trialHistory: Pick<EguchiTrialRecord, 'timestamp' | 'correct' | 'outcome'>[]
+) => {
   const summaries: Record<string, EguchiDailySummary> = {};
   for (const trial of trialHistory) {
     const dayKey = getDayKeyFromTimestamp(trial.timestamp);
@@ -179,6 +178,37 @@ export type EguchiTrialRecord = {
   timestamp: string;
 };
 
+// Older detail is compacted, but event identity and counting facts survive forever.
+// Keeping IDs makes repeated downloads idempotent; timestamps make resets exact.
+export type EguchiArchivedTrial = Pick<
+  EguchiTrialRecord,
+  'id' | 'timestamp' | 'correct' | 'outcome'
+>;
+
+const sanitizeTrialArchive = (candidate: unknown): EguchiArchivedTrial[] => {
+  const byId = new Map<string, EguchiArchivedTrial>();
+  if (!Array.isArray(candidate)) return [];
+  for (const item of candidate) {
+    if (
+      !item ||
+      typeof item.id !== 'string' ||
+      !item.id.trim() ||
+      typeof item.correct !== 'boolean' ||
+      typeof item.timestamp !== 'string' ||
+      Number.isNaN(new Date(item.timestamp).getTime())
+    )
+      continue;
+    if (!byId.has(item.id))
+      byId.set(item.id, {
+        id: item.id,
+        timestamp: new Date(item.timestamp).toISOString(),
+        correct: item.correct,
+        outcome: isTrainingOutcome(item.outcome) ? item.outcome : null,
+      });
+  }
+  return [...byId.values()];
+};
+
 export type EguchiDailySummary = {
   attempts: number;
   correct: number;
@@ -190,6 +220,7 @@ export type EguchiDailySummary = {
 export type EguchiProgress = {
   unlockedChordIds: EguchiChordId[];
   trialHistory: EguchiTrialRecord[];
+  archivedTrials?: EguchiArchivedTrial[];
   dailySummaries: Record<string, EguchiDailySummary>;
   lastAutoUnlockDayKey: string | null;
   learningPath: EguchiLearningPathState;
@@ -223,6 +254,7 @@ export type EguchiProgressSnapshot = {
 export const createDefaultEguchiProgress = (): EguchiProgress => ({
   unlockedChordIds: [...DEFAULT_UNLOCKED_CHORD_IDS],
   trialHistory: [],
+  archivedTrials: [],
   dailySummaries: {},
   lastAutoUnlockDayKey: null,
   learningPath: createDefaultLearningPathState(),
@@ -247,14 +279,18 @@ export const loadEguchiProgress = async (
     unlockedChordIds = [...DEFAULT_UNLOCKED_CHORD_IDS];
   }
 
-  return {
-    unlockedChordIds,
-    trialHistory,
-    dailySummaries: buildDailySummaries(trialHistory),
-    lastAutoUnlockDayKey:
-      typeof stored.lastAutoUnlockDayKey === 'string' ? stored.lastAutoUnlockDayKey : null,
-    learningPath: normalizeLearningPathState(stored.learningPath, unlockedChordIds),
-  };
+  return rebuildProgressWithTrialHistory(
+    {
+      unlockedChordIds,
+      trialHistory: [],
+      archivedTrials: sanitizeTrialArchive(stored.archivedTrials),
+      dailySummaries: {},
+      lastAutoUnlockDayKey:
+        typeof stored.lastAutoUnlockDayKey === 'string' ? stored.lastAutoUnlockDayKey : null,
+      learningPath: normalizeLearningPathState(stored.learningPath, unlockedChordIds),
+    },
+    trialHistory
+  );
 };
 
 export const saveEguchiProgress = async (
@@ -320,23 +356,31 @@ export const recordTrial = (
     timestamp: normalizedTimestamp,
   };
 
-  const trialHistory = mergeEguchiTrialHistories(progress.trialHistory, [nextTrial]);
-  return {
-    ...progress,
-    trialHistory,
-    dailySummaries: buildDailySummaries(trialHistory),
-  };
+  return rebuildProgressWithTrialHistory(progress, [...progress.trialHistory, nextTrial]);
 };
 
 export const rebuildProgressWithTrialHistory = (
   progress: EguchiProgress,
-  trialHistory: EguchiTrialRecord[]
+  trialHistory: EguchiTrialRecord[],
+  resetAt: string | null = null
 ): EguchiProgress => {
-  const mergedTrialHistory = mergeEguchiTrialHistories(trialHistory);
+  const afterReset = (trial: { timestamp: string }) =>
+    !resetAt || new Date(trial.timestamp).getTime() > new Date(resetAt).getTime();
+  const archivedTrials = sanitizeTrialArchive(progress.archivedTrials).filter(afterReset);
+  const archivedIds = new Set(archivedTrials.map(trial => trial.id));
+  const unarchived = mergeEguchiTrialHistories(trialHistory).filter(
+    trial => afterReset(trial) && !archivedIds.has(trial.id)
+  );
+  const overflowCount = Math.max(0, unarchived.length - MAX_TRIAL_HISTORY);
+  for (const { id, timestamp, correct, outcome } of unarchived.slice(0, overflowCount)) {
+    archivedTrials.push({ id, timestamp, correct, outcome });
+  }
+  const recent = unarchived.slice(overflowCount);
   return {
     ...progress,
-    trialHistory: mergedTrialHistory,
-    dailySummaries: buildDailySummaries(mergedTrialHistory),
+    trialHistory: recent,
+    archivedTrials,
+    dailySummaries: buildDailySummaries([...archivedTrials, ...recent]),
   };
 };
 

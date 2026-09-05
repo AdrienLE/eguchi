@@ -299,10 +299,13 @@ export const persistEguchiProgressChange = (
 ) =>
   serialize(localWrites, storageService, async () => {
     const current = await loadEguchiProgress(storageService);
-    const next = rebuildProgressWithTrialHistory(progress, [
-      ...current.trialHistory,
-      ...progress.trialHistory,
-    ]);
+    const next = rebuildProgressWithTrialHistory(
+      {
+        ...progress,
+        archivedTrials: [...(current.archivedTrials ?? []), ...(progress.archivedTrials ?? [])],
+      },
+      [...current.trialHistory, ...progress.trialHistory]
+    );
     await storageService.set(STORAGE_KEYS.EGUCHI_PROGRESS, next);
     if (trial) {
       const queue = await loadEguchiSyncQueue(storageService);
@@ -361,7 +364,7 @@ const applyRemoteProgressState = (
   };
 };
 
-const isAfterReset = (trial: EguchiTrialRecord, resetAt: string | null) =>
+const isAfterReset = (trial: { timestamp: string }, resetAt: string | null) =>
   !resetAt || compareIsoTimestamps(trial.timestamp, resetAt) > 0;
 
 const makeSkippedResult = (error: string | null): EguchiSyncResult => ({
@@ -470,8 +473,15 @@ const performSync = async ({
     const resetFilteredLocalHistory = nextProgress.trialHistory.filter(trial =>
       isAfterReset(trial, effectiveResetAt)
     );
-    if (resetFilteredLocalHistory.length !== nextProgress.trialHistory.length) {
-      nextProgress = rebuildProgressWithTrialHistory(nextProgress, resetFilteredLocalHistory);
+    const historyWasReset =
+      resetFilteredLocalHistory.length !== nextProgress.trialHistory.length ||
+      (nextProgress.archivedTrials ?? []).some(trial => !isAfterReset(trial, effectiveResetAt));
+    if (historyWasReset) {
+      nextProgress = rebuildProgressWithTrialHistory(
+        nextProgress,
+        resetFilteredLocalHistory,
+        effectiveResetAt
+      );
     }
     if (remoteTrials.length) {
       nextProgress = rebuildProgressWithTrialHistory(nextProgress, [
@@ -498,11 +508,7 @@ const performSync = async ({
         compareIsoTimestamps(remotePreferences.updatedAt, meta.preferencesUpdatedAt) > 0);
 
     await saveEguchiSyncQueue({ trialEvents: remainingQueue }, storageService);
-    if (
-      remoteTrials.length ||
-      shouldApplyRemoteProgress ||
-      resetFilteredLocalHistory.length !== progress.trialHistory.length
-    ) {
+    if (remoteTrials.length || shouldApplyRemoteProgress || historyWasReset) {
       await storageService.set(STORAGE_KEYS.EGUCHI_PROGRESS, nextProgress);
     }
     if (shouldApplyRemotePreferences) {

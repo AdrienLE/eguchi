@@ -8,11 +8,14 @@ import {
   getProgressSnapshot,
   loadEguchiProgress,
   recordTrial,
+  rebuildProgressWithTrialHistory,
+  type EguchiTrialRecord,
   resetEguchiProgress,
   saveEguchiProgress,
   setChordUnlocked,
   setUnlockedLevel,
 } from '@/lib/eguchi/progress';
+import { getNextLevelProgress } from '@/lib/eguchi/progression';
 import { STORAGE_KEYS, type StorageService } from '@/lib/storage';
 
 type StorageStub = StorageService & {
@@ -111,7 +114,7 @@ describe('eguchi progress', () => {
     ).toBe(1500);
   });
 
-  test('recordTrial trims old history after max limit', () => {
+  test('recordTrial compacts old detail while retaining lifetime totals', () => {
     let progress = createDefaultEguchiProgress();
     for (let index = 0; index < MAX_TRIAL_HISTORY + 5; index += 1) {
       progress = recordTrial(progress, {
@@ -122,6 +125,8 @@ describe('eguchi progress', () => {
     }
 
     expect(progress.trialHistory.length).toBe(MAX_TRIAL_HISTORY);
+    expect(progress.archivedTrials?.length).toBe(5);
+    expect(getProgressSnapshot(progress).totalAttempts).toBe(MAX_TRIAL_HISTORY + 5);
   });
 
   test('setChordUnlocked preserves order and keeps at least one chord unlocked', () => {
@@ -220,4 +225,35 @@ describe('eguchi progress', () => {
     expect(snapshot.todayAttempts).toBe(1);
     expect(snapshot.todayCorrect).toBe(1);
   });
+});
+
+test('30 perfect days survive compaction, reload, and duplicate remote downloads', async () => {
+  const trials: EguchiTrialRecord[] = Array.from({ length: 3000 }, (_, index) => ({
+    id: `trial-${index}`,
+    chordId: 'C-E-G',
+    correct: true,
+    outcome: 'independent',
+    timestamp: new Date(2026, 0, 1 + Math.floor(index / 100), 12, 0, index % 100).toISOString(),
+  }));
+  const progress = rebuildProgressWithTrialHistory(createDefaultEguchiProgress(), trials);
+  const loaded = await loadEguchiProgress(makeStorageStub(JSON.parse(JSON.stringify(progress))));
+  const merged = rebuildProgressWithTrialHistory(loaded, [...loaded.trialHistory, ...trials]);
+  expect(merged.trialHistory.length).toBe(2000);
+  expect(merged.archivedTrials?.length).toBe(1000);
+  expect(getProgressSnapshot(merged).totalAttempts).toBe(3000);
+  expect(getProgressSnapshot(merged).totalIndependent).toBe(3000);
+  const next = getNextLevelProgress(
+    merged,
+    { autoUnlockEnabled: true, dailyAttemptTarget: 100, perfectDaysRequired: 30 },
+    new Date(2026, 0, 30, 14)
+  );
+  expect(next.perfectDayStreak).toBe(30);
+  expect(next.canUnlockNow).toBe(true);
+  const reset = rebuildProgressWithTrialHistory(
+    merged,
+    merged.trialHistory,
+    new Date(2026, 0, 15, 0).toISOString()
+  );
+  expect(getProgressSnapshot(reset).totalAttempts).toBe(1600);
+  expect(reset.archivedTrials).toEqual([]);
 });

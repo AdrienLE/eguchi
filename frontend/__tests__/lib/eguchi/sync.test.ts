@@ -374,3 +374,37 @@ describe('edits during sync', () => {
     ).toBeTruthy();
   });
 });
+
+test('remote resets remove archived counts even when all recent detail is after the reset', async () => {
+  const progress = recordTrial(createDefaultEguchiProgress(), {
+    id: 'new',
+    chordId: 'C-E-G',
+    correct: true,
+    timestamp: '2026-01-12T10:00:00.000Z',
+  });
+  progress.archivedTrials = [{ id: 'old', correct: true, timestamp: '2026-01-10T10:00:00.000Z' }];
+  const storage = makeStorage({ [STORAGE_KEYS.EGUCHI_PROGRESS]: progress });
+  const apiClient = makeApiClient({
+    status: 200,
+    data: {
+      acceptedEventIds: [],
+      trialEvents: [],
+      serverEventCursor: null,
+      sessionPreferences: null,
+      progressState: {
+        updatedAt: '2026-01-13T10:00:00.000Z',
+        data: {
+          unlockedChordIds: ['C-E-G'],
+          lastAutoUnlockDayKey: null,
+          resetAt: '2026-01-11T10:00:00.000Z',
+        },
+      },
+      syncedAt: '2026-01-13T10:00:00.000Z',
+    },
+  });
+  await syncEguchiState({ token: 'token', apiClient, storageService: storage });
+  const saved = storage.values.get(STORAGE_KEYS.EGUCHI_PROGRESS) as EguchiProgress;
+  expect(saved.archivedTrials).toEqual([]);
+  expect(saved.trialHistory.map(trial => trial.id)).toEqual(['new']);
+  expect(Object.values(saved.dailySummaries).reduce((sum, day) => sum + day.attempts, 0)).toBe(1);
+});

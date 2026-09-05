@@ -46,7 +46,7 @@ export const resolveTrainingTrialSettings = (
 
 export const completeTrainingTrial = (
   progress: EguchiProgress,
-  trial: RecordTrialInput,
+  trial: RecordTrialInput & { octave?: number | null },
   preferences: EguchiSessionPreferences
 ): EguchiProgress => {
   const recorded = recordTrial(progress, trial);
@@ -60,7 +60,8 @@ export const completeTrainingTrial = (
   const result = advanceLearningPath(
     recorded.learningPath,
     recorded.unlockedChordIds,
-    trial.outcome ?? (trial.correct ? 'independent' : 'corrected')
+    trial.outcome ?? (trial.correct ? 'independent' : 'corrected'),
+    { chordId: trial.chordId, octave: trial.octave ?? null }
   );
   return { ...recorded, unlockedChordIds: result.unlockedChordIds, learningPath: result.state };
 };

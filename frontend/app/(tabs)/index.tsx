@@ -19,7 +19,7 @@ import {
 import { useAuth } from '@/auth/AuthContext';
 import { resolveAudioPlaybackSource } from '@/lib/eguchi/audio-assets';
 import type { AudioEntry } from '@/lib/eguchi/audio-pack';
-import { pickTrainingAudioEntry } from '@/lib/eguchi/audio-selection';
+import { getAudioEntryMetadata, pickTrainingAudioEntry } from '@/lib/eguchi/audio-selection';
 import { getAnimalAnimationProfile } from '@/lib/eguchi/animal-animation';
 import { getAnimalReactionPose } from '@/lib/eguchi/animal-animation-assets';
 import {
@@ -756,6 +756,7 @@ export default function HomeScreen() {
             correct: outcome !== 'corrected',
             outcome,
             promptDelayMs: trialHintDelayMs,
+            octave: expectedAudio ? getAudioEntryMetadata(expectedAudio)?.octave : null,
             timestamp: trialTimestamp,
           },
           activeSessionPreferences

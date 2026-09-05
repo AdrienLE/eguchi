@@ -1,6 +1,6 @@
 import { ORDERED_CHORD_IDS, type EguchiChordId } from './chords';
 
-export const LEARNING_PATH_VERSION = 1;
+export const LEARNING_PATH_VERSION = 2;
 export const PROMPT_DELAY_STEPS_MS = [0, 3000, 5000, 7000, 9000] as const;
 export const MEET_ROUNDS_REQUIRED = 4;
 export const GUIDED_WINDOW_SIZE = 6;
@@ -14,6 +14,8 @@ export type TrainingOutcome = 'independent' | 'assisted' | 'corrected';
 export type LearningPathPhase = 'meet' | 'guided' | 'independent';
 export type AudioGeneralizationStage = 0 | 1 | 2;
 
+export type RecognitionEvidence = { outcome: TrainingOutcome; octave: number | null };
+
 export type EguchiLearningPathState = {
   version: typeof LEARNING_PATH_VERSION;
   phase: LearningPathPhase;
@@ -21,6 +23,7 @@ export type EguchiLearningPathState = {
   promptStep: number;
   audioStage: AudioGeneralizationStage;
   recentOutcomes: TrainingOutcome[];
+  recentTrialsByChord?: Partial<Record<EguchiChordId, RecognitionEvidence[]>>;
   totalCompletedRounds: number;
 };
 
@@ -55,6 +58,7 @@ export const createDefaultLearningPathState = (): EguchiLearningPathState => ({
   promptStep: 0,
   audioStage: 0,
   recentOutcomes: [],
+  recentTrialsByChord: {},
   totalCompletedRounds: 0,
 });
 
@@ -80,8 +84,30 @@ export const createLearningPathStateForUnlocked = (
     promptStep: PROMPT_DELAY_STEPS_MS.length - 1,
     audioStage: 2,
     recentOutcomes: [],
+    recentTrialsByChord: {},
     totalCompletedRounds: 0,
   };
+};
+
+const normalizeRecognitionEvidence = (
+  candidate: unknown,
+  chordIds: EguchiChordId[]
+): Partial<Record<EguchiChordId, RecognitionEvidence[]>> => {
+  const normalized: Partial<Record<EguchiChordId, RecognitionEvidence[]>> = {};
+  if (!candidate || typeof candidate !== 'object') return normalized;
+  for (const chordId of chordIds) {
+    const entries = (candidate as Record<string, unknown>)[chordId];
+    if (Array.isArray(entries)) {
+      normalized[chordId] = entries
+        .filter(entry => entry && isTrainingOutcome(entry.outcome))
+        .slice(-INDEPENDENT_WINDOW_SIZE)
+        .map(entry => ({
+          outcome: entry.outcome,
+          octave: [3, 4, 5].includes(entry.octave) ? entry.octave : null,
+        }));
+    }
+  }
+  return normalized;
 };
 
 export const normalizeLearningPathState = (
@@ -117,6 +143,7 @@ export const normalizeLearningPathState = (
     promptStep: clampPromptStep(stored.promptStep),
     audioStage: clampAudioStage(stored.audioStage),
     recentOutcomes,
+    recentTrialsByChord: normalizeRecognitionEvidence(stored.recentTrialsByChord, unlockedChordIds),
     totalCompletedRounds,
   };
 };
@@ -218,13 +245,25 @@ const makeAdvanceResult = (
 export const advanceLearningPath = (
   currentState: EguchiLearningPathState,
   currentUnlockedChordIds: EguchiChordId[],
-  outcome: TrainingOutcome
+  outcome: TrainingOutcome,
+  trial: { chordId: EguchiChordId; octave: number | null }
 ): LearningPathAdvanceResult => {
   const unlockedChordIds = [...currentUnlockedChordIds];
   const recentOutcomes = [...currentState.recentOutcomes, outcome].slice(-INDEPENDENT_WINDOW_SIZE);
+  const recentTrialsByChord = normalizeRecognitionEvidence(
+    currentState.recentTrialsByChord,
+    unlockedChordIds
+  );
+  if (unlockedChordIds.includes(trial.chordId)) {
+    recentTrialsByChord[trial.chordId] = [
+      ...(recentTrialsByChord[trial.chordId] ?? []),
+      { outcome, octave: trial.octave },
+    ].slice(-INDEPENDENT_WINDOW_SIZE);
+  }
   const state: EguchiLearningPathState = {
     ...currentState,
     recentOutcomes,
+    recentTrialsByChord,
     totalCompletedRounds: currentState.totalCompletedRounds + 1,
   };
 
@@ -249,6 +288,7 @@ export const advanceLearningPath = (
         promptStep: 0,
         audioStage: 0,
         recentOutcomes: [],
+        recentTrialsByChord: {},
       },
       unlockedChordIds,
       { unlockedChordId, promptAdvanced: true }
@@ -264,12 +304,14 @@ export const advanceLearningPath = (
               ...state,
               promptStep: state.promptStep - 1,
               recentOutcomes: [],
+              recentTrialsByChord: {},
             }
           : {
               ...state,
               phase: 'meet',
               audioStage: 0,
               recentOutcomes: [],
+              recentTrialsByChord: {},
             },
         unlockedChordIds,
         { promptRegressed: true }
@@ -297,6 +339,7 @@ export const advanceLearningPath = (
         phase: isLastPromptStep ? 'independent' : 'guided',
         promptStep: isLastPromptStep ? state.promptStep : state.promptStep + 1,
         recentOutcomes: [],
+        recentTrialsByChord: {},
       },
       unlockedChordIds,
       { promptAdvanced: true }
@@ -311,17 +354,26 @@ export const advanceLearningPath = (
         phase: 'guided',
         promptStep: PROMPT_DELAY_STEPS_MS.length - 1,
         recentOutcomes: [],
+        recentTrialsByChord: {},
       },
       unlockedChordIds,
       { promptRegressed: true }
     );
   }
 
-  const masteryWindow = recentOutcomes.slice(-INDEPENDENT_WINDOW_SIZE);
-  const hasIndependentMastery =
-    masteryWindow.length === INDEPENDENT_WINDOW_SIZE &&
-    countOutcome(masteryWindow, 'independent') >= INDEPENDENT_MASTERY_REQUIRED &&
-    countOutcome(masteryWindow, 'corrected') <= 1;
+  const requiredOctaves = getTrainingAudioOctaves(state);
+  const hasIndependentMastery = unlockedChordIds.every(chordId => {
+    const evidence = recentTrialsByChord[chordId] ?? [];
+    return (
+      evidence.length === INDEPENDENT_WINDOW_SIZE &&
+      evidence.filter(trial => trial.outcome === 'independent').length >=
+        INDEPENDENT_MASTERY_REQUIRED &&
+      evidence.filter(trial => trial.outcome === 'corrected').length <= 1 &&
+      requiredOctaves.every(octave =>
+        evidence.some(trial => trial.octave === octave && trial.outcome === 'independent')
+      )
+    );
+  });
   if (!hasIndependentMastery) {
     return makeAdvanceResult(state, unlockedChordIds);
   }
@@ -332,6 +384,7 @@ export const advanceLearningPath = (
         ...state,
         audioStage: (state.audioStage + 1) as AudioGeneralizationStage,
         recentOutcomes: [],
+        recentTrialsByChord: {},
       },
       unlockedChordIds,
       { audioGeneralized: true }
@@ -340,7 +393,10 @@ export const advanceLearningPath = (
 
   const unlockedChordId = ORDERED_CHORD_IDS[unlockedChordIds.length] ?? null;
   if (!unlockedChordId) {
-    return makeAdvanceResult({ ...state, recentOutcomes: [] }, unlockedChordIds);
+    return makeAdvanceResult(
+      { ...state, recentOutcomes: [], recentTrialsByChord: {} },
+      unlockedChordIds
+    );
   }
   unlockedChordIds.push(unlockedChordId);
 
@@ -352,6 +408,7 @@ export const advanceLearningPath = (
       promptStep: 0,
       audioStage: 0,
       recentOutcomes: [],
+      recentTrialsByChord: {},
     },
     unlockedChordIds,
     { unlockedChordId }

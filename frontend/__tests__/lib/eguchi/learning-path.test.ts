@@ -23,7 +23,14 @@ const advanceMany = (
   outcomes: TrainingOutcome[]
 ) =>
   outcomes.reduce<LearningPathAdvanceResult>(
-    (current, outcome) => advanceLearningPath(current.state, current.unlockedChordIds, outcome),
+    (current, outcome, index) => {
+      const ids = getActiveTrainingChordIds(current.state, current.unlockedChordIds);
+      const octaves = getTrainingAudioOctaves(current.state);
+      return advanceLearningPath(current.state, current.unlockedChordIds, outcome, {
+        chordId: ids[index % ids.length],
+        octave: octaves[Math.floor(index / ids.length) % octaves.length],
+      });
+    },
     {
       state,
       unlockedChordIds,
@@ -212,7 +219,7 @@ describe('adaptive Eguchi learning path', () => {
       audioStage: 0,
     };
     const masteryOutcomes = Array.from(
-      { length: INDEPENDENT_WINDOW_SIZE },
+      { length: INDEPENDENT_WINDOW_SIZE * 2 },
       (): TrainingOutcome => 'independent'
     );
 
@@ -265,5 +272,58 @@ describe('adaptive Eguchi learning path', () => {
     expect(normalized.audioStage).toBe(0);
     expect(normalized.recentOutcomes).toEqual(['independent']);
     expect(normalized.totalCompletedRounds).toBe(0);
+  });
+});
+
+describe('mastery evidence', () => {
+  const ids = ORDERED_CHORD_IDS.slice(0, 2);
+  const independent = (): EguchiLearningPathState => ({
+    ...createDefaultLearningPathState(),
+    phase: 'independent',
+    audioStage: 2,
+  });
+
+  test('repeated Fox success cannot unlock Frog without Whale recognition', () => {
+    let state = independent();
+    for (let index = 0; index < 30; index++) {
+      const next = advanceLearningPath(state, ids, 'independent', {
+        chordId: ids[0],
+        octave: [3, 4, 5][index % 3],
+      });
+      expect(next.unlockedChordIds).toEqual(ids);
+      state = next.state;
+    }
+  });
+
+  test('each friend must be recognized across the current octave range', () => {
+    let state = independent();
+    for (let index = 0; index < 20; index++) {
+      const next = advanceLearningPath(state, ids, 'independent', {
+        chordId: ids[index % 2],
+        octave: 4,
+      });
+      expect(next.unlockedChordIds).toEqual(ids);
+      state = next.state;
+    }
+    const next = advanceMany(
+      state,
+      ids,
+      Array.from({ length: 20 }, () => 'independent')
+    );
+    expect(next.unlockedChordIds).toEqual(ORDERED_CHORD_IDS.slice(0, 3));
+  });
+
+  test('old pooled outcomes do not become per-friend mastery during migration', () => {
+    const migrated = normalizeLearningPathState(
+      { ...independent(), version: 1, recentOutcomes: Array(10).fill('independent') },
+      ids
+    );
+    expect(migrated.version).toBe(2);
+    expect(migrated.recentTrialsByChord).toEqual({});
+    const result = advanceLearningPath(migrated, ids, 'independent', {
+      chordId: ids[0],
+      octave: 4,
+    });
+    expect(result.unlockedChordIds).toEqual(ids);
   });
 });

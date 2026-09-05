@@ -132,7 +132,7 @@ export const getCaregiverLearningTimeline = (
         id: 'independent',
         label: 'Independent practice',
         hintLabel: 'None',
-        detail: `Regular winks are off; ${INDEPENDENT_MASTERY_REQUIRED}/${INDEPENDENT_WINDOW_SIZE} independent rounds expand octaves, then unlock a new friend.`,
+        detail: `Regular winks are off; ${INDEPENDENT_MASTERY_REQUIRED}/${INDEPENDENT_WINDOW_SIZE} independent rounds for each friend, including each practiced octave, expand the range and then unlock a new friend.`,
         status: getIndependentStatus(state),
       },
     ],

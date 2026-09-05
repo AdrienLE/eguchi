@@ -28,22 +28,12 @@ import {
   type AnimalEmotion,
 } from '@/lib/eguchi/animal-assets';
 import { CHORD_BY_ID, DEFAULT_UNLOCKED_CHORD_IDS, type EguchiChordId } from '@/lib/eguchi/chords';
-import {
-  advanceLearningPath,
-  getActiveTrainingChordIds,
-  getDailyWarmupRoundsRemaining,
-  getWarmupLearningPathState,
-  getTrainingAudioOctaves,
-  getTrialHintDelayMs,
-  type TrainingOutcome,
-} from '@/lib/eguchi/learning-path';
-import { maybeApplyAutoUnlock } from '@/lib/eguchi/progression';
+import type { TrainingOutcome } from '@/lib/eguchi/learning-path';
+import { completeTrainingTrial, resolveTrainingTrialSettings } from '@/lib/eguchi/training-session';
 import {
   createDefaultEguchiProgress,
   createEguchiTrialId,
-  getProgressSnapshot,
   loadEguchiProgress,
-  recordTrial,
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
 import { persistEguchiProgressChange, syncEguchiStateBestEffort } from '@/lib/eguchi/sync';
@@ -617,18 +607,13 @@ export default function HomeScreen() {
   const startNewTrial = useCallback(() => {
     const activeProgress = progressRef.current;
     const activeSessionPreferences = sessionPreferencesRef.current;
-    const todayAttempts = getProgressSnapshot(activeProgress).todayAttempts;
-    const warmupRoundsRemaining = activeSessionPreferences.adaptiveHintsEnabled
-      ? getDailyWarmupRoundsRemaining(todayAttempts)
-      : 0;
-    const effectiveLearningPath =
-      warmupRoundsRemaining > 0
-        ? getWarmupLearningPathState(activeProgress.learningPath, todayAttempts)
-        : activeProgress.learningPath;
-    const activeUnlockedChordIds = getActiveTrainingChordIds(
+    const {
+      chordIds: activeUnlockedChordIds,
       effectiveLearningPath,
-      activeProgress.unlockedChordIds
-    );
+      warmupRoundsRemaining,
+      audioOctaves,
+      hintDelayMs,
+    } = resolveTrainingTrialSettings(activeProgress, activeSessionPreferences);
 
     if (!activeUnlockedChordIds.length) {
       clearAdvanceTimer();
@@ -651,13 +636,8 @@ export default function HomeScreen() {
 
     const nextChordId = pickRandomChordId(activeUnlockedChordIds);
     currentChordRef.current = nextChordId;
-    currentHintDelayMsRef.current = getTrialHintDelayMs(effectiveLearningPath, {
-      adaptiveHintsEnabled: activeSessionPreferences.adaptiveHintsEnabled,
-      noHintTrialsEnabled:
-        activeSessionPreferences.noHintTrialsEnabled && warmupRoundsRemaining <= 0,
-    });
+    currentHintDelayMsRef.current = hintDelayMs;
 
-    const audioOctaves = getTrainingAudioOctaves(effectiveLearningPath);
     const nextAudio = pickTrainingAudioEntry(nextChordId, { octaves: audioOctaves });
     if (!nextAudio) {
       console.warn('No audio file available for chord', nextChordId);
@@ -772,39 +752,19 @@ export default function HomeScreen() {
 
       {
         const currentProgress = progressRef.current ?? createDefaultEguchiProgress();
-        const afterRecord = recordTrial(currentProgress, {
-          id: trialId,
-          chordId: expectedId,
-          correct: outcome !== 'corrected',
-          outcome,
-          promptDelayMs: trialHintDelayMs,
-          timestamp: trialTimestamp,
-        });
-        const learningResult = advanceLearningPath(
-          afterRecord.learningPath,
-          afterRecord.unlockedChordIds,
-          outcome
+        const nextProgress = completeTrainingTrial(
+          currentProgress,
+          {
+            id: trialId,
+            chordId: expectedId,
+            correct: outcome !== 'corrected',
+            outcome,
+            promptDelayMs: trialHintDelayMs,
+            timestamp: trialTimestamp,
+          },
+          activeSessionPreferences
         );
-        let nextProgress: EguchiProgress = {
-          ...afterRecord,
-          unlockedChordIds: learningResult.unlockedChordIds,
-          learningPath: learningResult.state,
-        };
-        if (!activeSessionPreferences.adaptiveHintsEnabled) {
-          nextProgress = maybeApplyAutoUnlock(nextProgress, {
-            autoUnlockEnabled: activeSessionPreferences.autoUnlockEnabled,
-            perfectDaysRequired: activeSessionPreferences.perfectDaysRequired,
-            dailyAttemptTarget: activeSessionPreferences.dailyAttemptTarget,
-          }).progress;
-        }
         progressRef.current = nextProgress;
-
-        if (learningResult.unlockedChordId) {
-          console.log('[Eguchi] Learning path introduced a new friend', {
-            chord: learningResult.unlockedChordId,
-            animal: CHORD_BY_ID[learningResult.unlockedChordId]?.animal,
-          });
-        }
 
         void (async () => {
           try {

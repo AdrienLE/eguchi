@@ -248,3 +248,129 @@ describe('eguchi local-first sync', () => {
     );
   });
 });
+
+describe('edits during sync', () => {
+  const deferred = <T>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>(done => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  };
+
+  for (const fail of [false, true]) {
+    test(`preserves new work while request fails=${fail}`, async () => {
+      const { persistEguchiProgressChange, persistEguchiPreferencesChange } = await import(
+        '@/lib/eguchi/sync'
+      );
+      const storage = makeStorage();
+      const first = recordTrial(createDefaultEguchiProgress(), {
+        ...trial('first'),
+        outcome: undefined,
+      });
+      await persistEguchiProgressChange(first, trial('first'), storage);
+      const started = deferred<any>();
+      const response = deferred<any>();
+      const apiClient = {
+        post: async (_url: string, payload?: any) => {
+          started.resolve(payload);
+          return response.promise;
+        },
+      };
+      const pending = syncEguchiState({ token: 'token', apiClient, storageService: storage });
+      const payload = await started.promise;
+      await persistEguchiProgressChange(
+        recordTrial(first, { ...trial('second'), outcome: undefined }),
+        trial('second'),
+        storage
+      );
+      const preferences = { ...createDefaultEguchiSessionPreferences(), feedbackSeconds: 7 };
+      await persistEguchiPreferencesChange(preferences, storage);
+      const revision = (storage.values.get(STORAGE_KEYS.EGUCHI_SYNC_META) as any).progressUpdatedAt;
+      response.resolve(
+        fail
+          ? { error: 'offline', status: 0 }
+          : {
+              status: 200,
+              data: {
+                acceptedEventIds: ['first'],
+                trialEvents: payload.trialEvents,
+                progressState: payload.progressState,
+                sessionPreferences: {
+                  updatedAt: payload.progressState.updatedAt,
+                  data: createDefaultEguchiSessionPreferences(),
+                },
+                serverEventCursor: '2026-01-11T11:00:00.000Z',
+                syncedAt: '2026-01-11T11:00:00.000Z',
+              },
+            }
+      );
+      await pending;
+      expect(
+        (storage.values.get(STORAGE_KEYS.EGUCHI_PROGRESS) as EguchiProgress).trialHistory.map(
+          t => t.id
+        )
+      ).toEqual(['first', 'second']);
+      expect((await loadEguchiSyncQueue(storage)).trialEvents.map(t => t.id)).toEqual(
+        fail ? ['first', 'second'] : ['second']
+      );
+      expect(storage.values.get(STORAGE_KEYS.EGUCHI_SESSION_PREFERENCES)).toEqual(preferences);
+      expect((storage.values.get(STORAGE_KEYS.EGUCHI_SYNC_META) as any).progressUpdatedAt).toBe(
+        revision
+      );
+      expect(
+        (storage.values.get(STORAGE_KEYS.EGUCHI_SYNC_META) as any).preferencesUpdatedAt
+      ).toBeTruthy();
+    });
+  }
+  test('concurrent queue writes retain both events', async () => {
+    const storage = makeStorage();
+    await Promise.all([
+      queueEguchiTrialEvent(trial('a'), storage),
+      queueEguchiTrialEvent(trial('b'), storage),
+    ]);
+    expect((await loadEguchiSyncQueue(storage)).trialEvents.map(t => t.id)).toEqual(['a', 'b']);
+  });
+
+  test('a reset during sync cannot resurrect old rounds', async () => {
+    const { persistEguchiProgressChange, resetEguchiSyncedProgress } = await import(
+      '@/lib/eguchi/sync'
+    );
+    const storage = makeStorage();
+    await persistEguchiProgressChange(
+      recordTrial(createDefaultEguchiProgress(), { ...trial('old'), outcome: undefined }),
+      trial('old'),
+      storage
+    );
+    const started = deferred<any>();
+    const response = deferred<any>();
+    const apiClient = {
+      post: async (_url: string, payload?: any) => {
+        started.resolve(payload);
+        return response.promise;
+      },
+    };
+    const pending = syncEguchiState({ token: 'token', apiClient, storageService: storage });
+    const payload = await started.promise;
+    await resetEguchiSyncedProgress(storage);
+    response.resolve({
+      status: 200,
+      data: {
+        acceptedEventIds: ['old'],
+        trialEvents: payload.trialEvents,
+        progressState: payload.progressState,
+        sessionPreferences: null,
+        serverEventCursor: null,
+        syncedAt: new Date().toISOString(),
+      },
+    });
+    await pending;
+    expect(
+      (storage.values.get(STORAGE_KEYS.EGUCHI_PROGRESS) as EguchiProgress).trialHistory
+    ).toEqual([]);
+    expect((await loadEguchiSyncQueue(storage)).trialEvents).toEqual([]);
+    expect(
+      (storage.values.get(STORAGE_KEYS.EGUCHI_SYNC_META) as any).progressUpdatedAt
+    ).toBeTruthy();
+  });
+});

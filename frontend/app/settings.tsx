@@ -45,15 +45,12 @@ import {
   createDefaultEguchiProgress,
   getProgressSnapshot,
   loadEguchiProgress,
-  resetEguchiProgress,
-  saveEguchiProgress,
   setUnlockedLevel,
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
 import {
   createDefaultEguchiSessionPreferences,
   loadEguchiSessionPreferences,
-  saveEguchiSessionPreferences,
   setAdaptiveHintsEnabled,
   setAutoUnlockEnabled,
   setDailyAttemptTarget,
@@ -64,9 +61,9 @@ import {
   type EguchiSessionPreferences,
 } from '@/lib/eguchi/session-preferences';
 import {
-  markEguchiProgressDirty,
-  markEguchiProgressReset,
-  markEguchiSessionPreferencesDirty,
+  persistEguchiProgressChange,
+  persistEguchiPreferencesChange,
+  resetEguchiSyncedProgress,
   syncEguchiStateBestEffort,
 } from '@/lib/eguchi/sync';
 import {
@@ -218,8 +215,7 @@ export default function SettingsScreen() {
     async (nextProgress: EguchiProgress) => {
       setSavingProgress(true);
       try {
-        await saveEguchiProgress(nextProgress);
-        await markEguchiProgressDirty();
+        await persistEguchiProgressChange(nextProgress);
         void syncSettingsData();
       } catch (error) {
         console.warn('Failed to save Eguchi progress', error);
@@ -234,8 +230,7 @@ export default function SettingsScreen() {
     async (nextPreferences: EguchiSessionPreferences) => {
       setSavingSession(true);
       try {
-        await saveEguchiSessionPreferences(nextPreferences);
-        await markEguchiSessionPreferencesDirty();
+        await persistEguchiPreferencesChange(nextPreferences);
         void syncSettingsData();
       } catch (error) {
         console.warn('Failed to save Eguchi session preferences', error);
@@ -269,8 +264,7 @@ export default function SettingsScreen() {
   const handleResetProgress = useCallback(async () => {
     setSavingProgress(true);
     try {
-      const reset = await resetEguchiProgress();
-      await markEguchiProgressReset();
+      const reset = await resetEguchiSyncedProgress();
       void syncSettingsData();
       console.log('[Eguchi] Progress reset to defaults');
       setProgress(reset);

@@ -8,6 +8,7 @@ import {
   type EguchiLearningPathState,
 } from './learning-path';
 import {
+  createDefaultEguchiProgress,
   loadEguchiProgress,
   normalizeUnlockedChordIds,
   rebuildProgressWithTrialHistory,
@@ -76,6 +77,19 @@ export type EguchiSyncResult = {
 };
 
 type SyncApiClient = Pick<ApiClient, 'post'>;
+
+const localWrites = new WeakMap<StorageService, Promise<unknown>>();
+const syncRequests = new WeakMap<StorageService, Promise<unknown>>();
+
+const serialize = <T>(
+  locks: WeakMap<StorageService, Promise<unknown>>,
+  storageService: StorageService,
+  operation: () => Promise<T>
+): Promise<T> => {
+  const next = (locks.get(storageService) ?? Promise.resolve()).catch(() => {}).then(operation);
+  locks.set(storageService, next);
+  return next;
+};
 
 const createRandomIdPart = () => {
   const cryptoObject = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -212,10 +226,12 @@ export const queueEguchiTrialEvent = async (
   trial: EguchiTrialRecord,
   storageService: StorageService = storage
 ) => {
-  const queue = await loadEguchiSyncQueue(storageService);
-  if (!queue.trialEvents.some(item => item.id === trial.id)) {
-    await saveEguchiSyncQueue({ trialEvents: [...queue.trialEvents, trial] }, storageService);
-  }
+  return serialize(localWrites, storageService, async () => {
+    const queue = await loadEguchiSyncQueue(storageService);
+    if (!queue.trialEvents.some(item => item.id === trial.id)) {
+      await saveEguchiSyncQueue({ trialEvents: [...queue.trialEvents, trial] }, storageService);
+    }
+  });
 };
 
 const markDirty = async (
@@ -224,25 +240,40 @@ const markDirty = async (
   updatedAt: string = new Date().toISOString()
 ) => {
   const meta = await loadEguchiSyncMeta(storageService);
-  await saveEguchiSyncMeta({ ...meta, [field]: updatedAt }, storageService);
-  return updatedAt;
+  // Distinct revisions even when two edits happen within one clock tick.
+  const previous = meta[field];
+  const revision =
+    previous && compareIsoTimestamps(updatedAt, previous) <= 0
+      ? new Date(new Date(previous).getTime() + 1).toISOString()
+      : updatedAt;
+  await saveEguchiSyncMeta({ ...meta, [field]: revision }, storageService);
+  return revision;
 };
 
 export const markEguchiProgressDirty = async (
   storageService: StorageService = storage,
   updatedAt?: string
-) => markDirty('progressUpdatedAt', storageService, updatedAt);
+) =>
+  serialize(localWrites, storageService, () =>
+    markDirty('progressUpdatedAt', storageService, updatedAt)
+  );
 
 export const markEguchiSessionPreferencesDirty = async (
   storageService: StorageService = storage,
   updatedAt?: string
-) => markDirty('preferencesUpdatedAt', storageService, updatedAt);
+) =>
+  serialize(localWrites, storageService, () =>
+    markDirty('preferencesUpdatedAt', storageService, updatedAt)
+  );
 
-export const markEguchiProgressReset = async (
+const markProgressReset = async (
   storageService: StorageService = storage,
   resetAt: string = new Date().toISOString()
 ) => {
   const meta = await loadEguchiSyncMeta(storageService);
+  if (meta.progressUpdatedAt && compareIsoTimestamps(resetAt, meta.progressUpdatedAt) <= 0) {
+    resetAt = new Date(new Date(meta.progressUpdatedAt).getTime() + 1).toISOString();
+  }
   await saveEguchiSyncQueue({ trialEvents: [] }, storageService);
   await saveEguchiSyncMeta(
     {
@@ -254,6 +285,47 @@ export const markEguchiProgressReset = async (
   );
   return resetAt;
 };
+
+export const markEguchiProgressReset = (
+  storageService: StorageService = storage,
+  resetAt?: string
+) => serialize(localWrites, storageService, () => markProgressReset(storageService, resetAt));
+
+export const persistEguchiProgressChange = (
+  progress: EguchiProgress,
+  trial?: EguchiTrialRecord,
+  storageService: StorageService = storage
+) =>
+  serialize(localWrites, storageService, async () => {
+    const current = await loadEguchiProgress(storageService);
+    const next = rebuildProgressWithTrialHistory(progress, [
+      ...current.trialHistory,
+      ...progress.trialHistory,
+    ]);
+    await storageService.set(STORAGE_KEYS.EGUCHI_PROGRESS, next);
+    if (trial) {
+      const queue = await loadEguchiSyncQueue(storageService);
+      await saveEguchiSyncQueue({ trialEvents: [...queue.trialEvents, trial] }, storageService);
+    }
+    await markDirty('progressUpdatedAt', storageService);
+  });
+
+export const persistEguchiPreferencesChange = (
+  preferences: EguchiSessionPreferences,
+  storageService: StorageService = storage
+) =>
+  serialize(localWrites, storageService, async () => {
+    await storageService.set(STORAGE_KEYS.EGUCHI_SESSION_PREFERENCES, preferences);
+    await markDirty('preferencesUpdatedAt', storageService);
+  });
+
+export const resetEguchiSyncedProgress = (storageService: StorageService = storage) =>
+  serialize(localWrites, storageService, async () => {
+    const defaults = createDefaultEguchiProgress();
+    await storageService.set(STORAGE_KEYS.EGUCHI_PROGRESS, defaults);
+    await markProgressReset(storageService);
+    return defaults;
+  });
 
 const toProgressSyncState = (
   progress: EguchiProgress,
@@ -300,7 +372,7 @@ const makeSkippedResult = (error: string | null): EguchiSyncResult => ({
   downloadedEventCount: 0,
 });
 
-export const syncEguchiState = async ({
+const performSync = async ({
   token,
   apiClient = api,
   storageService = storage,
@@ -313,12 +385,17 @@ export const syncEguchiState = async ({
     return makeSkippedResult('No auth token available.');
   }
 
-  const [meta, queue, progress, sessionPreferences] = await Promise.all([
-    loadEguchiSyncMeta(storageService),
-    loadEguchiSyncQueue(storageService),
-    loadEguchiProgress(storageService),
-    loadEguchiSessionPreferences(storageService),
-  ]);
+  const [meta, queue, progress, sessionPreferences] = await serialize(
+    localWrites,
+    storageService,
+    () =>
+      Promise.all([
+        loadEguchiSyncMeta(storageService),
+        loadEguchiSyncQueue(storageService),
+        loadEguchiProgress(storageService),
+        loadEguchiSessionPreferences(storageService),
+      ])
+  );
   const attemptedAt = new Date().toISOString();
   const activeQueuedTrials = queue.trialEvents.filter(trial =>
     isAfterReset(trial, meta.progressResetAt)
@@ -343,117 +420,132 @@ export const syncEguchiState = async ({
   };
 
   const response = await apiClient.post<EguchiSyncResponse>('/api/eguchi/sync', payload, token);
-  if (response.error || !response.data) {
-    const error = response.error ?? 'No sync response returned by server.';
+  return serialize(localWrites, storageService, async () => {
+    const [meta, queue, progress] = await Promise.all([
+      loadEguchiSyncMeta(storageService),
+      loadEguchiSyncQueue(storageService),
+      loadEguchiProgress(storageService),
+    ]);
+    if (response.error || !response.data) {
+      const error = response.error ?? 'No sync response returned by server.';
+      await saveEguchiSyncMeta(
+        {
+          ...meta,
+          lastSyncAttemptAt: attemptedAt,
+          lastSyncError: error,
+        },
+        storageService
+      );
+      return {
+        ok: false,
+        skipped: false,
+        error,
+        syncedAt: null,
+        uploadedEventCount: 0,
+        downloadedEventCount: 0,
+      };
+    }
+
+    const acceptedEventIds = new Set(response.data.acceptedEventIds);
+    const remoteResetAt =
+      typeof response.data.progressState?.data.resetAt === 'string'
+        ? response.data.progressState.data.resetAt
+        : null;
+    const effectiveResetAt =
+      remoteResetAt && compareIsoTimestamps(remoteResetAt, meta.progressResetAt) > 0
+        ? remoteResetAt
+        : meta.progressResetAt;
+    const remainingQueue = queue.trialEvents.filter(
+      trial => !acceptedEventIds.has(trial.id) && isAfterReset(trial, effectiveResetAt)
+    );
+    const remoteTrials = response.data.trialEvents
+      .map(candidate => sanitizeTrialEvent(candidate))
+      .filter(
+        (trial): trial is EguchiTrialRecord =>
+          trial !== null && isAfterReset(trial, effectiveResetAt)
+      );
+
+    let nextProgress = progress;
+    const resetFilteredLocalHistory = nextProgress.trialHistory.filter(trial =>
+      isAfterReset(trial, effectiveResetAt)
+    );
+    if (resetFilteredLocalHistory.length !== nextProgress.trialHistory.length) {
+      nextProgress = rebuildProgressWithTrialHistory(nextProgress, resetFilteredLocalHistory);
+    }
+    if (remoteTrials.length) {
+      nextProgress = rebuildProgressWithTrialHistory(nextProgress, [
+        ...nextProgress.trialHistory,
+        ...remoteTrials,
+      ]);
+    }
+
+    const remoteProgress = response.data.progressState;
+    const shouldApplyRemoteProgress =
+      remoteProgress &&
+      meta.progressUpdatedAt === (payload.progressState?.updatedAt ?? null) &&
+      (!meta.progressUpdatedAt ||
+        compareIsoTimestamps(remoteProgress.updatedAt, meta.progressUpdatedAt) > 0);
+    if (shouldApplyRemoteProgress) {
+      nextProgress = applyRemoteProgressState(nextProgress, remoteProgress);
+    }
+
+    const remotePreferences = response.data.sessionPreferences;
+    const shouldApplyRemotePreferences =
+      remotePreferences &&
+      meta.preferencesUpdatedAt === (payload.sessionPreferences?.updatedAt ?? null) &&
+      (!meta.preferencesUpdatedAt ||
+        compareIsoTimestamps(remotePreferences.updatedAt, meta.preferencesUpdatedAt) > 0);
+
+    await saveEguchiSyncQueue({ trialEvents: remainingQueue }, storageService);
+    if (
+      remoteTrials.length ||
+      shouldApplyRemoteProgress ||
+      resetFilteredLocalHistory.length !== progress.trialHistory.length
+    ) {
+      await storageService.set(STORAGE_KEYS.EGUCHI_PROGRESS, nextProgress);
+    }
+    if (shouldApplyRemotePreferences) {
+      await storageService.set(STORAGE_KEYS.EGUCHI_SESSION_PREFERENCES, remotePreferences.data);
+    }
+
+    const progressSynced =
+      meta.progressUpdatedAt &&
+      meta.progressUpdatedAt === payload.progressState?.updatedAt &&
+      remoteProgress &&
+      compareIsoTimestamps(remoteProgress.updatedAt, meta.progressUpdatedAt) >= 0;
+    const preferencesSynced =
+      meta.preferencesUpdatedAt &&
+      meta.preferencesUpdatedAt === payload.sessionPreferences?.updatedAt &&
+      remotePreferences &&
+      compareIsoTimestamps(remotePreferences.updatedAt, meta.preferencesUpdatedAt) >= 0;
+
     await saveEguchiSyncMeta(
       {
         ...meta,
         lastSyncAttemptAt: attemptedAt,
-        lastSyncError: error,
+        lastSyncedAt: response.data.syncedAt,
+        lastSyncError: null,
+        lastServerEventCursor: response.data.serverEventCursor,
+        progressUpdatedAt: progressSynced ? null : meta.progressUpdatedAt,
+        progressResetAt: effectiveResetAt,
+        preferencesUpdatedAt: preferencesSynced ? null : meta.preferencesUpdatedAt,
       },
       storageService
     );
+
     return {
-      ok: false,
+      ok: true,
       skipped: false,
-      error,
-      syncedAt: null,
-      uploadedEventCount: 0,
-      downloadedEventCount: 0,
+      error: null,
+      syncedAt: response.data.syncedAt,
+      uploadedEventCount: acceptedEventIds.size,
+      downloadedEventCount: remoteTrials.length,
     };
-  }
-
-  const acceptedEventIds = new Set(response.data.acceptedEventIds);
-  const remoteResetAt =
-    typeof response.data.progressState?.data.resetAt === 'string'
-      ? response.data.progressState.data.resetAt
-      : null;
-  const effectiveResetAt =
-    remoteResetAt && compareIsoTimestamps(remoteResetAt, meta.progressResetAt) > 0
-      ? remoteResetAt
-      : meta.progressResetAt;
-  const remainingQueue = queue.trialEvents.filter(
-    trial => !acceptedEventIds.has(trial.id) && isAfterReset(trial, effectiveResetAt)
-  );
-  const remoteTrials = response.data.trialEvents
-    .map(candidate => sanitizeTrialEvent(candidate))
-    .filter(
-      (trial): trial is EguchiTrialRecord => trial !== null && isAfterReset(trial, effectiveResetAt)
-    );
-
-  let nextProgress = progress;
-  const resetFilteredLocalHistory = nextProgress.trialHistory.filter(trial =>
-    isAfterReset(trial, effectiveResetAt)
-  );
-  if (resetFilteredLocalHistory.length !== nextProgress.trialHistory.length) {
-    nextProgress = rebuildProgressWithTrialHistory(nextProgress, resetFilteredLocalHistory);
-  }
-  if (remoteTrials.length) {
-    nextProgress = rebuildProgressWithTrialHistory(nextProgress, [
-      ...nextProgress.trialHistory,
-      ...remoteTrials,
-    ]);
-  }
-
-  const remoteProgress = response.data.progressState;
-  const shouldApplyRemoteProgress =
-    remoteProgress &&
-    (!meta.progressUpdatedAt ||
-      compareIsoTimestamps(remoteProgress.updatedAt, meta.progressUpdatedAt) > 0);
-  if (shouldApplyRemoteProgress) {
-    nextProgress = applyRemoteProgressState(nextProgress, remoteProgress);
-  }
-
-  const remotePreferences = response.data.sessionPreferences;
-  const shouldApplyRemotePreferences =
-    remotePreferences &&
-    (!meta.preferencesUpdatedAt ||
-      compareIsoTimestamps(remotePreferences.updatedAt, meta.preferencesUpdatedAt) > 0);
-
-  await saveEguchiSyncQueue({ trialEvents: remainingQueue }, storageService);
-  if (
-    remoteTrials.length ||
-    shouldApplyRemoteProgress ||
-    resetFilteredLocalHistory.length !== progress.trialHistory.length
-  ) {
-    await storageService.set(STORAGE_KEYS.EGUCHI_PROGRESS, nextProgress);
-  }
-  if (shouldApplyRemotePreferences) {
-    await storageService.set(STORAGE_KEYS.EGUCHI_SESSION_PREFERENCES, remotePreferences.data);
-  }
-
-  const progressSynced =
-    meta.progressUpdatedAt &&
-    remoteProgress &&
-    compareIsoTimestamps(remoteProgress.updatedAt, meta.progressUpdatedAt) >= 0;
-  const preferencesSynced =
-    meta.preferencesUpdatedAt &&
-    remotePreferences &&
-    compareIsoTimestamps(remotePreferences.updatedAt, meta.preferencesUpdatedAt) >= 0;
-
-  await saveEguchiSyncMeta(
-    {
-      ...meta,
-      lastSyncAttemptAt: attemptedAt,
-      lastSyncedAt: response.data.syncedAt,
-      lastSyncError: null,
-      lastServerEventCursor: response.data.serverEventCursor,
-      progressUpdatedAt: progressSynced ? null : meta.progressUpdatedAt,
-      progressResetAt: effectiveResetAt,
-      preferencesUpdatedAt: preferencesSynced ? null : meta.preferencesUpdatedAt,
-    },
-    storageService
-  );
-
-  return {
-    ok: true,
-    skipped: false,
-    error: null,
-    syncedAt: response.data.syncedAt,
-    uploadedEventCount: acceptedEventIds.size,
-    downloadedEventCount: remoteTrials.length,
-  };
+  });
 };
+
+export const syncEguchiState = (options: Parameters<typeof performSync>[0]) =>
+  serialize(syncRequests, options.storageService ?? storage, () => performSync(options));
 
 export const syncEguchiStateBestEffort = async (token: string | null) => {
   try {

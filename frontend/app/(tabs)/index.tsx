@@ -44,14 +44,9 @@ import {
   getProgressSnapshot,
   loadEguchiProgress,
   recordTrial,
-  saveEguchiProgress,
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
-import {
-  markEguchiProgressDirty,
-  queueEguchiTrialEvent,
-  syncEguchiStateBestEffort,
-} from '@/lib/eguchi/sync';
+import { persistEguchiProgressChange, syncEguchiStateBestEffort } from '@/lib/eguchi/sync';
 import { getAutoAdvanceDurationMs, pickRandomChordId } from '@/lib/eguchi/training-loop';
 import {
   didPlaybackStart,
@@ -775,8 +770,8 @@ export default function HomeScreen() {
           : Math.max(800, Math.min(configuredFeedbackMs, 1600));
       const tileReaction = getSuccessTileReaction(outcome);
 
-      setProgress(previous => {
-        const currentProgress = previous ?? createDefaultEguchiProgress();
+      {
+        const currentProgress = progressRef.current ?? createDefaultEguchiProgress();
         const afterRecord = recordTrial(currentProgress, {
           id: trialId,
           chordId: expectedId,
@@ -813,8 +808,7 @@ export default function HomeScreen() {
 
         void (async () => {
           try {
-            await saveEguchiProgress(nextProgress);
-            await queueEguchiTrialEvent({
+            await persistEguchiProgressChange(nextProgress, {
               id: trialId,
               chordId: expectedId,
               correct: outcome !== 'corrected',
@@ -822,14 +816,13 @@ export default function HomeScreen() {
               promptDelayMs: trialHintDelayMs,
               timestamp: trialTimestamp,
             });
-            await markEguchiProgressDirty();
             void syncEguchiStateBestEffort(token);
           } catch (error) {
             console.warn('Failed to save Eguchi progress', error);
           }
         })();
-        return nextProgress;
-      });
+        setProgress(nextProgress);
+      }
 
       console.log('[Eguchi] Answer selected', {
         selected: id,

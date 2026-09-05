@@ -1005,7 +1005,7 @@ export default function HomeScreen() {
                   })
                 : null;
               const hintImageSource =
-                hintImageCandidate?.emotion === animationProfile.hintEmotion
+                hintImageCandidate && hintImageCandidate.emotion === animationProfile.hintEmotion
                   ? hintImageCandidate.source
                   : null;
               const tileReaction = tileReactions[chord.id];

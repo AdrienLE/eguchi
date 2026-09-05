@@ -175,6 +175,9 @@ export const FEATURE_FLAGS = {
   enableRemoteConfig: false,
 } as const;
 
+export type AuthProviderName = 'auth0' | 'firebase' | 'supabase' | 'custom';
+export type NotificationProviderName = 'expo' | 'firebase' | 'onesignal';
+
 // API and service configuration
 export const SERVICE_CONFIG = {
   api: {
@@ -186,7 +189,7 @@ export const SERVICE_CONFIG = {
   },
 
   auth: {
-    provider: 'auth0' as const,
+    provider: 'auth0' as AuthProviderName,
     auth0: {
       domain: process.env.EXPO_PUBLIC_AUTH0_DOMAIN || '',
       clientId: process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID || '',
@@ -204,7 +207,7 @@ export const SERVICE_CONFIG = {
   },
 
   notifications: {
-    provider: 'expo' as const,
+    provider: 'expo' as NotificationProviderName,
     enableBadges: true,
     enableSounds: true,
     enableVibration: true,

@@ -48,34 +48,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const practiceStorage = getEguchiAccountStorage(token);
   const practiceOwner = getEguchiAccountKey(token);
   const router = useRouter();
-  // Allow override via env; default to using native redirect flow when unset
-  const authUseProxyEnv = process.env.EXPO_PUBLIC_AUTH_USE_PROXY;
-  const forcedUseProxy =
-    authUseProxyEnv === 'true' ? true : authUseProxyEnv === 'false' ? false : undefined;
-  const useProxy = Platform.select({ web: false, default: forcedUseProxy ?? false });
-  const redirectUriWeb = makeRedirectUri({ useProxy: false });
-  const redirectUriProxy = makeRedirectUri({
-    scheme: URL_SCHEME,
-    useProxy: true,
-    path: 'redirect',
-  });
-  const redirectUriNative = makeRedirectUri({
-    scheme: URL_SCHEME,
-    useProxy: false,
-    path: 'redirect',
-  });
-  const redirectUri = Platform.select({
-    web: redirectUriWeb,
-    default: useProxy ? redirectUriProxy : redirectUriNative,
-  });
-
-  useEffect(() => {
-    console.log(`Auth env EXPO_PUBLIC_AUTH_USE_PROXY: ${authUseProxyEnv ?? '(unset)'}`);
-    console.log(`Auth redirect URI (computed): ${redirectUri}`);
-    console.log(`Auth redirect URI (native): ${redirectUriNative}`);
-    console.log(`Auth redirect URI (proxy): ${redirectUriProxy}`);
-    console.log(`Auth useProxy: ${useProxy}`);
-  }, [redirectUri, useProxy]);
+  const redirectUriNative = makeRedirectUri({ scheme: URL_SCHEME, path: 'redirect' });
+  const redirectUri = Platform.OS === 'web' ? makeRedirectUri() : redirectUriNative;
 
   // Load any stored token on start and handle Auth0 redirect
   useEffect(() => {
@@ -192,7 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     nativeSilentAttemptedRef.current = true;
     try {
       // Use system browser (no proxy) so existing Auth0 cookies can be used for SSO
-      await promptSilentAsync({ useProxy: false, preferEphemeralSession: false });
+      await promptSilentAsync({ preferEphemeralSession: false });
     } catch (e) {
       // Ignore errors; user may need to login interactively
       throw e;
@@ -268,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [response]);
 
   const login = () => {
-    console.log(`Starting login with redirectUri=${redirectUri}, useProxy=${useProxy}`);
+    console.log(`Starting login with redirectUri=${redirectUri}`);
 
     // On web, redirect directly to Auth0 (no popup)
     if (Platform.OS === 'web') {
@@ -291,7 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // On mobile, use the existing popup approach
-    promptAsync({ useProxy });
+    void promptAsync();
   };
 
   // Simple token validation - just checks if expired

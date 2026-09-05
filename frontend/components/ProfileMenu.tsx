@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Pressable, View, StyleSheet, Platform } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
 import { Image } from 'expo-image';
 
 import { useAuth } from '@/auth/AuthContext';
@@ -19,27 +18,22 @@ export function ProfileMenu() {
   const [open, setOpen] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState('');
 
-  const loadProfileImage = async () => {
+  const loadProfileImage = useCallback(async () => {
     if (!token) return;
     try {
-      const response = await api.get('/api/settings', token);
+      const response = await api.get<{ imageUrl?: string }>('/api/settings', token);
       if (response.data) {
         setProfileImageUrl(response.data.imageUrl ?? '');
       }
     } catch (e) {
       console.warn('Failed to load profile image', e);
     }
-  };
+  }, [token]);
 
-  useEffect(() => {
-    loadProfileImage();
-  }, [!!token]);
-
-  // Refresh profile image when the screen comes into focus (after returning from settings)
   useFocusEffect(
     useCallback(() => {
-      loadProfileImage();
-    }, [token])
+      void loadProfileImage();
+    }, [loadProfileImage])
   );
 
   return (

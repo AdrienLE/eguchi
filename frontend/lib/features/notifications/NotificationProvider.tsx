@@ -23,21 +23,15 @@ interface Notification {
   data?: any;
 }
 
-const NotificationContext = createContext<NotificationContextValue | null>(
-  null
-);
+const NotificationContext = createContext<NotificationContextValue | null>(null);
 
-export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
+    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
   };
 
   const clearAll = () => {
@@ -62,19 +56,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     requestPermissions,
   };
 
-  return (
-    <NotificationContext.Provider value={value}>
-      {children}
-    </NotificationContext.Provider>
-  );
+  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 };
 
 export const useNotificationContext = () => {
   const context = useContext(NotificationContext);
   if (!context) {
-    throw new Error(
-      'useNotificationContext must be used within NotificationProvider'
-    );
+    throw new Error('useNotificationContext must be used within NotificationProvider');
   }
   return context;
 };

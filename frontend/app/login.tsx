@@ -16,7 +16,7 @@ export default function LoginScreen() {
     if (!loading && token) {
       router.replace('/(tabs)');
     }
-  }, [token, loading]);
+  }, [token, loading, router]);
   return (
     <ThemedView style={styles.container}>
       {loading ? (

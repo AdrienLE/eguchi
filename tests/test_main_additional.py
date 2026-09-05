@@ -409,3 +409,61 @@ class TestSettingsMerging:
         assert r.status_code == 200
         data = r.json()
         assert set(data.keys()) == {"name", "nickname", "email", "imageUrl"}
+
+
+def test_eguchi_compound_cursor_keeps_equal_timestamp_events(client):
+    c, _ = client
+    timestamp = "2026-01-11T10:00:00.000Z"
+    database = app.dependency_overrides[get_db]()
+    db = next(database)
+    try:
+        db.bulk_save_objects(
+            [
+                models.EguchiTrialEvent(
+                    id=f"trial-{index:05d}",
+                    user_id="test_user",
+                    client_id="seed",
+                    chord_id="C-E-G",
+                    correct=True,
+                    timestamp=timestamp,
+                    server_updated_at=timestamp,
+                )
+                for index in range(5001)
+            ]
+        )
+        db.commit()
+    finally:
+        database.close()
+
+    request = {"clientId": "reader", "cursorVersion": 2}
+    first = c.post("/api/eguchi/sync", json=request).json()
+    assert len(first["trialEvents"]) == 5000
+    assert first["hasMore"] is True
+    second = c.post(
+        "/api/eguchi/sync", json={**request, "lastServerEventCursor": first["serverEventCursor"]}
+    ).json()
+    assert [event["id"] for event in second["trialEvents"]] == ["trial-05000"]
+    assert second["hasMore"] is False
+    third = c.post(
+        "/api/eguchi/sync", json={**request, "lastServerEventCursor": second["serverEventCursor"]}
+    ).json()
+    assert third["trialEvents"] == []
+    assert third["serverEventCursor"] == second["serverEventCursor"]
+
+    upgraded = c.post(
+        "/api/eguchi/sync", json={**request, "lastServerEventCursor": timestamp}
+    ).json()
+    assert len(upgraded["trialEvents"]) == 5000
+    assert upgraded["serverEventCursor"].startswith("v2:")
+
+
+def test_eguchi_invalid_compound_cursor_is_rejected(client):
+    c, _ = client
+    response = c.post(
+        "/api/eguchi/sync",
+        json={"clientId": "reader", "cursorVersion": 2, "lastServerEventCursor": "v2:invalid"},
+    )
+    assert response.status_code == 400
+
+    valid = c.post("/api/eguchi/sync", json={"clientId": "reader", "cursorVersion": 2})
+    assert valid.json()["trialEvents"] == []

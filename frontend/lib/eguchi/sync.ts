@@ -52,6 +52,7 @@ export type EguchiTrialEventPayload = EguchiTrialRecord & {
 };
 
 export type EguchiSyncRequest = {
+  cursorVersion: 2;
   clientId: string;
   lastServerEventCursor: string | null;
   trialEvents: EguchiTrialEventPayload[];
@@ -60,6 +61,7 @@ export type EguchiSyncRequest = {
 };
 
 export type EguchiSyncResponse = {
+  hasMore?: boolean;
   acceptedEventIds: string[];
   trialEvents: EguchiTrialEventPayload[];
   serverEventCursor: string | null;
@@ -69,6 +71,8 @@ export type EguchiSyncResponse = {
 };
 
 export type EguchiSyncResult = {
+  hasMore?: boolean;
+  serverEventCursor?: string | null;
   ok: boolean;
   skipped: boolean;
   error: string | null;
@@ -134,9 +138,12 @@ const sanitizeSyncMeta = (stored: Partial<EguchiSyncMeta> | null): EguchiSyncMet
     : null,
   lastSyncedAt: isValidIsoTimestamp(stored?.lastSyncedAt) ? stored.lastSyncedAt : null,
   lastSyncError: typeof stored?.lastSyncError === 'string' ? stored.lastSyncError : null,
-  lastServerEventCursor: isValidIsoTimestamp(stored?.lastServerEventCursor)
-    ? stored.lastServerEventCursor
-    : null,
+  lastServerEventCursor:
+    (typeof stored?.lastServerEventCursor === 'string' &&
+      stored.lastServerEventCursor.startsWith('v2:')) ||
+    isValidIsoTimestamp(stored?.lastServerEventCursor)
+      ? stored.lastServerEventCursor
+      : null,
   progressUpdatedAt: isValidIsoTimestamp(stored?.progressUpdatedAt)
     ? stored.progressUpdatedAt
     : null,
@@ -406,6 +413,7 @@ const performSync = async ({
   );
   const trialEvents = activeQueuedTrials.map(trial => toTrialPayload(trial, meta.clientId));
   const payload: EguchiSyncRequest = {
+    cursorVersion: 2,
     clientId: meta.clientId,
     lastServerEventCursor: meta.lastServerEventCursor,
     trialEvents,
@@ -547,13 +555,36 @@ const performSync = async ({
       syncedAt: response.data.syncedAt,
       uploadedEventCount: acceptedEventIds.size,
       downloadedEventCount: remoteTrials.length,
+      hasMore: response.data.hasMore === true,
+      serverEventCursor: response.data.serverEventCursor,
     };
   });
 };
 
 export const syncEguchiState = (options: Parameters<typeof performSync>[0]) => {
   const storageService = options.storageService ?? getEguchiAccountStorage(options.token);
-  return serialize(syncRequests, storageService, () => performSync({ ...options, storageService }));
+  return serialize(syncRequests, storageService, async () => {
+    let result = await performSync({ ...options, storageService });
+    const seenCursors = new Set<string | null | undefined>();
+    let uploadedEventCount = result.uploadedEventCount;
+    let downloadedEventCount = result.downloadedEventCount;
+    while (result.ok && result.hasMore) {
+      if (!result.serverEventCursor || seenCursors.has(result.serverEventCursor)) {
+        return {
+          ...result,
+          ok: false,
+          error: 'Sync cursor did not advance.',
+          uploadedEventCount,
+          downloadedEventCount,
+        };
+      }
+      seenCursors.add(result.serverEventCursor);
+      result = await performSync({ ...options, storageService });
+      uploadedEventCount += result.uploadedEventCount;
+      downloadedEventCount += result.downloadedEventCount;
+    }
+    return { ...result, uploadedEventCount, downloadedEventCount };
+  });
 };
 
 export const syncEguchiStateBestEffort = async (

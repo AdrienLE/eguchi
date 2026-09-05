@@ -12,11 +12,13 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exception_handlers import http_exception_handler
 from sqlalchemy.orm import Session
-from sqlalchemy import inspect, text
+from sqlalchemy import and_, or_, inspect, text
 from .auth import verify_jwt, AUTH0_DOMAIN
 from .eguchi_audio import get_audio_pack_metadata
 import os
 import json
+import base64
+import binascii
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Literal
@@ -265,6 +267,7 @@ class EguchiProgressSyncedValueIn(BaseModel):
 
 
 class EguchiSyncIn(BaseModel):
+    cursorVersion: Literal[1, 2] = 1
     clientId: str
     lastServerEventCursor: str | None = None
     trialEvents: list[EguchiTrialEventIn] = []
@@ -539,6 +542,16 @@ def sync_eguchi_state(
     user=Depends(verify_jwt),
 ):
     user_id = user["sub"]
+    cursor = data.lastServerEventCursor
+    use_compound_cursor = data.cursorVersion == 2 or bool(cursor and cursor.startswith("v2:"))
+    if cursor and cursor.startswith("v2:"):
+        try:
+            timestamp, event_id = json.loads(base64.urlsafe_b64decode(cursor[3:]).decode("utf-8"))
+            if not isinstance(timestamp, str) or not isinstance(event_id, str) or not event_id:
+                raise ValueError("Invalid cursor fields")
+            datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except (ValueError, TypeError, UnicodeError, binascii.Error) as error:
+            raise HTTPException(status_code=400, detail="Invalid event cursor") from error
     server_updated_at = _utc_now_iso()
     accepted_event_ids: list[str] = []
 
@@ -596,28 +609,48 @@ def sync_eguchi_state(
     event_query = db.query(models.EguchiTrialEvent).filter(
         models.EguchiTrialEvent.user_id == user_id
     )
-    if data.lastServerEventCursor:
+    if cursor and cursor.startswith("v2:"):
         event_query = event_query.filter(
-            models.EguchiTrialEvent.server_updated_at > data.lastServerEventCursor
+            or_(
+                models.EguchiTrialEvent.server_updated_at > timestamp,
+                and_(
+                    models.EguchiTrialEvent.server_updated_at == timestamp,
+                    models.EguchiTrialEvent.id > event_id,
+                ),
+            )
         )
-    server_events = (
+    elif cursor:
+        # Replay the boundary once when upgrading an old timestamp-only cursor.
+        # IDs are deduplicated by the client, including already archived events.
+        event_query = event_query.filter(
+            models.EguchiTrialEvent.server_updated_at >= cursor
+            if use_compound_cursor
+            else models.EguchiTrialEvent.server_updated_at > cursor
+        )
+    page = (
         event_query.order_by(
             models.EguchiTrialEvent.server_updated_at.asc(),
-            models.EguchiTrialEvent.timestamp.asc(),
             models.EguchiTrialEvent.id.asc(),
         )
-        .limit(5000)
+        .limit(5001)
         .all()
     )
-    event_cursor = (
-        server_events[-1].server_updated_at if server_events else data.lastServerEventCursor
-    )
+    server_events = page[:5000]
+    event_cursor = cursor
+    if server_events:
+        last_event = server_events[-1]
+        event_cursor = last_event.server_updated_at
+        if use_compound_cursor:
+            event_cursor = "v2:" + base64.urlsafe_b64encode(
+                json.dumps([last_event.server_updated_at, last_event.id]).encode("utf-8")
+            ).decode("ascii")
     progress_state, session_preferences = _sync_state_payload(sync_state)
 
     return {
         "acceptedEventIds": accepted_event_ids,
         "trialEvents": [_serialize_trial_event(event) for event in server_events],
         "serverEventCursor": event_cursor,
+        "hasMore": len(page) > 5000,
         "progressState": progress_state,
         "sessionPreferences": session_preferences,
         "syncedAt": server_updated_at,

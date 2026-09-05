@@ -408,3 +408,41 @@ test('remote resets remove archived counts even when all recent detail is after 
   expect(saved.trialHistory.map(trial => trial.id)).toEqual(['new']);
   expect(Object.values(saved.dailySummaries).reduce((sum, day) => sum + day.attempts, 0)).toBe(1);
 });
+
+test('drains all pages and persists opaque cursors across reloads', async () => {
+  const storage = makeStorage();
+  const cursors: unknown[] = [];
+  let index = 0;
+  const apiClient = {
+    post: async <T>(_url: string, payload?: any): Promise<ApiResponse<T>> => {
+      expect(payload.cursorVersion).toBe(2);
+      cursors.push(payload.lastServerEventCursor);
+      index++;
+      return {
+        status: 200,
+        data: {
+          acceptedEventIds: [],
+          trialEvents: [
+            {
+              ...trial(`page-${index}`),
+              clientId: 'remote',
+              audioPackName: 'test',
+              audioPackHash: 'hash',
+            },
+          ],
+          progressState: null,
+          sessionPreferences: null,
+          serverEventCursor: `v2:page-${index}`,
+          hasMore: index < 3,
+          syncedAt: '2026-01-12T10:00:00.000Z',
+        } as T,
+      };
+    },
+  };
+  const result = await syncEguchiState({ token: 'token', storageService: storage, apiClient });
+  expect(cursors).toEqual([null, 'v2:page-1', 'v2:page-2']);
+  expect(result.downloadedEventCount).toBe(3);
+  expect(
+    (storage.values.get(STORAGE_KEYS.EGUCHI_PROGRESS) as EguchiProgress).trialHistory.length
+  ).toBe(3);
+});

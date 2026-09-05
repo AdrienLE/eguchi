@@ -66,7 +66,7 @@ export const getCaregiverLearningSummary = (
   adaptiveHintsEnabled: boolean
 ): CaregiverLearningSummary => {
   const focusAnimal = CHORD_BY_ID[state.focusChordId]?.animal ?? 'current friend';
-  const octaves = getTrainingAudioOctaves(state);
+  const octaves = adaptiveHintsEnabled ? getTrainingAudioOctaves(state) : [3, 4, 5];
   const hintDelay = adaptiveHintsEnabled
     ? getTrialHintDelayMs(state, {
         adaptiveHintsEnabled: true,
@@ -74,8 +74,9 @@ export const getCaregiverLearningSummary = (
       })
     : null;
 
-  const stageLabel =
-    state.phase === 'meet'
+  const stageLabel = !adaptiveHintsEnabled
+    ? 'Legacy practice'
+    : state.phase === 'meet'
       ? `Meet ${focusAnimal}`
       : state.phase === 'guided'
         ? 'Guided practice'

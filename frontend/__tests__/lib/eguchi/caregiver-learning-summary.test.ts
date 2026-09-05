@@ -38,6 +38,8 @@ describe('caregiver learning summary', () => {
   test('makes it clear when adaptive hints are disabled', () => {
     const summary = getCaregiverLearningSummary(createDefaultLearningPathState(), false);
     expect(summary.hintLabel).toBe('Adaptive hints off');
+    expect(summary.stageLabel).toBe('Legacy practice');
+    expect(summary.audioRangeLabel).toBe('Octaves 3–5');
   });
 
   test('shows the color-wink timeline and current guided wait', () => {

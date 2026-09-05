@@ -30,10 +30,6 @@ class BaseApiClient implements ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
 
-    // Log the API call for debugging
-    console.log(`🌐 API ${options.method || 'GET'}: ${url}`);
-    console.log(`📋 Headers:`, options.headers);
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
@@ -46,7 +42,7 @@ class BaseApiClient implements ApiClient {
       clearTimeout(timeoutId);
 
       // Log response status
-      console.log(`📡 Response ${response.status}: ${options.method || 'GET'} ${url}`);
+      console.log(`API ${options.method || 'GET'} response: ${response.status}`);
 
       if (!response.ok) {
         // Handle 401 Unauthorized specially to trigger silent re-auth on web
@@ -67,11 +63,7 @@ class BaseApiClient implements ApiClient {
     } catch (error: any) {
       clearTimeout(timeoutId);
 
-      // Log error
-      console.log(
-        `❌ Error: ${options.method || 'GET'} ${url} - ${error.message || 'Network error'}`
-      );
-      console.log(`❌ Full error:`, error);
+      console.warn(`API ${options.method || 'GET'} request failed`);
 
       return {
         status: 0,

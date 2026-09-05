@@ -254,3 +254,43 @@ describe('ApiClient', () => {
     });
   });
 });
+
+test('request diagnostics never log bearer credentials or error request objects', async () => {
+  const token = 'sensitive-bearer-token';
+  const messages: unknown[][] = [];
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  console.log = (...args) => {
+    messages.push(args);
+  };
+  console.warn = (...args) => {
+    messages.push(args);
+  };
+  try {
+    const client = createApiClient('https://api.test.com');
+    const operations = [
+      () => client.get('/test', token),
+      () => client.post('/test', { private: token }, token),
+      () => client.put('/test', { private: token }, token),
+      () => client.delete('/test', token),
+      () => client.upload('/test', new FormData(), token),
+    ];
+    for (const operation of operations) {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+      } as Response);
+      await operation();
+      mockFetch.mockRejectedValueOnce(
+        Object.assign(new Error(token), { headers: { Authorization: `Bearer ${token}` } })
+      );
+      await operation();
+    }
+    expect(JSON.stringify(messages)).not.toContain(token);
+    expect(JSON.stringify(messages)).not.toContain('Authorization');
+  } finally {
+    console.log = originalLog;
+    console.warn = originalWarn;
+  }
+});

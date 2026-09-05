@@ -37,7 +37,7 @@ import {
   type EguchiProgress,
 } from '@/lib/eguchi/progress';
 import { persistEguchiProgressChange, syncEguchiStateBestEffort } from '@/lib/eguchi/sync';
-import { getAutoAdvanceDurationMs, pickRandomChordId } from '@/lib/eguchi/training-loop';
+import { pickRandomChordId } from '@/lib/eguchi/training-loop';
 import {
   didPlaybackStart,
   getPlaybackRetryDelayMs,
@@ -49,7 +49,7 @@ import {
 import {
   classifyTrainingOutcome,
   getAnimalImageRecyclingKey,
-  getSuccessTileReaction,
+  getSuccessFeedback,
 } from '@/lib/eguchi/training-feedback';
 import {
   createDefaultEguchiSessionPreferences,
@@ -741,14 +741,10 @@ export default function HomeScreen() {
         hintShown: hintShownRef.current,
       });
       const trialHintDelayMs = currentHintDelayMsRef.current;
-      const configuredFeedbackMs = getAutoAdvanceDurationMs(
+      const { reaction: tileReaction, durationMs: autoAdvanceDurationMs } = getSuccessFeedback(
+        outcome,
         activeSessionPreferences.feedbackSeconds
       );
-      const autoAdvanceDurationMs =
-        outcome === 'independent'
-          ? Math.max(1200, Math.min(configuredFeedbackMs, 2400))
-          : Math.max(800, Math.min(configuredFeedbackMs, 1600));
-      const tileReaction = getSuccessTileReaction(outcome);
 
       {
         const currentProgress = progressRef.current ?? createDefaultEguchiProgress();

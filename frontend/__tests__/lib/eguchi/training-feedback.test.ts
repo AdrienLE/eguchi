@@ -4,6 +4,7 @@ import {
   getCountdownVisibleSegmentCount,
   getFeedbackAnimalEmotion,
   getSuccessTileReaction,
+  getSuccessFeedback,
 } from '@/lib/eguchi/training-feedback';
 
 describe('eguchi training feedback helpers', () => {
@@ -47,4 +48,13 @@ describe('eguchi training feedback helpers', () => {
     expect(getCountdownVisibleSegmentCount(Number.NaN, 40)).toBe(0);
     expect(getCountdownVisibleSegmentCount(1, -3)).toBe(0);
   });
+});
+
+test('all success outcomes honor the configured pause across its full range', () => {
+  for (const outcome of ['independent', 'assisted', 'corrected'] as const) {
+    for (const seconds of [0.25, 1, 2, 3, 8]) {
+      expect(getSuccessFeedback(outcome, seconds).durationMs).toBe(seconds * 1000);
+      expect(getSuccessFeedback(outcome, seconds).reaction).toBe(getSuccessTileReaction(outcome));
+    }
+  }
 });

@@ -1,3 +1,4 @@
+import { getAutoAdvanceDurationMs } from './training-loop';
 import type { AnimalEmotion } from './animal-assets';
 import type { EguchiChordId } from './chords';
 import type { TrainingOutcome } from './learning-path';
@@ -46,3 +47,8 @@ export const getCountdownVisibleSegmentCount = (
   const clampedProgress = Math.max(0, Math.min(1, remainingProgress));
   return Math.min(safeSegmentCount, Math.ceil(clampedProgress * safeSegmentCount));
 };
+
+export const getSuccessFeedback = (outcome: TrainingOutcome, feedbackSeconds: number) => ({
+  reaction: getSuccessTileReaction(outcome),
+  durationMs: getAutoAdvanceDurationMs(feedbackSeconds),
+});

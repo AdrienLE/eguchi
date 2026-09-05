@@ -983,7 +983,7 @@ export default function SettingsScreen() {
             ) : null}
 
             <View style={styles.stepperRow}>
-              <ThemedText style={styles.controlLabel}>Success reaction seconds</ThemedText>
+              <ThemedText style={styles.controlLabel}>Pause after success (seconds)</ThemedText>
               <View style={styles.stepperControls}>
                 <Pressable
                   accessibilityRole="button"

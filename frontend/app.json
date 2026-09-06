@@ -50,6 +50,7 @@
       [
         "expo-notifications",
         {
+          "mode": "production",
           "color": "#E53935"
         }
       ]
@@ -62,7 +63,8 @@
       "eas": {
         "projectId": "5a909b9d-6999-431c-ab81-a53187d7575a"
       },
-      "remotePushEnabled": false
+      "remotePushEnabled": true,
+      "remotePushPlatforms": ["ios"]
     },
     "owner": "adrienle"
   }

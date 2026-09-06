@@ -92,7 +92,14 @@ export const reconcileNotifications = (
       }
       // A signed-in, physical device can receive server reminders even without opening the app.
       // Simulator, guest, and credential failures use scheduled local device notifications.
-      if (token && Device.isDevice && Constants.expoConfig?.extra?.remotePushEnabled === true) {
+      const pushConfig = Constants.expoConfig?.extra;
+      if (
+        token &&
+        Device.isDevice &&
+        pushConfig?.remotePushEnabled === true &&
+        Array.isArray(pushConfig.remotePushPlatforms) &&
+        pushConfig.remotePushPlatforms.includes(Platform.OS)
+      ) {
         try {
           const projectId = Constants.expoConfig?.extra?.eas?.projectId;
           const result = await Notifications.getExpoPushTokenAsync({ projectId });

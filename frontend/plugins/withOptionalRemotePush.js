@@ -5,7 +5,11 @@ const { withEntitlementsPlist } = require('@expo/config-plugins');
 // Expo APNs/FCM credentials have been configured for this application's bundle ID.
 module.exports = function withOptionalRemotePush(config) {
   return withEntitlementsPlist(config, mod => {
-    if (config.extra?.remotePushEnabled !== true) delete mod.modResults['aps-environment'];
+    if (
+      mod.extra?.remotePushEnabled !== true ||
+      !mod.extra?.remotePushPlatforms?.includes('ios')
+    )
+      delete mod.modResults['aps-environment'];
     return mod;
   });
 };

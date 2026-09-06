@@ -9,7 +9,11 @@ const DETAILS = [
   },
   {
     title: 'What if my child hesitates?',
-    body: 'Calmly give the color name, show the matching animal, and play the chord again. Choose “Needed help.” If they only listen, choose “No response.” Avoid repeated guessing, higher/lower clues, and rewards that depend on a correct answer.',
+    body: 'Gently name the color and show its animal. Tap the answer, then mark “I helped” during feedback. If they only listen, use the speech-bubble “No response” button. Avoid repeated guessing or higher/lower clues.',
+  },
+  {
+    title: 'Replay or take more time?',
+    body: 'Tap the speaker to replay. After an answer, the next sound follows automatically. Tap pause for more time to help, then resume when ready. Nothing is marked wrong just because your child takes time.',
   },
   {
     title: 'How much practice?',

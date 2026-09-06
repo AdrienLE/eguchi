@@ -106,7 +106,7 @@ function PreparationSteps() {
             <PracticeDiagram />
             <Body>
               Show a new friend, play its chord, and say its color. If your child hesitates, gently
-              give the answer and play again. Record “Needed help.”
+              give the answer, tap its animal, and mark “I helped” on the feedback screen.
             </Body>
             {checkedSound && <Body muted>Sound check played ✓</Body>}
             {piano.error && <Notice>{piano.error}</Notice>}

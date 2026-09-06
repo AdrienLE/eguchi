@@ -2,6 +2,8 @@
 
 This version implements parent preparation and the complete fourteen-chord color/animal phase. Individual-note training, expert transition criteria, and AI assessment are deferred. Parents choose the introduced stage, active animals, and whether the newest sound receives a gentle introduction mix. It never promotes a child automatically. Historical adaptive-learning modules remain in the repository for reference; they are not a prescription for the new program.
 
+Practice interaction: tapping Ready plays the first sound. Tapping an animal shows the correct color/animal, then advances after three seconds of feedback and completion of the current audio. This feedback interval is an app interaction choice, not an official progression criterion. Book 2 Q7 (pp. 33–35 in the supplied translation) prescribes consistent chord duration; Q26 (pp. 85–86) describes promptly giving a hesitant child the answer and moving on. Replay, pause, early finish, and a small no-response control remain available; there is no answer timeout. Ready-screen previews mark the upcoming session as having a recent pitch reference. Parent assistance on feedback is an immutable, reversible annotation on the original tap; record summaries exclude assisted answers from unaided recognition and confusion pairs.
+
 ## Source-backed core
 
 The supplied Japanese books are the primary method references. English text in the app is newly written instruction, not the supplied machine translation. Page numbers below refer to printed/source pages in the supplied editions, not PDF page numbers.

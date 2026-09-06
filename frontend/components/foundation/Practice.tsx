@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { AppState, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFoundation } from '@/lib/foundation/FoundationProvider';
@@ -22,9 +22,10 @@ import {
 } from '@/lib/foundation/curriculum';
 import { animalGridLayout } from '@/lib/foundation/grid';
 import AnimalCard from './AnimalCard';
-import { Body, Button, Card, Heading, Notice, Page, styles, usePalette } from './ui';
+import { Body, Button, Card, Heading, Notice, Page, PictureButton, styles, usePalette } from './ui';
 
 type Phase = 'before' | 'listen' | 'respond' | 'recorded' | 'finish' | 'done';
+export const FEEDBACK_MS = 3000;
 export default function Practice() {
   const f = useFoundation();
   const piano = usePiano();
@@ -36,6 +37,15 @@ export default function Practice() {
   const [choices, setChoices] = useState<ChordId[]>(f.state.preferences.activeChordIds);
   const [plan, setPlan] = useState<ChordId[]>([]);
   const [pitchReference, setPitchReference] = useState<'yes' | 'no' | 'unknown'>('unknown');
+  const [previewed, setPreviewed] = useState(false);
+  const [previewId, setPreviewId] = useState<ChordId>(choices[0]);
+  const [paused, setPaused] = useState(false);
+  const [feedbackElapsed, setFeedbackElapsed] = useState(false);
+  const [helped, setHelped] = useState(false);
+  const [showObservation, setShowObservation] = useState(false);
+  const lastTrial = useRef<Trial | null>(null);
+  const advanceRef = useRef<() => void>(() => {});
+  const mounted = useRef(true);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +84,7 @@ export default function Practice() {
     }
   };
   useEffect(() => {
+    mounted.current = true;
     const subscription = AppState.addEventListener('change', next => {
       if (next !== 'active' && current.current.sessionId && !current.current.ended) {
         void pianoRef.current.stop().catch(() => {});
@@ -84,6 +95,7 @@ export default function Practice() {
       }
     });
     return () => {
+      mounted.current = false;
       subscription.remove();
       void interrupt();
     };
@@ -122,7 +134,7 @@ export default function Practice() {
             target: presentations.length as 10 | 30,
             activeChordIds: active,
             presentationPlan: presentations,
-            recentPitchReference: pitchReference,
+            recentPitchReference: previewed ? 'yes' : pitchReference,
           },
           now
         )
@@ -132,27 +144,39 @@ export default function Practice() {
       setPlan(presentations);
       setSessionId(id);
       setPhase('listen');
+      await playSound(presentations[0]);
     });
-  const play = () =>
+  const playSound = async (id: ChordId) => {
+    if (current.current.ended || !mounted.current) return;
+    const started = await piano.play(id);
+    if (current.current.ended || !mounted.current) {
+      await piano.stop();
+      return;
+    }
+    if (startedAt.current === null) startedAt.current = started;
+    else setReplays(value => Math.min(50, value + 1));
+    setPhase('respond');
+  };
+  const play = () => guarded(() => playSound(stimulus));
+  const preview = (id: ChordId) =>
     guarded(async () => {
-      if (current.current.ended) return;
-      const started = await piano.play(stimulus);
-      if (current.current.ended) {
-        await piano.stop();
-        return;
-      }
-      if (startedAt.current === null) startedAt.current = started;
-      else setReplays(value => Math.min(50, value + 1));
-      setPhase('respond');
+      await piano.play(id);
+      setPreviewId(id);
+      setPreviewed(true);
+      setPitchReference('yes');
     });
   const savePendingTrial = async () => {
     const trial = pendingTrial.current;
     if (!trial || current.current.ended) return;
     await f.append(trial);
     pendingTrial.current = null;
+    lastTrial.current = trial;
     current.current.count = trial.data.index + 1;
     setCount(trial.data.index + 1);
+    if (current.current.ended || !mounted.current) return;
     setLastResponse(trial.data.response);
+    setHelped(false);
+    setFeedbackElapsed(false);
     setRevealed(true);
     setPhase('recorded');
   };
@@ -170,10 +194,12 @@ export default function Practice() {
       let actualReplays = replays;
       if (response !== 'independent') {
         setRevealed(true);
-        try {
-          await piano.play(stimulus);
-          actualReplays = Math.min(50, actualReplays + 1);
-        } catch {}
+        if (!piano.playing) {
+          try {
+            await piano.play(stimulus);
+            actualReplays = Math.min(50, actualReplays + 1);
+          } catch {}
+        }
       }
       if (current.current.ended) return;
       const audio = FOUNDATION_AUDIO[stimulus];
@@ -192,14 +218,46 @@ export default function Practice() {
       await savePendingTrial();
     });
   const choose = (id: ChordId) => respond(id === stimulus ? 'independent' : 'incorrect', id);
-  const next = () => {
-    if (count === target) setPhase('finish');
-    else {
-      startedAt.current = null;
-      setReplays(0);
-      setRevealed(false);
-      setPhase('listen');
-    }
+  const next = () =>
+    guarded(async () => {
+      if (current.current.ended || !mounted.current) return;
+      setFeedbackElapsed(false);
+      if (count === target) setPhase('finish');
+      else {
+        startedAt.current = null;
+        setReplays(0);
+        setRevealed(false);
+        setPhase('listen');
+        await playSound(plan[count]);
+      }
+    });
+  advanceRef.current = () => void next();
+  useEffect(() => {
+    if (phase !== 'recorded' || paused || busy || error) return;
+    const timer = setTimeout(() => setFeedbackElapsed(true), FEEDBACK_MS);
+    return () => clearTimeout(timer);
+  }, [phase, count, paused, busy, error, helped]);
+  useEffect(() => {
+    if (phase === 'recorded' && feedbackElapsed && !paused && !busy && !piano.playing && !error)
+      advanceRef.current();
+  }, [phase, feedbackElapsed, paused, busy, piano.playing, error]);
+  const markHelp = () =>
+    guarded(async () => {
+      const trial = lastTrial.current;
+      if (!trial || current.current.ended) return;
+      setFeedbackElapsed(false);
+      await f.append(
+        makeEvent('trialAssistance', {
+          sessionId: trial.data.sessionId,
+          trialId: trial.id,
+          helped: !helped,
+        })
+      );
+      setHelped(value => !value);
+    });
+  const togglePause = () => {
+    setFeedbackElapsed(false);
+    setPaused(value => !value);
   };
   const finish = () =>
     guarded(async () => {
@@ -239,20 +297,37 @@ export default function Practice() {
           <Body>Quiet room, comfortable volume, a willing child.</Body>
           <View style={[styles.row, { justifyContent: 'center' }]}>
             {f.state.preferences.activeChordIds.map(id => (
-              <AnimalCard key={id} id={id} size={70} />
-            ))}
-          </View>
-          <Body>Heard music or piano just now?</Body>
-          <View style={styles.row}>
-            {(['no', 'yes', 'unknown'] as const).map(value => (
-              <Button
-                secondary={pitchReference !== value}
-                key={value}
-                title={value === 'no' ? 'No' : value === 'yes' ? 'Yes' : 'Not sure'}
-                onPress={() => setPitchReference(value)}
+              <AnimalCard
+                key={id}
+                id={id}
+                size={70}
+                disabled={busy || !piano.ready}
+                onPress={() => void preview(id)}
               />
             ))}
           </View>
+          <View style={{ alignItems: 'center' }}>
+            <PictureButton
+              icon="volume-high"
+              label="Preview sound"
+              caption="Hear the sound"
+              disabled={busy || !piano.ready}
+              onPress={() => void preview(previewId)}
+            />
+          </View>
+          <Body>{previewed ? 'Sound previewed just now.' : 'Heard music or piano just now?'}</Body>
+          {!previewed && (
+            <View style={styles.row}>
+              {(['no', 'yes', 'unknown'] as const).map(value => (
+                <Button
+                  secondary={pitchReference !== value}
+                  key={value}
+                  title={value === 'no' ? 'No' : value === 'yes' ? 'Yes' : 'Not sure'}
+                  onPress={() => setPitchReference(value)}
+                />
+              ))}
+            </View>
+          )}
         </Card>
         {f.state.preferences.introductionChordId && (
           <Notice>
@@ -276,40 +351,52 @@ export default function Practice() {
         subtitle={`${count} of ${target} presentations recorded.`}
         back={false}
       >
-        <Card>
-          <Heading>How was your child today?</Heading>
-          {(
-            ['not-recorded', 'settled', 'distracted', 'tired', 'upset', 'listening-only'] as const
-          ).map(value => (
-            <Button
-              key={value}
-              title={
-                {
-                  'not-recorded': 'No observation',
-                  settled: 'Settled and willing',
-                  distracted: 'Distracted',
-                  tired: 'Tired',
-                  upset: 'Upset / unwilling',
-                  'listening-only': 'Mostly just listening',
-                }[value]
-              }
-              secondary={observation !== value}
-              onPress={() => setObservation(value)}
-            />
-          ))}
-          <TextInput
-            accessibilityLabel="Optional parent observation"
-            placeholder="Anything to remember? (optional)"
-            placeholderTextColor={p.subtleText}
-            multiline
-            maxLength={2000}
-            value={note}
-            onChangeText={setNote}
-            style={[styles.input, { color: p.text, minHeight: 90, textAlignVertical: 'top' }]}
-          />
-        </Card>
-        {error && <Notice>{error}</Notice>}
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 70 }} accessibilityLabel="A little rest">
+            🌤️
+          </Text>
+        </View>
         <Button title="Save & finish" busy={busy} onPress={() => void finish()} />
+        <Button
+          secondary
+          title={showObservation ? 'Hide parent note' : 'Add a parent note'}
+          onPress={() => setShowObservation(value => !value)}
+        />
+        {showObservation && (
+          <Card>
+            <Heading>How was your child today?</Heading>
+            {(
+              ['not-recorded', 'settled', 'distracted', 'tired', 'upset', 'listening-only'] as const
+            ).map(value => (
+              <Button
+                key={value}
+                title={
+                  {
+                    'not-recorded': 'No observation',
+                    settled: 'Settled and willing',
+                    distracted: 'Distracted',
+                    tired: 'Tired',
+                    upset: 'Upset / unwilling',
+                    'listening-only': 'Mostly just listening',
+                  }[value]
+                }
+                secondary={observation !== value}
+                onPress={() => setObservation(value)}
+              />
+            ))}
+            <TextInput
+              accessibilityLabel="Optional parent observation"
+              placeholder="Anything to remember? (optional)"
+              placeholderTextColor={p.subtleText}
+              multiline
+              maxLength={2000}
+              value={note}
+              onChangeText={setNote}
+              style={[styles.input, { color: p.text, minHeight: 90, textAlignVertical: 'top' }]}
+            />
+          </Card>
+        )}
+        {error && <Notice>{error}</Notice>}
       </Page>
     );
   if (phase === 'done')
@@ -333,14 +420,23 @@ export default function Practice() {
         <Text style={{ color: '#536B75', fontSize: 17, fontWeight: '600' }}>
           {count} of {target}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          disabled={busy}
-          onPress={stopEarly}
-          style={{ padding: 12 }}
-        >
-          <Text style={{ color: p.tint, fontSize: 17 }}>Finish early</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <PictureButton
+            small
+            icon={paused ? 'play' : 'pause'}
+            label={paused ? 'Resume practice' : 'Pause practice'}
+            selected={paused}
+            disabled={busy}
+            onPress={togglePause}
+          />
+          <PictureButton
+            small
+            icon="close"
+            label="Finish early"
+            disabled={busy}
+            onPress={stopEarly}
+          />
+        </View>
       </View>
       <View
         style={{
@@ -372,7 +468,9 @@ export default function Practice() {
                 size={layout.size}
                 selected={revealed && id === stimulus}
                 muted={revealed && id !== stimulus}
-                disabled={phase !== 'respond' || busy || revealed || !!pendingTrial.current}
+                disabled={
+                  phase !== 'respond' || busy || paused || revealed || !!pendingTrial.current
+                }
                 onPress={() => void choose(id)}
               />
             ))}
@@ -380,20 +478,22 @@ export default function Practice() {
         </View>
         <View
           style={{
-            gap: 10,
+            gap: 4,
             width: landscape ? 290 : '100%',
             maxWidth: landscape ? 290 : 650,
             alignSelf: 'center',
             justifyContent: 'center',
           }}
         >
-          <Heading>
-            {revealed
-              ? `This is ${CURRICULUM_BY_ID[stimulus].color}`
-              : phase === 'listen'
-                ? 'Let’s listen'
-                : 'Which friend did you hear?'}
-          </Heading>
+          <View style={{ alignItems: 'center' }}>
+            <Heading>
+              {paused
+                ? 'A little pause'
+                : revealed
+                  ? CURRICULUM_BY_ID[stimulus].color
+                  : 'Let’s listen'}
+            </Heading>
+          </View>
           {pendingTrial.current ? (
             <Button
               title="Retry saving response"
@@ -401,71 +501,56 @@ export default function Practice() {
               onPress={() => void guarded(savePendingTrial)}
             />
           ) : phase === 'recorded' ? (
-            <>
-              <Body>
-                {lastResponse === 'independent'
-                  ? 'Response recorded.'
-                  : 'Gently give the color name and show its friend.'}
-              </Body>
-              <Button
-                title={count === target ? 'Finish this session' : 'Next presentation'}
-                disabled={piano.playing}
-                onPress={next}
-              />
-            </>
+            <View style={{ alignItems: 'center', minHeight: 120, justifyContent: 'center' }}>
+              {lastResponse !== 'no-response' && (
+                <PictureButton
+                  small
+                  icon={helped ? 'hand-left' : 'hand-left-outline'}
+                  label={helped ? 'Undo parent help' : 'I helped'}
+                  caption={helped ? 'Help noted' : 'I helped'}
+                  selected={helped}
+                  disabled={busy}
+                  onPress={() => void markHelp()}
+                />
+              )}
+              {error && (
+                <Button
+                  title="Continue"
+                  secondary
+                  onPress={() => {
+                    setError(null);
+                    setFeedbackElapsed(false);
+                  }}
+                />
+              )}
+            </View>
           ) : (
-            <>
-              <Button
-                title={
-                  piano.playing
-                    ? 'Listening…'
-                    : phase === 'listen'
-                      ? 'Play the chord'
-                      : 'Play again'
+            <View style={{ alignItems: 'center' }}>
+              <PictureButton
+                icon="volume-high"
+                label={phase === 'listen' ? 'Play sound' : 'Replay sound'}
+                caption={
+                  piano.playing ? 'Listening…' : phase === 'listen' ? 'Listen' : 'Listen again'
                 }
-                disabled={!piano.ready || piano.playing || replays >= 50}
-                busy={busy}
+                disabled={!piano.ready || piano.playing || replays >= 50 || busy || paused}
                 onPress={() => void play()}
               />
-              {phase === 'respond' && (
-                <>
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <View style={{ flex: 1 }}>
-                      <Button
-                        secondary
-                        title="Needed help"
-                        busy={busy}
-                        onPress={() => void respond('helped')}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Button
-                        secondary
-                        title="No response"
-                        busy={busy}
-                        onPress={() => void respond('no-response')}
-                      />
-                    </View>
-                  </View>
-                  {choices.length === 1 && (
-                    <Button
-                      secondary
-                      title="Independent response"
-                      busy={busy}
-                      onPress={() => void choose(stimulus)}
-                    />
-                  )}
-                </>
-              )}
-              {phase === 'respond' && (
-                <Text style={{ fontSize: 14, color: '#536B75', textAlign: 'center' }}>
-                  Unsure? Help right away. A parent can tap for the child.
-                </Text>
-              )}
-            </>
+            </View>
           )}
           {(error || piano.error) && <Notice>{error ?? piano.error}</Notice>}
         </View>
+      </View>
+      <View style={{ alignItems: 'center', minHeight: 66 }}>
+        {phase === 'respond' && (
+          <PictureButton
+            small
+            icon="chatbubble-ellipses-outline"
+            label="No response"
+            caption="No response"
+            disabled={busy || paused}
+            onPress={() => void respond('no-response')}
+          />
+        )}
       </View>
     </SafeAreaView>
   );

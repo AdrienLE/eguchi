@@ -1,16 +1,17 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { beforeEach, expect, jest, test } from '@jest/globals';
+import { afterEach, beforeEach, expect, jest, test } from '@jest/globals';
 import ParentSettings from '@/components/foundation/ParentSettings';
 import AnimalPlan from '@/components/foundation/AnimalPlan';
 import AnimalCard from '@/components/foundation/AnimalCard';
 import { CHORD_CURRICULUM } from '@/lib/foundation/curriculum';
-import Practice from '@/components/foundation/Practice';
-import { Button } from '@/components/foundation/ui';
+import Practice, { FEEDBACK_MS } from '@/components/foundation/Practice';
+import { Button, PictureButton } from '@/components/foundation/ui';
 import {
   deriveProgram,
   makeEvent,
   PREPARATION_IDS,
+  recordedResponse,
   type FoundationEvent,
 } from '@/lib/foundation/program';
 
@@ -19,6 +20,8 @@ const mockPlay = jest.fn<() => Promise<number>>();
 const mockStop = jest.fn<() => Promise<void>>();
 const mockAppend = jest.fn<(event: FoundationEvent) => Promise<void>>();
 let mockEvents: FoundationEvent[] = [];
+let mockPlaying = false;
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -58,7 +61,13 @@ jest.mock('@/lib/foundation/usePiano', () => ({
       { audioFile: c.id + '.mp3', sha256: 'a'.repeat(64) },
     ])
   ),
-  usePiano: () => ({ play: mockPlay, stop: mockStop, ready: true, playing: false, error: null }),
+  usePiano: () => ({
+    play: mockPlay,
+    stop: mockStop,
+    ready: true,
+    playing: mockPlaying,
+    error: null,
+  }),
 }));
 jest.mock('@/lib/foundation/FoundationProvider', () => ({
   useFoundation: () => ({
@@ -72,6 +81,8 @@ jest.mock('@/lib/foundation/FoundationProvider', () => ({
   }),
 }));
 beforeEach(() => {
+  jest.useFakeTimers();
+  mockPlaying = false;
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   mockEvents = PREPARATION_IDS.map(lessonId => makeEvent('preparation', { lessonId }));
   mockPlay.mockReset().mockResolvedValue(Date.now());
@@ -79,6 +90,9 @@ beforeEach(() => {
   mockAppend.mockReset().mockImplementation(async event => {
     mockEvents.push(event);
   });
+});
+afterEach(() => {
+  jest.useRealTimers();
 });
 const render = async (component = <Practice />) => {
   let root!: ReactTestRenderer;
@@ -91,22 +105,47 @@ const button = (root: ReactTestRenderer, title: string) =>
   root.root.findAllByType(Button).find(node => node.props.title === title)!;
 const press = async (root: ReactTestRenderer, title: string) => {
   await act(async () => {
-    const target = button(root, title);
+    const target =
+      button(root, title) ??
+      root.root.findAllByType(PictureButton).find(n => n.props.label === title);
     expect(target).toBeDefined();
     expect(target.props.disabled).not.toBe(true);
     target.props.onPress();
   });
 };
 const trials = () => mockEvents.filter(event => event.kind === 'trial');
+const choose = async (root: ReactTestRenderer, id = 'C-E-G') => {
+  await act(async () => {
+    root.root
+      .findAllByType(AnimalCard)
+      .find(n => n.props.id === id)!
+      .props.onPress();
+  });
+};
+const waitForFeedback = async () => {
+  await act(async () => jest.advanceTimersByTime(FEEDBACK_MS));
+};
+
+test('Ready previews can be replayed and mark the upcoming first sound as primed', async () => {
+  const root = await render();
+  await press(root, 'Preview sound');
+  await press(root, 'Preview sound');
+  expect(mockPlay).toHaveBeenCalledTimes(2);
+  expect(trials()).toHaveLength(0);
+  await press(root, 'We’re ready to listen');
+  expect(mockEvents.find(e => e.kind === 'sessionStarted')?.data.recentPitchReference).toBe('yes');
+  await choose(root);
+  expect(trials()[0].data.replays).toBe(0);
+  await act(async () => root.unmount());
+});
 
 test('audio failure does not count a presentation and can be retried', async () => {
   const root = await render();
-  await press(root, 'We’re ready to listen');
   mockPlay.mockRejectedValueOnce(new Error('No sound'));
-  await press(root, 'Play the chord');
+  await press(root, 'We’re ready to listen');
   expect(trials()).toHaveLength(0);
-  await press(root, 'Play the chord');
-  await press(root, 'Independent response');
+  await press(root, 'Play sound');
+  await choose(root);
   expect(trials()).toHaveLength(1);
   expect(trials()[0].data.firstSound).toBe(true);
   await act(async () => root.unmount());
@@ -115,34 +154,40 @@ test('rapid taps create one response, and a full session ends after ten presenta
   const root = await render();
   await press(root, 'We’re ready to listen');
   for (let i = 0; i < 10; i++) {
-    await press(root, 'Play the chord');
     await act(async () => {
-      const respond = button(root, 'Independent response');
+      const respond = root.root.findAllByType(AnimalCard)[0];
       respond.props.onPress();
       respond.props.onPress();
     });
     expect(trials()).toHaveLength(i + 1);
-    await press(root, i === 9 ? 'Finish this session' : 'Next presentation');
+    await waitForFeedback();
   }
+  expect(mockPlay).toHaveBeenCalledTimes(10);
   await press(root, 'Save & finish');
   expect(mockEvents.filter(event => event.kind === 'sessionEnded')).toHaveLength(1);
   expect(mockEvents.find(event => event.kind === 'sessionEnded')?.data.reason).toBe('completed');
   expect(trials().map(event => event.data.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
   await act(async () => root.unmount());
 });
-test('help keeps the original unaided selection empty and records the corrective replay', async () => {
+test('parent help on feedback annotates the tap, can be undone, and restarts the feedback pause', async () => {
   const root = await render();
   await press(root, 'We’re ready to listen');
-  await press(root, 'Play the chord');
-  await press(root, 'Needed help');
-  expect(trials()[0].data).toMatchObject({ response: 'helped', selectedChordId: null, replays: 1 });
+  await choose(root);
+  await act(async () => jest.advanceTimersByTime(FEEDBACK_MS - 100));
+  await press(root, 'I helped');
+  expect(recordedResponse(deriveProgram(mockEvents).sessions[0].trials[0])).toBe('helped');
+  expect(trials()[0].data.selectedChordId).toBe('C-E-G');
+  await act(async () => jest.advanceTimersByTime(200));
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await press(root, 'Undo parent help');
+  expect(recordedResponse(deriveProgram(mockEvents).sessions[0].trials[0])).toBe('independent');
+  await waitForFeedback();
   expect(mockPlay).toHaveBeenCalledTimes(2);
   await act(async () => root.unmount());
 });
 test('backgrounding ends the session without inventing a parent observation', async () => {
   const root = await render();
   await press(root, 'We’re ready to listen');
-  await press(root, 'Play the chord');
   await press(root, 'No response');
   await act(async () => {
     mockBackground?.('background');
@@ -150,6 +195,8 @@ test('backgrounding ends the session without inventing a parent observation', as
   const end = mockEvents.find(event => event.kind === 'sessionEnded');
   expect(end?.data).toMatchObject({ reason: 'interrupted', observation: 'not-recorded' });
   expect(trials()).toHaveLength(1);
+  await waitForFeedback();
+  expect(mockPlay).toHaveBeenCalledTimes(2);
   await act(async () => root.unmount());
   expect(mockEvents.filter(event => event.kind === 'sessionEnded')).toHaveLength(1);
 });
@@ -163,7 +210,6 @@ test('all fourteen choices remain available and the first wrong choice survives 
   expect(start.data.target).toBe(30);
   expect(start.data.activeChordIds).toEqual(ids);
   expect(start.data.presentationPlan).toHaveLength(30);
-  await press(root, 'Play the chord');
   const heard = start.data.presentationPlan![0];
   const wrong = ids.find(id => id !== heard)!;
   expect(root.root.findAllByType(AnimalCard)).toHaveLength(14);
@@ -186,13 +232,63 @@ test('all fourteen choices remain available and the first wrong choice survives 
 test('a failed save retries the same response without losing or replaying the first choice', async () => {
   const root = await render();
   await press(root, 'We’re ready to listen');
-  await press(root, 'Play the chord');
   mockAppend.mockRejectedValueOnce(new Error('Storage unavailable'));
-  await press(root, 'Needed help');
+  await choose(root);
   expect(trials()).toHaveLength(0);
+  await waitForFeedback();
+  expect(mockPlay).toHaveBeenCalledTimes(1);
   await press(root, 'Retry saving response');
   expect(trials()).toHaveLength(1);
-  expect(trials()[0].data.response).toBe('helped');
+  expect(trials()[0].data.response).toBe('independent');
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await act(async () => root.unmount());
+});
+
+test('automatic advance waits for full audio and honors a parent pause', async () => {
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  mockPlaying = true;
+  await act(async () => root.update(<Practice />));
+  await choose(root);
+  await waitForFeedback();
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await press(root, 'Pause practice');
+  mockPlaying = false;
+  await act(async () => root.update(<Practice />));
+  await waitForFeedback();
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await press(root, 'Resume practice');
+  await waitForFeedback();
+  expect(mockPlay).toHaveBeenCalledTimes(2);
+  await act(async () => root.unmount());
+  await waitForFeedback();
+  expect(mockPlay).toHaveBeenCalledTimes(2);
+});
+
+test('waiting never invents a no-response result, and replay counts without adding a trial', async () => {
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  await act(async () => jest.advanceTimersByTime(60_000));
+  expect(trials()).toHaveLength(0);
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await press(root, 'Replay sound');
+  await choose(root);
+  expect(trials()[0].data.replays).toBe(1);
+  expect(trials()).toHaveLength(1);
+  await act(async () => root.unmount());
+});
+
+test('a failed parent-help save pauses advancement and can be retried', async () => {
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  await choose(root);
+  mockAppend.mockRejectedValueOnce(new Error('Storage unavailable'));
+  await press(root, 'I helped');
+  await waitForFeedback();
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await press(root, 'I helped');
+  expect(recordedResponse(deriveProgram(mockEvents).sessions[0].trials[0])).toBe('helped');
+  await waitForFeedback();
   expect(mockPlay).toHaveBeenCalledTimes(2);
   await act(async () => root.unmount());
 });

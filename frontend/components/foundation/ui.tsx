@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +13,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getEguchiTheme } from '@/lib/eguchi/theme';
-export const usePalette = () => getEguchiTheme('light');
+export const usePalette = () => ({
+  ...getEguchiTheme('light'),
+  text: '#35304D',
+  tint: '#7155AA',
+  subtleText: '#625C75',
+  surfaceMuted: '#F0EBFC',
+  borderMuted: '#E5DDF2',
+  primary: '#FFDA79',
+  primaryBorder: '#F0C764',
+  secondary: '#EBE2FF',
+});
 export const Page = ({
   title,
   subtitle,
@@ -107,23 +118,80 @@ export const Button = ({
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: secondary ? p.surfaceMuted : '#215E50',
-          borderColor: secondary ? p.borderMuted : '#215E50',
+          backgroundColor: secondary ? p.secondary : p.primary,
+          borderColor: secondary ? p.borderMuted : p.primaryBorder,
           opacity: disabled || busy ? 0.5 : pressed ? 0.8 : 1,
         },
       ]}
     >
-      {busy && <ActivityIndicator color={secondary ? p.text : '#fff'} />}
+      {busy && <ActivityIndicator color={p.text} />}
       <Text
         style={{
           fontWeight: '600',
           fontSize: 17,
-          color: secondary ? p.text : '#fff',
+          color: p.text,
           textAlign: 'center',
         }}
       >
         {title}
       </Text>
+    </Pressable>
+  );
+};
+export const PictureButton = ({
+  icon,
+  label,
+  caption,
+  onPress,
+  disabled = false,
+  selected = false,
+  small = false,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  caption?: string;
+  onPress: () => void;
+  disabled?: boolean;
+  selected?: boolean;
+  small?: boolean;
+}) => {
+  const p = usePalette();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled, selected }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        minWidth: 48,
+        minHeight: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 5,
+        padding: small ? 8 : 12,
+        borderRadius: 24,
+        opacity: disabled ? 0.45 : pressed ? 0.7 : 1,
+        backgroundColor: selected ? p.secondary : 'transparent',
+      })}
+    >
+      <View
+        style={{
+          width: small ? 30 : 76,
+          height: small ? 30 : 76,
+          borderRadius: 38,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: small ? 'transparent' : p.primary,
+        }}
+      >
+        <Ionicons name={icon} size={small ? 25 : 36} color={p.text} />
+      </View>
+      {caption && (
+        <Text style={{ color: p.subtleText, fontSize: small ? 13 : 16, fontWeight: '600' }}>
+          {caption}
+        </Text>
+      )}
     </Pressable>
   );
 };
@@ -158,7 +226,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 18,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',

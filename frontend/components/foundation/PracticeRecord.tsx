@@ -6,6 +6,7 @@ import {
   makeEvent,
   todaySummary,
   reviewRecord,
+  recordedResponse,
   type ResponseKind,
 } from '@/lib/foundation/program';
 import { CURRICULUM_BY_ID } from '@/lib/foundation/curriculum';
@@ -35,7 +36,7 @@ export default function PracticeRecord() {
     }
   };
   const trials = f.state.sessions.flatMap(s => s.trials);
-  const count = (kind: ResponseKind) => trials.filter(t => t.data.response === kind).length;
+  const count = (kind: ResponseKind) => trials.filter(t => recordedResponse(t) === kind).length;
   const share = async () => {
     setBusy(true);
     try {
@@ -48,7 +49,7 @@ export default function PracticeRecord() {
   };
   const confusions = new Map<string, number>();
   for (const trial of trials)
-    if (trial.data.response === 'incorrect' && trial.data.selectedChordId) {
+    if (recordedResponse(trial) === 'incorrect' && trial.data.selectedChordId) {
       const pair = `${CURRICULUM_BY_ID[trial.data.chordId].color} heard → ${CURRICULUM_BY_ID[trial.data.selectedChordId].color} chosen`;
       confusions.set(pair, (confusions.get(pair) ?? 0) + 1);
     }
@@ -138,7 +139,7 @@ export default function PracticeRecord() {
           </Body>
           {!!session.end?.data.note && <Body>{session.end.data.note}</Body>}
           <Body muted>
-            Help: {session.trials.filter(t => t.data.response === 'helped').length} · Replays:{' '}
+            Help: {session.trials.filter(t => recordedResponse(t) === 'helped').length} · Replays:{' '}
             {session.trials.reduce((sum, t) => sum + t.data.replays, 0)}
           </Body>
         </Card>

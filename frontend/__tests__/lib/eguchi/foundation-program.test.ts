@@ -11,6 +11,7 @@ import {
   nextSessionAt,
   PREPARATION_IDS,
   reviewRecord,
+  recordedResponse,
   todaySummary,
   validateRoutine,
   type FoundationEvent,
@@ -55,6 +56,35 @@ const end = (
     { sessionId: id, reason, observation: 'settled', note: '' },
     at(timestamp)
   );
+
+test('help annotations survive out-of-order sync without rewriting the original choice', () => {
+  const tap = trial('s', 0);
+  const help = makeEvent(
+    'trialAssistance',
+    { sessionId: 's', trialId: tap.id, helped: true },
+    at('05T15:00:02')
+  );
+  const unrelated = makeEvent(
+    'trialAssistance',
+    { sessionId: 'other', trialId: tap.id, helped: false },
+    at('05T15:00:03')
+  );
+  const events = [help, unrelated, tap, start('s'), help];
+  const saved = reviewRecord(events).sessions[0].trials[0];
+  expect(recordedResponse(saved)).toBe('helped');
+  expect(saved.data.selectedChordId).toBe('C-E-G');
+  expect(saved.assistance?.id).toBe(help.id);
+  expect(tap).not.toHaveProperty('assistance');
+  expect(deriveProgram(events).sessions[0].trials).toHaveLength(1);
+  const undo = makeEvent(
+    'trialAssistance',
+    { sessionId: 's', trialId: tap.id, helped: false },
+    at('05T15:00:04')
+  );
+  expect(recordedResponse(deriveProgram([undo, ...events]).sessions[0].trials[0])).toBe(
+    'independent'
+  );
+});
 
 test('first chord is the fixed middle-register red chord', () => {
   expect(FIRST_CHORD.midi).toEqual([60, 64, 67]);

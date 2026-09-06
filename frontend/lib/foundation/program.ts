@@ -64,6 +64,7 @@ export type EventPayloads = {
     audioFile: string;
     audioHash: string;
   };
+  trialAssistance: { sessionId: string; trialId: string; helped: boolean };
   sessionEnded: {
     sessionId: string;
     reason: 'completed' | 'stopped' | 'interrupted';
@@ -81,9 +82,15 @@ export type FoundationEvent = {
   };
 }[keyof EventPayloads];
 export type Trial = Extract<FoundationEvent, { kind: 'trial' }>;
+export type RecordedTrial = Trial & {
+  assistance?: Extract<FoundationEvent, { kind: 'trialAssistance' }>;
+};
+/** Retain the original tap while excluding parent-assisted answers from unaided results. */
+export const recordedResponse = (trial: RecordedTrial): ResponseKind =>
+  trial.assistance?.data.helped ? 'helped' : trial.data.response;
 export interface PracticeSession {
   start: Extract<FoundationEvent, { kind: 'sessionStarted' }>;
-  trials: Trial[];
+  trials: RecordedTrial[];
   end?: Extract<FoundationEvent, { kind: 'sessionEnded' }>;
 }
 export interface ProgramState {
@@ -165,12 +172,18 @@ export const deriveProgram = (events: FoundationEvent[], timeZone?: string): Pro
     if (event.kind === 'trial') {
       const session = sessions.get(event.data.sessionId);
       if (session && !session.trials.some(t => t.data.index === event.data.index))
-        session.trials.push(event);
+        session.trials.push({ ...event });
     }
     if (event.kind === 'sessionEnded') {
       const session = sessions.get(event.data.sessionId);
       if (session && !session.end) session.end = event;
     }
+  }
+  // An annotation can arrive before its trial during offline sync. Never rewrite the tap event.
+  for (const event of ordered) {
+    if (event.kind !== 'trialAssistance') continue;
+    const trial = sessions.get(event.data.sessionId)?.trials.find(t => t.id === event.data.trialId);
+    if (trial) trial.assistance = event;
   }
   const allSessions = [...sessions.values()];
   allSessions.forEach(s => s.trials.sort((a, b) => a.data.index - b.data.index));
@@ -236,7 +249,7 @@ export const reviewRecord = (events: FoundationEvent[], now = new Date()) => {
     reviewOn: state.reviewOn,
     assessment: 'not-performed',
     interpretation:
-      'One-choice trials measure participation only. Multi-choice trials preserve unaided choices and confusion pairs. No mastery or advancement is inferred.',
+      'One-choice trials measure participation only. Trial events preserve the original tap; assistance annotations identify parent-assisted answers, which must be excluded from unaided results and confusion pairs. No mastery or advancement is inferred.',
     background: [...mergeEvents(events)].reverse().find(e => e.kind === 'background') ?? null,
     checkIns: state.checkIns,
     prepared: state.prepared,

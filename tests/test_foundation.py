@@ -157,6 +157,44 @@ def test_sync_pagination_does_not_skip_events(setup):
     assert len({e["id"] for e in first["events"] + second["events"]}) == 600
 
 
+def test_help_annotation_sync_preserves_tap_and_supports_correction(setup):
+    client, _, _, _ = setup
+    session = session_events(count=1, reason="stopped")
+    tap = session[1]
+    help_note = event(
+        "trialAssistance",
+        {"sessionId": "session", "trialId": tap["id"], "helped": True},
+        "help-note",
+        NOW - timedelta(hours=2),
+    )
+    upload(client, [help_note])
+    upload(client, session + [help_note])
+    events = client.get("/api/foundation/review-record").json()["events"]
+    projected = derive(events)["sessions"][0]["trials"][0]
+    assert projected["assistance"]["data"]["helped"] is True
+    assert projected["data"]["selectedChordId"] == "C-E-G"
+    assert "assistance" not in tap
+    assert len([e for e in events if e["kind"] == "trial"]) == 1
+    correction = event(
+        "trialAssistance",
+        {**help_note["data"], "helped": False},
+        "undo-help",
+        NOW - timedelta(hours=1),
+    )
+    unrelated = event(
+        "trialAssistance",
+        {**help_note["data"], "sessionId": "other"},
+        "unrelated",
+        NOW,
+    )
+    assert (
+        derive([correction, unrelated] + events)["sessions"][0]["trials"][0]["assistance"]["data"][
+            "helped"
+        ]
+        is False
+    )
+
+
 @pytest.mark.parametrize(
     "kind,data",
     [

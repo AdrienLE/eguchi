@@ -157,6 +157,12 @@ class Trial(StrictModel):
         return self
 
 
+class TrialAssistance(StrictModel):
+    sessionId: str = Field(min_length=1, max_length=120)
+    trialId: str = Field(min_length=1, max_length=120)
+    helped: bool
+
+
 class SessionEnded(StrictModel):
     sessionId: str = Field(min_length=1, max_length=120)
     reason: Literal["completed", "stopped", "interrupted"]
@@ -174,6 +180,7 @@ PAYLOAD_TYPES = {
     "checkIn": CheckIn,
     "sessionStarted": SessionStarted,
     "trial": Trial,
+    "trialAssistance": TrialAssistance,
     "sessionEnded": SessionEnded,
 }
 
@@ -188,6 +195,7 @@ class Event(StrictModel):
         "checkIn",
         "sessionStarted",
         "trial",
+        "trialAssistance",
         "sessionEnded",
     ]
     at: str
@@ -263,9 +271,18 @@ def derive(events: list[dict]):
         data, kind = event["data"], event["kind"]
         session = sessions.get(data.get("sessionId"))
         if session and kind == "trial":
-            session["trials"].setdefault(data["index"], event)
+            session["trials"].setdefault(data["index"], dict(event))
         elif session and kind == "sessionEnded" and session["end"] is None:
             session["end"] = event
+    for event in ordered:
+        if event["kind"] != "trialAssistance":
+            continue
+        data = event["data"]
+        session = sessions.get(data["sessionId"])
+        if session:
+            for trial in session["trials"].values():
+                if trial["id"] == data["trialId"]:
+                    trial["assistance"] = event
     started = next((s["start"]["data"]["date"] for s in sessions.values() if s["trials"]), None)
     check_ins = [e for e in ordered if e["kind"] == "checkIn"]
     review_base = check_ins[-1]["data"]["date"] if check_ins else started

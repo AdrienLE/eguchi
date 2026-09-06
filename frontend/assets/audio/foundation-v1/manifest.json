@@ -1,0 +1,31 @@
+{
+  "protocol": "eguchi-foundation-1",
+  "chord": "C-E-G",
+  "notes": [
+    "C4",
+    "E4",
+    "G4"
+  ],
+  "midiNotes": [
+    60,
+    64,
+    67
+  ],
+  "noteOnMs": [
+    0,
+    0,
+    0
+  ],
+  "heldMs": 3000,
+  "velocity": [
+    80,
+    80,
+    80
+  ],
+  "concertAHz": 440,
+  "instrument": "General MIDI acoustic grand piano",
+  "soundfont": "GeneralUser-GS.sf2",
+  "audioFile": "red-C4-E4-G4.mp3",
+  "sha256": "450ee7af0bbd6ab27168303a31c8078e95accaf604a0d4e02c4c1f52addd18c3",
+  "adaptation": "Synthesized piano; not an official Ichionkai recording."
+}

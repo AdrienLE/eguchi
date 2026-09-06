@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, expect, jest, test } from '@jest/globals';
+import ParentSettings from '@/components/foundation/ParentSettings';
 import AnimalPlan from '@/components/foundation/AnimalPlan';
 import AnimalCard from '@/components/foundation/AnimalCard';
 import { CHORD_CURRICULUM } from '@/lib/foundation/curriculum';
@@ -24,6 +25,7 @@ jest.mock('react-native', () => ({
   TextInput: 'TextInput',
   Pressable: 'Pressable',
   Image: 'Image',
+  Switch: 'Switch',
   ScrollView: 'ScrollView',
   ActivityIndicator: 'ActivityIndicator',
   StyleSheet: { create: (value: unknown) => value },
@@ -41,6 +43,13 @@ jest.mock('react-native', () => ({
   },
 }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }));
+jest.mock('@/auth/AuthContext', () => ({
+  useAuth: () => ({ token: null, login: () => {}, logout: async () => {} }),
+}));
+jest.mock('@/lib/foundation/notifications', () => ({
+  requestDevicePermission: async () => true,
+  disconnectDevice: async () => {},
+}));
 jest.mock('@/hooks/useColorScheme', () => ({ useColorScheme: () => 'light' }));
 jest.mock('@/lib/foundation/usePiano', () => ({
   FOUNDATION_AUDIO: Object.fromEntries(
@@ -202,5 +211,25 @@ test('a parent can save all fourteen animals and turn off the introduction mix',
   expect(preferences.stage).toBe(14);
   expect(preferences.activeChordIds).toEqual(CHORD_CURRICULUM.map(c => c.id));
   expect(preferences.introductionChordId).toBeNull();
+  await act(async () => root.unmount());
+});
+
+test('parent settings show one short section and save an explicit device-reminder opt-in', async () => {
+  const root = await render(<ParentSettings />);
+  expect(root.root.findAllByType(AnimalPlan)).toHaveLength(1);
+  await press(root, 'Reminders');
+  expect(root.root.findAllByType(AnimalPlan)).toHaveLength(0);
+  const reminder = root.root.findAll(
+    node =>
+      node.type === ('Switch' as any) &&
+      node.props.accessibilityLabel === 'Daily practice — device notification'
+  )[0];
+  await act(async () => {
+    reminder.props.onValueChange(true);
+  });
+  expect(deriveProgram(mockEvents).preferences.dailyPush).toBe(true);
+  await press(root, 'Routine');
+  expect(root.root.findAll(node => node.type === ('Switch' as any))).toHaveLength(0);
+  expect(button(root, 'Save routine')).toBeDefined();
   await act(async () => root.unmount());
 });

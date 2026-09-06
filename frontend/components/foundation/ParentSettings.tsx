@@ -1,7 +1,7 @@
 import AnimalPlan from './AnimalPlan';
 import React, { useEffect, useState } from 'react';
 import { Linking, Platform, Switch, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/AuthContext';
 import { api } from '@/lib/api';
 import { getEguchiAccountKey, getEguchiAccountStorage } from '@/lib/eguchi/account-storage';
@@ -20,6 +20,12 @@ function ParentSettingsReady() {
   const f = useFoundation();
   const router = useRouter();
   const palette = usePalette();
+  const params = useLocalSearchParams<{ section?: string }>();
+  const [section, setSection] = useState(
+    ['animals', 'routine', 'reminders', 'account'].includes(params.section ?? '')
+      ? params.section!
+      : 'animals'
+  );
   const [goal, setGoal] = useState<4 | 5>(f.state.preferences.dailyGoal);
   const [times, setTimes] = useState(f.state.preferences.practiceTimes);
   const [emailTime, setEmailTime] = useState(f.state.preferences.dailyEmailTime);
@@ -159,229 +165,251 @@ function ParentSettingsReady() {
   return (
     <Page title="Parent settings" subtitle="A routine that fits your family.">
       {message && <Notice>{message}</Notice>}
-      <AnimalPlan />
-      <Card>
-        <Heading>Your daily routine</Heading>
-        <Body>
-          Choose four or five short sessions. Reminder times are suggestions; the daily plan also
-          checks the time since your last session.
-        </Body>
-        <View style={styles.row}>
-          <Button title="4 sessions" secondary={goal !== 4} onPress={() => changeGoal(4)} />
-          <Button title="5 sessions" secondary={goal !== 5} onPress={() => changeGoal(5)} />
-        </View>
-        <Body>Practice times (24-hour clock)</Body>
-        <View style={styles.row}>
-          {times.map((time, index) => (
-            <TextInput
-              key={index}
-              accessibilityLabel={`Practice time ${index + 1}`}
-              value={time}
-              maxLength={5}
-              onChangeText={value =>
-                setTimes(current => current.map((t, i) => (i === index ? value : t)))
-              }
-              style={[styles.input, { width: 100, color: palette.text }]}
-            />
-          ))}
-        </View>
-        <Body muted>Time zone: {f.state.preferences.timeZone.replaceAll('_', ' ')}</Body>
-        <Button
-          secondary
-          title="Use this device’s current time zone"
-          onPress={() =>
-            void run(async () => {
-              await patch({ timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
-              setMessage('Time zone updated.');
-            })
-          }
-        />
-        <Body>Daily email time (one email per day)</Body>
-        <TextInput
-          accessibilityLabel="Daily email time"
-          value={emailTime}
-          onChangeText={setEmailTime}
-          maxLength={5}
-          style={[styles.input, { width: 100, color: palette.text }]}
-        />
-        <Button title="Save routine" busy={busy} onPress={() => void saveRoutine()} />
-      </Card>
-      <Card>
-        <Heading>Account & practice backup</Heading>
-        <Body>
-          {auth.token
-            ? f.syncStatus
-            : 'You can practice without an account. Your record stays on this device. Sign in for account backup and parent email reminders.'}
-        </Body>
-        {auth.token ? (
-          <>
-            <Button secondary title="Sync now" busy={busy} onPress={() => void run(f.sync)} />
-            {guestCount > 0 && (
+      <View style={styles.row}>
+        {(['animals', 'routine', 'reminders', 'account'] as const).map(value => (
+          <Button
+            key={value}
+            title={
+              {
+                animals: 'Animals',
+                routine: 'Routine',
+                reminders: 'Reminders',
+                account: 'Account & email',
+              }[value]
+            }
+            secondary={section !== value}
+            onPress={() => setSection(value)}
+          />
+        ))}
+      </View>
+      {section === 'animals' && <AnimalPlan />}
+      {section === 'routine' && (
+        <Card>
+          <Heading>Your daily routine</Heading>
+          <Body>Choose four or five short sessions, spread through your day.</Body>
+          <View style={styles.row}>
+            <Button title="4 sessions" secondary={goal !== 4} onPress={() => changeGoal(4)} />
+            <Button title="5 sessions" secondary={goal !== 5} onPress={() => changeGoal(5)} />
+          </View>
+          <Body>Practice times (24-hour clock)</Body>
+          <View style={styles.row}>
+            {times.map((time, index) => (
+              <TextInput
+                key={index}
+                accessibilityLabel={`Practice time ${index + 1}`}
+                value={time}
+                maxLength={5}
+                onChangeText={value =>
+                  setTimes(current => current.map((t, i) => (i === index ? value : t)))
+                }
+                style={[styles.input, { width: 100, color: palette.text }]}
+              />
+            ))}
+          </View>
+          <Body muted>Time zone: {f.state.preferences.timeZone.replaceAll('_', ' ')}</Body>
+          <Button
+            secondary
+            title="Use this device’s current time zone"
+            onPress={() =>
+              void run(async () => {
+                await patch({ timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+                setMessage('Time zone updated.');
+              })
+            }
+          />
+          <Body>Daily email time (one email per day)</Body>
+          <TextInput
+            accessibilityLabel="Daily email time"
+            value={emailTime}
+            onChangeText={setEmailTime}
+            maxLength={5}
+            style={[styles.input, { width: 100, color: palette.text }]}
+          />
+          <Button title="Save routine" busy={busy} onPress={() => void saveRoutine()} />
+        </Card>
+      )}
+      {section === 'account' && (
+        <>
+          <Card>
+            <Heading>Account & practice backup</Heading>
+            <Body>
+              {auth.token
+                ? f.syncStatus
+                : 'You can practice without an account. Your record stays on this device. Sign in for account backup and parent email reminders.'}
+            </Body>
+            {auth.token ? (
               <>
-                <Body>
-                  There is also local guest practice on this device. Import it only if it belongs to
-                  this child. The original local copy will be kept.
-                </Body>
+                <Button secondary title="Sync now" busy={busy} onPress={() => void run(f.sync)} />
+                {guestCount > 0 && (
+                  <>
+                    <Body>
+                      There is also local guest practice on this device. Import it only if it
+                      belongs to this child. The original local copy will be kept.
+                    </Body>
+                    <Button
+                      secondary
+                      title="Import this device’s guest practice"
+                      busy={busy}
+                      onPress={() =>
+                        void run(async () => {
+                          const guest = getFoundationStore(getEguchiAccountStorage(null));
+                          await guest.load();
+                          await f.store.appendMany(guest.getSnapshot().events);
+                          await f.sync();
+                          setGuestCount(0);
+                          setMessage('Local practice was copied into this account.');
+                        })
+                      }
+                    />
+                  </>
+                )}
                 <Button
                   secondary
-                  title="Import this device’s guest practice"
+                  title="Sign out"
                   busy={busy}
                   onPress={() =>
                     void run(async () => {
-                      const guest = getFoundationStore(getEguchiAccountStorage(null));
-                      await guest.load();
-                      await f.store.appendMany(guest.getSnapshot().events);
-                      await f.sync();
-                      setGuestCount(0);
-                      setMessage('Local practice was copied into this account.');
+                      await disconnectDevice(auth.token, getEguchiAccountKey(auth.token));
+                      await auth.logout();
                     })
                   }
                 />
               </>
-            )}
-            <Button
-              secondary
-              title="Sign out"
-              busy={busy}
-              onPress={() =>
-                void run(async () => {
-                  await disconnectDevice(auth.token, getEguchiAccountKey(auth.token));
-                  await auth.logout();
-                })
-              }
-            />
-          </>
-        ) : (
-          <>
-            <Body muted>
-              Local practice and account practice are kept separate. After signing in, you can
-              import this device’s local record here.
-            </Body>
-            <Button title="Sign in for backup & parent email" onPress={auth.login} />
-          </>
-        )}
-      </Card>
-      <Card>
-        <Heading>Parent email</Heading>
-        <Body>
-          This can be different from the email used to sign in. Only a verified address receives
-          reminders.
-        </Body>
-        {!auth.token ? (
-          <Body muted>Sign in above to add a parent email.</Body>
-        ) : (
-          <>
-            <TextInput
-              accessibilityLabel="Parent email address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="parent@example.com"
-              placeholderTextColor={palette.subtleText}
-              style={[styles.input, { color: palette.text }]}
-            />
-            {contact?.verified && contact.email === email ? (
-              <Notice>Parent email verified.</Notice>
             ) : (
-              <Button
-                title={codeSent ? 'Send another verification code' : 'Send verification code'}
-                busy={busy}
-                onPress={() => void emailCode()}
-              />
+              <>
+                <Body muted>
+                  Local practice and account practice are kept separate. After signing in, you can
+                  import this device’s local record here.
+                </Body>
+                <Button title="Sign in for backup & parent email" onPress={auth.login} />
+              </>
             )}
-            {codeSent && (
+          </Card>
+          <Card>
+            <Heading>Parent email</Heading>
+            <Body>
+              This can be different from the email used to sign in. Only a verified address receives
+              reminders.
+            </Body>
+            {!auth.token ? (
+              <Body muted>Sign in above to add a parent email.</Body>
+            ) : (
               <>
                 <TextInput
-                  accessibilityLabel="Six-digit email verification code"
-                  keyboardType="number-pad"
-                  textContentType="oneTimeCode"
-                  value={code}
-                  onChangeText={setCode}
-                  maxLength={6}
-                  placeholder="6-digit code"
+                  accessibilityLabel="Parent email address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  textContentType="emailAddress"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="parent@example.com"
                   placeholderTextColor={palette.subtleText}
                   style={[styles.input, { color: palette.text }]}
                 />
-                <Button
-                  title="Verify parent email"
-                  disabled={code.length !== 6}
-                  busy={busy}
-                  onPress={() => void verify()}
-                />
+                {contact?.verified && contact.email === email ? (
+                  <Notice>Parent email verified.</Notice>
+                ) : (
+                  <Button
+                    title={codeSent ? 'Send another verification code' : 'Send verification code'}
+                    busy={busy}
+                    onPress={() => void emailCode()}
+                  />
+                )}
+                {codeSent && (
+                  <>
+                    <TextInput
+                      accessibilityLabel="Six-digit email verification code"
+                      keyboardType="number-pad"
+                      textContentType="oneTimeCode"
+                      value={code}
+                      onChangeText={setCode}
+                      maxLength={6}
+                      placeholder="6-digit code"
+                      placeholderTextColor={palette.subtleText}
+                      style={[styles.input, { color: palette.text }]}
+                    />
+                    <Button
+                      title="Verify parent email"
+                      disabled={code.length !== 6}
+                      busy={busy}
+                      onPress={() => void verify()}
+                    />
+                  </>
+                )}
+                {!!contact?.email && (
+                  <Button
+                    secondary
+                    title="Remove parent email"
+                    busy={busy}
+                    onPress={() =>
+                      void run(async () => {
+                        const result = await api.delete('/api/foundation/contact', auth.token!);
+                        if (result.error)
+                          throw new Error('Connect to the internet to remove the parent email.');
+                        await refreshContact();
+                        setCodeSent(false);
+                        await patch({ dailyEmail: false, reviewEmail: false });
+                        setMessage('Parent email removed.');
+                      })
+                    }
+                  />
+                )}
+                {contact && !contact.emailAvailable && (
+                  <Notice>
+                    The server’s email reminder service is not available right now. Your practice
+                    record is still saved.
+                  </Notice>
+                )}
               </>
             )}
-            {!!contact?.email && (
-              <Button
-                secondary
-                title="Remove parent email"
-                busy={busy}
-                onPress={() =>
-                  void run(async () => {
-                    const result = await api.delete('/api/foundation/contact', auth.token!);
-                    if (result.error)
-                      throw new Error('Connect to the internet to remove the parent email.');
-                    await refreshContact();
-                    setCodeSent(false);
-                    await patch({ dailyEmail: false, reviewEmail: false });
-                    setMessage('Parent email removed.');
-                  })
-                }
-              />
-            )}
-            {contact && !contact.emailAvailable && (
-              <Notice>
-                The server’s email reminder service is not available right now. Your practice record
-                is still saved.
-              </Notice>
-            )}
-          </>
-        )}
-      </Card>
-      <Card>
-        <Heading>Reminders</Heading>
-        <Body>
-          Choose each category and channel. Daily reminders stop on rest days and once the day’s
-          full sessions are recorded.
-        </Body>
-        {toggleRow(
-          'Daily practice — email',
-          'dailyEmail',
-          (!contact?.verified && !f.state.preferences.dailyEmail) || !auth.token
-        )}
-        {toggleRow(
-          'Two-week check-in — email',
-          'reviewEmail',
-          (!contact?.verified && !f.state.preferences.reviewEmail) || !auth.token
-        )}
-        {toggleRow('Daily practice — device notification', 'dailyPush', Platform.OS === 'web')}
-        {toggleRow('Two-week check-in — device notification', 'reviewPush', Platform.OS === 'web')}
-        <Body muted>
-          {Platform.OS === 'web'
-            ? 'Device notifications are available in the native iOS and Android app.'
-            : f.notificationMode === 'remote'
-              ? 'Device reminders are linked to your account.'
-              : f.notificationMode === 'local'
-                ? 'Reminders are scheduled on this device. Open the app at least once a week to refresh daily reminders.'
-                : f.notificationMode === 'denied'
-                  ? 'Device permission is off. Turn on a device reminder to request permission.'
-                  : 'Device reminders are off.'}
-        </Body>
-        {Platform.OS !== 'web' && (
-          <Button
-            secondary
-            title="Open device notification settings"
-            onPress={() => void Linking.openSettings()}
-          />
-        )}
-        <Body muted>
-          The two-week notification is a reminder to review the record. It does not perform an
-          assessment or unlock another chord. Email and account reminders use the latest synced
-          record.
-        </Body>
-      </Card>
+          </Card>
+        </>
+      )}
+      {section === 'reminders' && (
+        <Card>
+          <Heading>Reminders</Heading>
+          <Body>Daily reminders stop on rest days and when today’s sessions are complete.</Body>
+          {toggleRow(
+            'Daily practice — email',
+            'dailyEmail',
+            (!contact?.verified && !f.state.preferences.dailyEmail) || !auth.token
+          )}
+          {toggleRow(
+            'Two-week check-in — email',
+            'reviewEmail',
+            (!contact?.verified && !f.state.preferences.reviewEmail) || !auth.token
+          )}
+          {toggleRow('Daily practice — device notification', 'dailyPush', Platform.OS === 'web')}
+          {toggleRow(
+            'Two-week check-in — device notification',
+            'reviewPush',
+            Platform.OS === 'web'
+          )}
+          <Body muted>
+            {Platform.OS === 'web'
+              ? 'Device notifications are available in the native iOS and Android app.'
+              : f.notificationMode === 'remote'
+                ? 'Device reminders are linked to your account.'
+                : f.notificationMode === 'local'
+                  ? 'Reminders are scheduled on this device. Open the app at least once a week to refresh daily reminders.'
+                  : f.notificationMode === 'denied'
+                    ? 'Device permission is off. Turn on a device reminder to request permission.'
+                    : 'Device reminders are off.'}
+          </Body>
+          {Platform.OS !== 'web' && (
+            <Button
+              secondary
+              title="Open device notification settings"
+              onPress={() => void Linking.openSettings()}
+            />
+          )}
+          <Body muted>
+            Check-in reminders open your record; they do not change the animal plan.
+          </Body>
+          <Button secondary title="Set up parent email" onPress={() => setSection('account')} />
+        </Card>
+      )}
       <Button secondary title="Read the parent guide" onPress={() => router.push('/guide')} />
       <Button secondary title="Practice record & export" onPress={() => router.push('/records')} />
     </Page>

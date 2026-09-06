@@ -178,7 +178,7 @@ export default function ParentHome() {
       <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push('/settings')}
+          onPress={() => router.push('/settings?section=reminders')}
           style={{ padding: 12, minHeight: 44 }}
         >
           <Text style={{ color: p.tint, fontSize: 17, fontWeight: '600' }}>

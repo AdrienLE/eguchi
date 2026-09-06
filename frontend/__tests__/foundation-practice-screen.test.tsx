@@ -199,6 +199,19 @@ test('a failed save retries the same response without losing or replaying the fi
 
 test('a parent can save all fourteen animals and turn off the introduction mix', async () => {
   const root = await render(<AnimalPlan />);
+  for (const name of [
+    'Black Cat',
+    'Pink Flamingo',
+    'Brown Bear',
+    'Peach Pig',
+    'Lavender Butterfly',
+  ]) {
+    expect(
+      root.root.findAll(
+        node => node.type === ('Pressable' as any) && node.props.accessibilityLabel === name
+      )
+    ).toHaveLength(1);
+  }
   await act(async () => {
     root.root
       .findAllByType(AnimalCard)

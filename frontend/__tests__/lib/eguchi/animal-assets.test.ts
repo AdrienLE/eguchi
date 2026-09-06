@@ -1,3 +1,4 @@
+import { test, expect, describe } from '@jest/globals';
 import {
   CHORD_ANIMAL_BUNDLE_SOURCE_BY_ID,
   CHORD_ANIMAL_EMOJI_BY_ID,
@@ -11,6 +12,23 @@ import {
 import { ORDERED_CHORD_IDS } from '@/lib/eguchi/chords';
 
 describe('eguchi animal assets', () => {
+  test('keeps the replacement species for every fallback emotion', () => {
+    const replacements = [
+      ['A-C-F', 'cat', 'black-cat'],
+      ['G-B-D', 'flamingo', 'pink-flamingo'],
+      ['G-C-E', 'bear', 'brown-bear'],
+      ['D-F#-A', 'pig', 'peach-pig'],
+      ['E-G#-B', 'butterfly', 'lavender-butterfly'],
+    ] as const;
+    for (const [id, slug, file] of replacements) {
+      expect(CHORD_ANIMAL_WEB_SLUG_BY_ID[id]).toBe(slug);
+      for (const emotion of ['happy', 'sad', 'wink'] as const) {
+        expect(getChordAnimalWebPath(id, emotion)).toBe(
+          `/assets/images/eguchi/foundation/${file}-v1.png`
+        );
+      }
+    }
+  });
   test('web slugs and paths cover every chord id', () => {
     expect(Object.keys(CHORD_ANIMAL_WEB_SLUG_BY_ID).sort()).toEqual([...ORDERED_CHORD_IDS].sort());
     expect(Object.keys(CHORD_ANIMAL_WEB_PATH_BY_ID).sort()).toEqual([...ORDERED_CHORD_IDS].sort());
@@ -53,7 +71,7 @@ describe('eguchi animal assets', () => {
     );
   });
 
-  test('wink emotion uses a dedicated bundled frame for every animal', () => {
+  test('wink emotion uses a bundled frame for every animal', () => {
     expect(Object.keys(CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID).sort()).toEqual(
       [...ORDERED_CHORD_IDS].sort()
     );

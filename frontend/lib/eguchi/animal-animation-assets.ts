@@ -84,6 +84,8 @@ const FOX_REACTION_POSES: AnimalReactionPoses = {
   },
 };
 
+// Replacement species use the same base art for reactions until matching poses are drawn.
+// Never substitute a former animal during feedback.
 const ANIMAL_REACTION_POSES_BY_CHORD_ID: Readonly<Record<EguchiChordId, AnimalReactionPoses>> = {
   'C-E-G': FOX_REACTION_POSES,
   'B-D-G': createAnimalReactionPoses({
@@ -117,28 +119,28 @@ const ANIMAL_REACTION_POSES_BY_CHORD_ID: Readonly<Record<EguchiChordId, AnimalRe
     celebrate: require('../../assets/images/eguchi/animations/chick/celebrate.png'),
   }),
   'G-B-D': createAnimalReactionPoses({
-    hint: require('../../assets/images/eguchi/animations/bunny/wink.png'),
-    'not-me': require('../../assets/images/eguchi/animations/bunny/not-me.png'),
-    assisted: require('../../assets/images/eguchi/animations/bunny/warm-smile.png'),
-    celebrate: require('../../assets/images/eguchi/animations/bunny/celebrate.png'),
+    hint: require('../../assets/images/eguchi/foundation/pink-flamingo-v1.png'),
+    'not-me': require('../../assets/images/eguchi/foundation/pink-flamingo-v1.png'),
+    assisted: require('../../assets/images/eguchi/foundation/pink-flamingo-v1.png'),
+    celebrate: require('../../assets/images/eguchi/foundation/pink-flamingo-v1.png'),
   }),
   'A-C-F': createAnimalReactionPoses({
-    hint: require('../../assets/images/eguchi/animations/turtle/wink.png'),
-    'not-me': require('../../assets/images/eguchi/animations/turtle/not-me.png'),
-    assisted: require('../../assets/images/eguchi/animations/turtle/warm-smile.png'),
-    celebrate: require('../../assets/images/eguchi/animations/turtle/celebrate.png'),
+    hint: require('../../assets/images/eguchi/foundation/black-cat-v1.png'),
+    'not-me': require('../../assets/images/eguchi/foundation/black-cat-v1.png'),
+    assisted: require('../../assets/images/eguchi/foundation/black-cat-v1.png'),
+    celebrate: require('../../assets/images/eguchi/foundation/black-cat-v1.png'),
   }),
   'E-G#-B': createAnimalReactionPoses({
-    hint: require('../../assets/images/eguchi/animations/bluebird/wink.png'),
-    'not-me': require('../../assets/images/eguchi/animations/bluebird/not-me.png'),
-    assisted: require('../../assets/images/eguchi/animations/bluebird/warm-smile.png'),
-    celebrate: require('../../assets/images/eguchi/animations/bluebird/celebrate.png'),
+    hint: require('../../assets/images/eguchi/foundation/lavender-butterfly-v1.png'),
+    'not-me': require('../../assets/images/eguchi/foundation/lavender-butterfly-v1.png'),
+    assisted: require('../../assets/images/eguchi/foundation/lavender-butterfly-v1.png'),
+    celebrate: require('../../assets/images/eguchi/foundation/lavender-butterfly-v1.png'),
   }),
   'G-C-E': createAnimalReactionPoses({
-    hint: require('../../assets/images/eguchi/animations/lion/wink.png'),
-    'not-me': require('../../assets/images/eguchi/animations/lion/not-me.png'),
-    assisted: require('../../assets/images/eguchi/animations/lion/warm-smile.png'),
-    celebrate: require('../../assets/images/eguchi/animations/lion/celebrate.png'),
+    hint: require('../../assets/images/eguchi/foundation/brown-bear-v1.png'),
+    'not-me': require('../../assets/images/eguchi/foundation/brown-bear-v1.png'),
+    assisted: require('../../assets/images/eguchi/foundation/brown-bear-v1.png'),
+    celebrate: require('../../assets/images/eguchi/foundation/brown-bear-v1.png'),
   }),
   'A-C#-E': createAnimalReactionPoses({
     hint: require('../../assets/images/eguchi/animations/parrot/wink.png'),
@@ -159,10 +161,10 @@ const ANIMAL_REACTION_POSES_BY_CHORD_ID: Readonly<Record<EguchiChordId, AnimalRe
     celebrate: require('../../assets/images/eguchi/animations/seal/celebrate.png'),
   }),
   'D-F#-A': createAnimalReactionPoses({
-    hint: require('../../assets/images/eguchi/animations/crab/wink.png'),
-    'not-me': require('../../assets/images/eguchi/animations/crab/not-me.png'),
-    assisted: require('../../assets/images/eguchi/animations/crab/warm-smile.png'),
-    celebrate: require('../../assets/images/eguchi/animations/crab/celebrate.png'),
+    hint: require('../../assets/images/eguchi/foundation/peach-pig-v1.png'),
+    'not-me': require('../../assets/images/eguchi/foundation/peach-pig-v1.png'),
+    assisted: require('../../assets/images/eguchi/foundation/peach-pig-v1.png'),
+    celebrate: require('../../assets/images/eguchi/foundation/peach-pig-v1.png'),
   }),
 };
 

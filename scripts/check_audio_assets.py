@@ -139,8 +139,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--chords-ts",
-        default="frontend/lib/eguchi/chords.ts",
-        help="Path to chords.ts",
+        default="frontend/lib/foundation/curriculum.ts",
+        help="Path to the canonical chord curriculum",
     )
     parser.add_argument(
         "--dist-root",

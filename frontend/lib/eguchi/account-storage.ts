@@ -2,6 +2,7 @@ import jwtDecode from 'jwt-decode';
 import { storage, STORAGE_KEYS, type StorageService } from '@/lib/storage';
 
 const practiceKeys: string[] = [
+  STORAGE_KEYS.EGUCHI_FOUNDATION,
   STORAGE_KEYS.EGUCHI_PROGRESS,
   STORAGE_KEYS.EGUCHI_SESSION_PREFERENCES,
   STORAGE_KEYS.EGUCHI_SYNC_META,

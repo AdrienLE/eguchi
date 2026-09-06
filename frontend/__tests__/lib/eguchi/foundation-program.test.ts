@@ -71,7 +71,7 @@ test('two-week review begins with actual practice and never adds a chord or clai
   expect(deriveProgram(events).reviewOn).toBe('2026-09-19');
   expect(todaySummary(deriveProgram(events), at('19T15:00:00')).reviewDue).toBe(true);
   expect(reviewRecord(events).assessment).toBe('not-performed');
-  expect(reviewRecord(events).phase).toBe('red-only');
+  expect(reviewRecord(events).phase).toBe('chord-colors');
 });
 test('counts only completed ten-presentation sessions; keeps early stops without creating catch-up debt', () => {
   const events = [
@@ -140,5 +140,29 @@ test('export retains parent context and immutable stimulus evidence without an i
   });
   expect(record.sessions[0].start.data.recentPitchReference).toBe('no');
   expect(record.sessions[0].end?.data.reason).toBe('stopped');
-  expect(record.interpretation).toContain('does not test pitch discrimination');
+  expect(record.interpretation).toContain('One-choice trials measure participation only');
+});
+
+test('parent check-ins schedule another fortnight without changing the animal plan', () => {
+  const events: FoundationEvent[] = [
+    start('one', '05T15:00:00'),
+    trial('one', 0),
+    makeEvent(
+      'preferences',
+      { stage: 14, activeChordIds: ['C-E-G', 'Eb-G-Bb'] },
+      at('06T15:00:00')
+    ),
+  ];
+  const before = deriveProgram(events);
+  events.push(
+    makeEvent(
+      'checkIn',
+      { date: '2026-09-20', timeZone: 'UTC', note: 'Still mixing these two.' },
+      at('20T15:00:00')
+    )
+  );
+  const after = deriveProgram(events);
+  expect(after.reviewOn).toBe('2026-10-04');
+  expect(after.preferences).toEqual(before.preferences);
+  expect(reviewRecord(events).checkIns[0].data.note).toBe('Still mixing these two.');
 });

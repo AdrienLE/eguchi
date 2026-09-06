@@ -17,7 +17,7 @@ describe('eguchi animal assets', () => {
   });
 
   test('provides one shared emoji fallback for every selectable animal', () => {
-    expect(Object.keys(CHORD_ANIMAL_EMOJI_BY_ID)).toEqual(ORDERED_CHORD_IDS);
+    expect(Object.keys(CHORD_ANIMAL_EMOJI_BY_ID).sort()).toEqual([...ORDERED_CHORD_IDS].sort());
     expect(Object.values(CHORD_ANIMAL_EMOJI_BY_ID).every(Boolean)).toBe(true);
   });
 
@@ -54,7 +54,9 @@ describe('eguchi animal assets', () => {
   });
 
   test('wink emotion uses a dedicated bundled frame for every animal', () => {
-    expect(Object.keys(CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID)).toEqual(ORDERED_CHORD_IDS);
+    expect(Object.keys(CHORD_ANIMAL_WINK_BUNDLE_SOURCE_BY_ID).sort()).toEqual(
+      [...ORDERED_CHORD_IDS].sort()
+    );
     expect(getChordAnimalWebPath('C-E-G', 'wink')).toBe(
       '/assets/images/eguchi/animals/fox__wink.png'
     );

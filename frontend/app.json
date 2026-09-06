@@ -6,12 +6,15 @@
     "orientation": "default",
     "icon": "./assets/images/eguchi/ui/app-icon.png",
     "scheme": "eguchieartrainer",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "assetBundlePatterns": ["assets/audio/**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.eguchi.app"
+      "bundleIdentifier": "com.eguchi.app",
+      "infoPlist": {
+        "UIUserInterfaceStyle": "Light"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -42,7 +45,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#E53935"
+        }
+      ],
+      "./plugins/withOptionalRemotePush"
     ],
     "experiments": {
       "typedRoutes": true
@@ -51,7 +61,8 @@
       "router": {},
       "eas": {
         "projectId": "5a909b9d-6999-431c-ab81-a53187d7575a"
-      }
+      },
+      "remotePushEnabled": false
     },
     "owner": "adrienle"
   }

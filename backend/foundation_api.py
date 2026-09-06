@@ -169,6 +169,10 @@ def create_foundation_router(get_db, verify_jwt):
 
     @router.post("/device")
     def device(body: DeviceIn, payload=Depends(verify_jwt), db: Session = Depends(get_db)):
+        from .foundation_reminders import remote_push_enabled
+
+        if not remote_push_enabled():
+            raise HTTPException(503, "Remote push is not configured; use device reminders")
         row = db.get(models.FoundationDevice, body.token)
         if row is None:
             row = models.FoundationDevice(token=body.token)
@@ -189,9 +193,9 @@ def create_foundation_router(get_db, verify_jwt):
     def export(payload=Depends(verify_jwt), db: Session = Depends(get_db)):
         return {
             "protocol": "eguchi-foundation-1",
-            "phase": "red-only",
+            "phase": "chord-colors",
             "assessment": "not-performed",
-            "interpretation": "A single available response does not test pitch discrimination.",
+            "interpretation": "One-choice trials measure participation only. Multi-choice trials preserve unaided choices and confusion pairs.",
             "events": read_events(db, payload["sub"]),
         }
 

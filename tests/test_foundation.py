@@ -97,6 +97,7 @@ def setup(tmp_path, monkeypatch):
     monkeypatch.setenv("POSTMARK_API_TOKEN", "test-only")
     monkeypatch.setenv("POSTMARK_FROM_EMAIL", "test@example.test")
     monkeypatch.setenv("EGUCHI_REMINDERS_ENABLED", "false")
+    monkeypatch.setenv("EGUCHI_REMOTE_PUSH_ENABLED", "true")
     sent = []
     monkeypatch.setattr(reminders, "send_email", lambda *args: sent.append(args) or "email-ticket")
     monkeypatch.setattr(reminders, "send_push", lambda *args: sent.append(args) or "push-ticket")
@@ -269,7 +270,7 @@ def test_review_reminder_is_once_per_review_and_never_claims_assessment(setup):
     reminders.run_reminders_once(factory, NOW + timedelta(days=1))
     assert len(sent) == 1
     assert "check-in is due" in sent[0][1]
-    assert "not available" in sent[0][2] and "Continue with Red" in sent[0][2]
+    assert "not available" in sent[0][2] and "parent can change" in sent[0][2]
     assert client.get("/api/foundation/review-record").json()["assessment"] == "not-performed"
 
 
@@ -379,4 +380,69 @@ def test_push_receipt_retires_dead_token(setup, monkeypatch):
         reminders.check_push_receipts(db, NOW + timedelta(minutes=16))
         row = db.query(models.FoundationDelivery).one()
         assert row.receipt_checked and row.status == "failed"
+        assert db.query(models.FoundationDevice).count() == 0
+
+
+def test_full_chord_phase_preserves_choices_and_thirty_trial_completion(setup):
+    from typing import get_args
+    from backend.foundation_protocol import ChordId
+
+    client, factory, _, _ = setup
+    choices = list(get_args(ChordId))
+    events = ready_events(stage=14, activeChordIds=choices, introductionChordId="Eb-G-Bb")
+    session = session_events(count=30)
+    session[0]["data"].update(
+        target=30, activeChordIds=choices, presentationPlan=(choices * 3)[:30]
+    )
+    for i, trial in enumerate(session[1:-1]):
+        trial["data"].update(
+            chordId=choices[i % 14], selectedChordId=choices[(i + 1) % 14], response="incorrect"
+        )
+    events += session
+    upload(client, events)
+    state = derive(events)
+    assert daily_status(state, NOW)["completed"] == 1
+    exported = client.get("/api/foundation/review-record").json()
+    assert exported["phase"] == "chord-colors"
+    assert (
+        next(e for e in exported["events"] if e["kind"] == "trial")["data"]["selectedChordId"]
+        == "C-F-A"
+    )
+    upload(client, [event("preferences", {"introductionChordId": None}, "balanced", at=NOW)])
+    from backend.foundation_api import read_events
+
+    with factory() as db:
+        assert derive(read_events(db, "parent-a"))["preferences"]["introductionChordId"] is None
+
+
+def test_parent_check_in_repeats_fortnight_without_advancement(setup):
+    client, factory, _, sent = setup
+    events = ready_events(dailyEmail=False) + session_events(at=NOW - timedelta(days=16))
+    upload(client, events)
+    add_contact(factory)
+    reminders.run_reminders_once(factory, NOW)
+    assert len(sent) == 1
+    check_in = event(
+        "checkIn",
+        {"date": NOW.date().isoformat(), "timeZone": "UTC", "note": "Happy to keep practicing."},
+        at=NOW,
+    )
+    upload(client, [check_in])
+    state = derive(events + [check_in])
+    assert state["reviewOn"] == "2026-09-19"
+    assert state["preferences"]["activeChordIds"] == ["C-E-G"]
+    reminders.run_reminders_once(factory, NOW)
+    assert len(sent) == 1
+    reminders.run_reminders_once(factory, NOW + timedelta(days=14))
+    assert len(sent) == 2
+
+
+def test_unconfigured_remote_push_falls_back_without_registering_device(setup, monkeypatch):
+    client, factory, _, _ = setup
+    monkeypatch.setenv("EGUCHI_REMOTE_PUSH_ENABLED", "false")
+    assert (
+        client.post("/api/foundation/device", json={"token": "ExponentPushToken[test]"}).status_code
+        == 503
+    )
+    with factory() as db:
         assert db.query(models.FoundationDevice).count() == 0

@@ -61,13 +61,14 @@ This app uses a centralized configuration system. Main configuration files:
 
 ## Features
 
-Current feature configuration:
-- Authentication: $([ "$AUTH_ENABLED" = "true" ] && echo "✅ Enabled" || echo "❌ Disabled")
-- Profile Pictures: ✅ Enabled
-- Dark Mode: ✅ Enabled
-- Push Notifications: ❌ Disabled
+- Complete fourteen-chord color/animal phase, with fixed English voicings and prescribed color order.
+- Three short parent preparation steps, visual practice instructions, and an offline parent guide.
+- Manual stage/active-animal settings; automatic advancement and AI assessment remain deferred.
+- Four or five brief daily sessions, remaining-today count, spacing, rest days, and recurring parent check-ins.
+- Local-first practice history with optional authenticated backup, separate verified parent email, and per-category reminders.
+- Light-only interface on every platform. Native reminders work locally; remote push requires app-specific provisioning and credentials.
 
-To enable/disable features, modify the `FEATURE_FLAGS` in `app-config.ts`.
+See [method evidence and operational configuration](docs/eguchi-foundation.md).
 
 ## Customization
 

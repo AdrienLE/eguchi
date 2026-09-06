@@ -1,14 +1,7 @@
-/** The initial Eguchi program. Later stages require a separately reviewed curriculum. */
+import { CHORD_CURRICULUM, type ChordId } from './curriculum';
+/** The complete chord-color phase. Individual-note training is a later curriculum. */
 export const PROTOCOL_VERSION = 'eguchi-foundation-1' as const;
-export const FIRST_CHORD = {
-  id: 'C-E-G',
-  label: 'C major',
-  notes: ['C4', 'E4', 'G4'],
-  midi: [60, 64, 67],
-  color: 'Red',
-  hex: '#E53935',
-  animal: 'Fox',
-} as const;
+export const FIRST_CHORD = CHORD_CURRICULUM[0];
 export const PRESENTATIONS_PER_SESSION = 10;
 export const PREPARATION_IDS = [
   'purpose',
@@ -19,10 +12,19 @@ export const PREPARATION_IDS = [
   'review',
 ] as const;
 export type LessonId = (typeof PREPARATION_IDS)[number];
-export type Observation = 'settled' | 'distracted' | 'tired' | 'upset' | 'listening-only';
-export type ResponseKind = 'independent' | 'helped' | 'no-response';
+export type Observation =
+  | 'not-recorded'
+  | 'settled'
+  | 'distracted'
+  | 'tired'
+  | 'upset'
+  | 'listening-only';
+export type ResponseKind = 'independent' | 'incorrect' | 'helped' | 'no-response';
 export interface Preferences {
   timeZone: string;
+  stage: number;
+  activeChordIds: ChordId[];
+  introductionChordId: ChordId | null;
   dailyGoal: 4 | 5;
   practiceTimes: string[];
   dailyEmailTime: string;
@@ -40,18 +42,21 @@ export type EventPayloads = {
   preferences: Partial<Preferences>;
   preparation: { lessonId: LessonId };
   pause: { date: string; paused: boolean };
+  checkIn: { date: string; timeZone: string; note: string };
   sessionStarted: {
     sessionId: string;
     timeZone: string;
     date: string;
-    target: 10;
+    target: 10 | 30;
+    activeChordIds?: ChordId[];
+    presentationPlan?: ChordId[];
     recentPitchReference: 'yes' | 'no' | 'unknown';
   };
   trial: {
     sessionId: string;
     index: number;
-    chordId: 'C-E-G';
-    selectedChordId: 'C-E-G' | null;
+    chordId: ChordId;
+    selectedChordId: ChordId | null;
     response: ResponseKind;
     responseMs: number;
     replays: number;
@@ -88,11 +93,15 @@ export interface ProgramState {
   pausedDates: Set<string>;
   startedOn: string | null;
   reviewOn: string | null;
+  checkIns: Extract<FoundationEvent, { kind: 'checkIn' }>[];
 }
 export const defaultPreferences = (
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 ): Preferences => ({
   timeZone,
+  stage: 1,
+  activeChordIds: ['C-E-G'],
+  introductionChordId: null,
   dailyGoal: 4,
   practiceTimes: ['07:30', '08:15', '16:00', '18:00'],
   dailyEmailTime: '17:00',
@@ -166,19 +175,24 @@ export const deriveProgram = (events: FoundationEvent[], timeZone?: string): Pro
   const allSessions = [...sessions.values()];
   allSessions.forEach(s => s.trials.sort((a, b) => a.data.index - b.data.index));
   const startedOn = allSessions.find(s => s.trials.length > 0)?.start.data.date ?? null;
+  const checkIns = ordered.filter(
+    (event): event is Extract<FoundationEvent, { kind: 'checkIn' }> => event.kind === 'checkIn'
+  );
+  const reviewBase = checkIns.at(-1)?.data.date ?? startedOn;
   return {
+    checkIns,
     preferences,
     prepared: [...prepared],
     sessions: allSessions,
     pausedDates,
     startedOn,
-    reviewOn: startedOn ? addCalendarDays(startedOn, 14) : null,
+    reviewOn: startedOn && reviewBase ? addCalendarDays(reviewBase, 14) : null,
   };
 };
 export const isPrepared = (state: ProgramState) =>
   PREPARATION_IDS.every(id => state.prepared.includes(id));
 export const isCompleteSession = (s: PracticeSession) =>
-  s.end?.data.reason === 'completed' && s.trials.length === PRESENTATIONS_PER_SESSION;
+  s.end?.data.reason === 'completed' && s.trials.length === s.start.data.target;
 export const todaySummary = (state: ProgramState, now = new Date()) => {
   const date = dateInZone(now, state.preferences.timeZone);
   const sessions = state.sessions.filter(s => s.start.data.date === date);
@@ -218,12 +232,13 @@ export const reviewRecord = (events: FoundationEvent[], now = new Date()) => {
   return {
     protocol: PROTOCOL_VERSION,
     exportedAt: now.toISOString(),
-    phase: 'red-only',
+    phase: 'chord-colors',
     reviewOn: state.reviewOn,
     assessment: 'not-performed',
     interpretation:
-      'A single available response does not test pitch discrimination. No mastery or advancement is inferred.',
+      'One-choice trials measure participation only. Multi-choice trials preserve unaided choices and confusion pairs. No mastery or advancement is inferred.',
     background: [...mergeEvents(events)].reverse().find(e => e.kind === 'background') ?? null,
+    checkIns: state.checkIns,
     prepared: state.prepared,
     preferences: state.preferences,
     pausedDates: [...state.pausedDates],

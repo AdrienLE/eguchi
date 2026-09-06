@@ -23,6 +23,10 @@ def email_configured():
     return bool(os.getenv("POSTMARK_API_TOKEN") and os.getenv("POSTMARK_FROM_EMAIL"))
 
 
+def remote_push_enabled():
+    return os.getenv("EGUCHI_REMOTE_PUSH_ENABLED", "").lower() in {"1", "true"}
+
+
 def reminders_enabled():
     return os.getenv("EGUCHI_REMINDERS_ENABLED", "").lower() in {"1", "true"}
 
@@ -80,6 +84,8 @@ def push_headers():
 
 
 def send_push(destination, title, body):
+    if not remote_push_enabled():
+        raise DeliveryError("push-unconfigured")
     try:
         response = requests.post(
             "https://exp.host/--/api/v2/push/send",
@@ -231,13 +237,13 @@ def still_allowed(db, row, now):
 def message_for(row, state, today):
     if row.kind == "review":
         subject = "Your two-week Eguchi check-in is due"
-        body = "Your first two weeks of practice are ready to review. Open Eguchi Ears to view or share the practice record.\n\nAn automated assessment is not available yet. Continue with Red until the next step has been reviewed; this reminder does not recommend advancing."
+        body = "Your next two-week practice check-in is ready. Open Eguchi Ears to view or share the practice record.\n\nAn automated assessment is not available yet. The app keeps your current animals. A parent can change the practice set in Parent settings; this reminder does not recommend advancing."
     else:
         remaining = today["remaining"]
         subject = (
             f"Eguchi Ears: {remaining} short session{'s' if remaining != 1 else ''} left today"
         )
-        body = f"Your synced practice record shows {today['completed']} of {state['preferences']['dailyGoal']} full sessions today. There {'are' if remaining != 1 else 'is'} {remaining} remaining.\n\nWhen your child is ready, spend a couple of minutes with Red. Leave at least 15 minutes between sessions, and no more than two sessions in an hour. Rest if needed; there is no catch-up debt."
+        body = f"Your synced practice record shows {today['completed']} of {state['preferences']['dailyGoal']} full sessions today. There {'are' if remaining != 1 else 'is'} {remaining} remaining.\n\nWhen your child is ready, spend a couple of minutes with your animal sounds. Leave at least 15 minutes between sessions, and no more than two sessions in an hour. Rest if needed; there is no catch-up debt."
     body += "\n\nOpen Eguchi Ears → Parent settings → Reminders to change or turn off these messages. Offline practice may not appear here until the app syncs."
     return subject, body
 

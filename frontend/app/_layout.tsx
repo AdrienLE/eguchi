@@ -1,11 +1,11 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { FoundationProvider } from '@/lib/foundation/FoundationProvider';
 import { AuthProvider } from '@/auth/AuthContext';
 import { getEguchiTheme } from '@/lib/eguchi/theme';
 import { getRootContentFrameStyle, getSettingsPresentation } from '@/lib/platform-layout';
@@ -13,17 +13,19 @@ import { getRootContentFrameStyle, getSettingsPresentation } from '@/lib/platfor
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <FoundationProvider>
+        <RootLayoutNav />
+      </FoundationProvider>
     </AuthProvider>
   );
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const colorScheme = 'light';
   const theme = getEguchiTheme(colorScheme);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={DefaultTheme}>
       <Head>
         <title>Eguchi Ear Trainer</title>
         {/* Static favicon for production web */}
@@ -40,15 +42,19 @@ function RootLayoutNav() {
         <View style={getRootContentFrameStyle()}>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="prepare" />
+            <Stack.Screen name="practice" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="guide" />
+            <Stack.Screen name="records" />
             <Stack.Screen
               name="settings"
-              options={{ presentation: getSettingsPresentation(), headerShown: true }}
+              options={{ presentation: getSettingsPresentation(), headerShown: false }}
             />
             <Stack.Screen name="+not-found" />
           </Stack>
         </View>
       </View>
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
     </ThemeProvider>
   );
 }

@@ -1,31 +1,387 @@
 {
   "protocol": "eguchi-foundation-1",
-  "chord": "C-E-G",
-  "notes": [
-    "C4",
-    "E4",
-    "G4"
-  ],
-  "midiNotes": [
-    60,
-    64,
-    67
-  ],
-  "noteOnMs": [
-    0,
-    0,
-    0
-  ],
-  "heldMs": 3000,
-  "velocity": [
-    80,
-    80,
-    80
-  ],
   "concertAHz": 440,
   "instrument": "General MIDI acoustic grand piano",
   "soundfont": "GeneralUser-GS.sf2",
-  "audioFile": "red-C4-E4-G4.mp3",
-  "sha256": "450ee7af0bbd6ab27168303a31c8078e95accaf604a0d4e02c4c1f52addd18c3",
-  "adaptation": "Synthesized piano; not an official Ichionkai recording."
+  "adaptation": "Synthesized piano; not official Ichionkai recordings.",
+  "entries": {
+    "C-E-G": {
+      "chord": "C-E-G",
+      "notes": [
+        "C4",
+        "E4",
+        "G4"
+      ],
+      "midiNotes": [
+        60,
+        64,
+        67
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "red-C4-E4-G4.mp3",
+      "midiFile": "red-C4-E4-G4.mid",
+      "sha256": "450ee7af0bbd6ab27168303a31c8078e95accaf604a0d4e02c4c1f52addd18c3"
+    },
+    "C-F-A": {
+      "chord": "C-F-A",
+      "notes": [
+        "C4",
+        "F4",
+        "A4"
+      ],
+      "midiNotes": [
+        60,
+        65,
+        69
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "C4-F4-A4.mp3",
+      "midiFile": "C4-F4-A4.mid",
+      "sha256": "eac5ca6ade540f945127b81a724e8158460ccfc33791e52c94645f4b0751d7ef"
+    },
+    "B-D-G": {
+      "chord": "B-D-G",
+      "notes": [
+        "B3",
+        "D4",
+        "G4"
+      ],
+      "midiNotes": [
+        59,
+        62,
+        67
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "B3-D4-G4.mp3",
+      "midiFile": "B3-D4-G4.mid",
+      "sha256": "16cceb05c2d31c32822a4b1615b82053b03eb5f7a0e2fc3db178269671ed4a74"
+    },
+    "A-C-F": {
+      "chord": "A-C-F",
+      "notes": [
+        "A3",
+        "C4",
+        "F4"
+      ],
+      "midiNotes": [
+        57,
+        60,
+        65
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "A3-C4-F4.mp3",
+      "midiFile": "A3-C4-F4.mid",
+      "sha256": "c21e8f3e692966f03ccbafe2a8cf4f9b68cd02063d418cdfa895f975367222e7"
+    },
+    "D-G-B": {
+      "chord": "D-G-B",
+      "notes": [
+        "D4",
+        "G4",
+        "B4"
+      ],
+      "midiNotes": [
+        62,
+        67,
+        71
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "D4-G4-B4.mp3",
+      "midiFile": "D4-G4-B4.mid",
+      "sha256": "62bf7684010839de81deb0ba9063eb51c7a32d897d28dda2e0f9bbdcff15591c"
+    },
+    "E-G-C": {
+      "chord": "E-G-C",
+      "notes": [
+        "E4",
+        "G4",
+        "C5"
+      ],
+      "midiNotes": [
+        64,
+        67,
+        72
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "E4-G4-C5.mp3",
+      "midiFile": "E4-G4-C5.mid",
+      "sha256": "43868be6be87ec266c99814c7f44778731a1423d36f7c71c4195de95f0a59eaf"
+    },
+    "F-A-C": {
+      "chord": "F-A-C",
+      "notes": [
+        "F4",
+        "A4",
+        "C5"
+      ],
+      "midiNotes": [
+        65,
+        69,
+        72
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "F4-A4-C5.mp3",
+      "midiFile": "F4-A4-C5.mid",
+      "sha256": "7c76a036721e854c94840cb68ccc32ce904929f6f1693e15df49fb93d0e99ca3"
+    },
+    "G-B-D": {
+      "chord": "G-B-D",
+      "notes": [
+        "G4",
+        "B4",
+        "D5"
+      ],
+      "midiNotes": [
+        67,
+        71,
+        74
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "G4-B4-D5.mp3",
+      "midiFile": "G4-B4-D5.mid",
+      "sha256": "4834ae34c91411a680b98ea73ab4a540d0fbd00c2f2100df7dcf4d04eb940625"
+    },
+    "G-C-E": {
+      "chord": "G-C-E",
+      "notes": [
+        "G4",
+        "C5",
+        "E5"
+      ],
+      "midiNotes": [
+        67,
+        72,
+        76
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "G4-C5-E5.mp3",
+      "midiFile": "G4-C5-E5.mid",
+      "sha256": "01aa2ee4170c093cc2fda1b39b4ef97c3a06e7a1cabadaac02122b76bb09c2c8"
+    },
+    "A-C#-E": {
+      "chord": "A-C#-E",
+      "notes": [
+        "A3",
+        "C#4",
+        "E4"
+      ],
+      "midiNotes": [
+        57,
+        61,
+        64
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "A3-Csharp4-E4.mp3",
+      "midiFile": "A3-Csharp4-E4.mid",
+      "sha256": "8c7326e640014fffe0f3228d759ad40c755cf5cc99985f4a92292adaa061bc65"
+    },
+    "D-F#-A": {
+      "chord": "D-F#-A",
+      "notes": [
+        "D4",
+        "F#4",
+        "A4"
+      ],
+      "midiNotes": [
+        62,
+        66,
+        69
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "D4-Fsharp4-A4.mp3",
+      "midiFile": "D4-Fsharp4-A4.mid",
+      "sha256": "29c9667f5f26b933d4b9792b6d13baaab329bc5d9f00dc4925729c73bff072d6"
+    },
+    "E-G#-B": {
+      "chord": "E-G#-B",
+      "notes": [
+        "E4",
+        "G#4",
+        "B4"
+      ],
+      "midiNotes": [
+        64,
+        68,
+        71
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "E4-Gsharp4-B4.mp3",
+      "midiFile": "E4-Gsharp4-B4.mid",
+      "sha256": "d8b3793f8ad3f4510fc676848e22596e2fe4aa4db67123024d09406b926cdeea"
+    },
+    "Bb-D-F": {
+      "chord": "Bb-D-F",
+      "notes": [
+        "Bb3",
+        "D4",
+        "F4"
+      ],
+      "midiNotes": [
+        58,
+        62,
+        65
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "Bb3-D4-F4.mp3",
+      "midiFile": "Bb3-D4-F4.mid",
+      "sha256": "4e94311a35bc2d26ca72a3b2143b454055f861e35c2b19d5431a0952a1ca896c"
+    },
+    "Eb-G-Bb": {
+      "chord": "Eb-G-Bb",
+      "notes": [
+        "Eb4",
+        "G4",
+        "Bb4"
+      ],
+      "midiNotes": [
+        63,
+        67,
+        70
+      ],
+      "noteOnMs": [
+        0,
+        0,
+        0
+      ],
+      "heldMs": 3000,
+      "velocity": [
+        80,
+        80,
+        80
+      ],
+      "audioFile": "Eb4-G4-Bb4.mp3",
+      "midiFile": "Eb4-G4-Bb4.mid",
+      "sha256": "e2b6970d14468cc278a0203263f5a33cc823ef9fc931931154281f195c328f73"
+    }
+  }
 }

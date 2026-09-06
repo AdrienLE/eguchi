@@ -148,6 +148,43 @@ Build logs are in `frontend/builds/native-cache/` (`expo-prebuild.log`,
 `pod-install.log`, `xcode-archive.log`, and `xcode-export.log`). Run
 `python3 -m pytest tests/test_ios_fast_build.py` to test the build tooling.
 
+### Diawi distribution
+
+Set `DIAWI_TOKEN` in your local shell, or save the token in the ignored file
+`frontend/.signing/diawi-token` with file permissions `600`. The helper also accepts
+`--token-file PATH`. Tokens are never passed in curl command arguments or printed.
+
+```bash
+# From frontend: build a fresh signed IPA locally, then upload it.
+yarn diawi:ios
+
+# Re-upload the unchanged IPA from the previous build.
+yarn diawi:ios --skip-build
+yarn diawi:ios --skip-build --file builds/eguchi-ios-fast.ipa
+
+# Optional build settings, or a fresh local EAS build.
+yarn diawi:ios -- --build-number 2
+yarn diawi:ios --eas-build
+```
+
+From the repository root, use `./scripts/build_and_upload_diawi.sh ios` with the
+same options. `--file` paths are relative to your current directory and require
+`--skip-build`. The default existing IPA is `frontend/builds/eguchi-ios-fast.ipa`.
+
+The helper builds into a unique temporary output, validates the app identity and
+presence of JavaScript/signing files, and saves the new IPA to the standard build
+path before uploading. Failed builds cannot upload an older IPA; upload failures
+leave the new IPA available for retry. Signed fast builds perform full signature
+verification in the builder. Existing-file uploads only check the IPA structure.
+
+The helper prints the installation link and an optional terminal QR code when
+`qrencode` is installed. The latest successful result and IPA SHA-256 are saved
+to the ignored `frontend/builds/diawi-last-success.json`. Uploads disable the
+public wall and discovery by device UDID. Your Diawi plan must allow the IPA's
+size; a rejected upload or failed processing returns an error instead of a link.
+
+Test the integration with `pytest tests/test_diawi_upload.py tests/test_ios_fast_build.py`.
+
 ### Backend
 Deploy the backend to your preferred hosting platform (Railway, Render, AWS, etc.).
 

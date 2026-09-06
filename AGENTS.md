@@ -43,6 +43,7 @@ changes so functionality can be tested early and often.
 - The cached builder uses `frontend/ios-fast-build.json`, public environment values from `eas.json`, generated `ios/`, Pods, and persistent Xcode intermediates. Keep generated native files, signing credentials, and `builds/` untracked.
 - Validate build tooling with `pytest tests/test_ios_fast_build.py`; `./scripts/build-ios-ipa-fast.sh --archive-only` builds an unsigned device archive without signing credentials.
 - Local EAS fallback: `cd frontend && yarn build:ios:eas`; cloud fallback: `yarn build:ios:cloud`. See README for signing setup and cache refresh options.
+- Diawi: `cd frontend && yarn diawi:ios` builds locally and uploads; `--skip-build` re-uploads the existing IPA. Use a local `DIAWI_TOKEN` or ignored `.signing/diawi-token`. Test integration with `pytest tests/test_diawi_upload.py tests/test_ios_fast_build.py`.
 
 ## Commit & Pull Request Guidelines
 - Current history is informal. Prefer Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, etc.; imperative, ≤72-char subject.

@@ -82,13 +82,71 @@ yarn build:web
 ```
 
 ### Mobile Apps
-```bash
-# iOS
-eas build --platform ios
 
-# Android
-eas build --platform android
+Production iOS builds use the same persistent local build approach as hue-2 and
+House Lights. On macOS, install Xcode, Python 3.11+, frontend dependencies, and
+CocoaPods (the builder prefers `/opt/homebrew/bin/pod`). Download the existing
+internal-distribution credentials once:
+
+```bash
+cd frontend
+eas credentials --platform ios
+# Select production, then credentials.json -> download credentials from EAS.
+yarn build:ios:production
 ```
+
+`frontend/credentials.json` and its downloaded signing files stay ignored. An
+alternative credentials file can be selected with `--credentials PATH` or
+`EGUCHI_IOS_CREDENTIALS`; paths inside credentials.json are relative to `frontend`,
+as with EAS. Existing `frontend/.signing/credentials.json` takes precedence.
+
+The verified, signed IPA is written to `frontend/builds/eguchi-ios-fast.ipa`.
+The provisioning profile must include the devices that will install it.
+
+From the repository root:
+
+```bash
+./scripts/build-prod.sh ios
+./scripts/build-prod.sh ios https://your-api.example.com
+./scripts/build-ios-ipa-fast.sh --build-number 2
+
+# Validate a device Release build without signing credentials (not installable).
+./scripts/build-ios-ipa-fast.sh --archive-only
+
+# Force native configuration or Pods to refresh in place.
+./scripts/build-ios-ipa-fast.sh --prepare-only --refresh-native --install-pods
+
+# Fall back to a fresh local EAS build.
+./scripts/build-prod.sh ios --eas-build
+
+# Android continues to use EAS.
+./scripts/build-prod.sh android
+```
+
+The first build generates the native project and compiles dependencies. Later
+builds reuse `frontend/ios/`, Pods, and `frontend/builds/native-cache/`. The builder
+uses an incremental Xcode Release `install` action and packages its output as an
+archive for export, preserving compiled intermediates between runs. JavaScript
+is bundled on every build. Failed builds never replace the last verified IPA.
+
+Changes to dependencies, the Yarn lockfile, Expo configuration, or configured
+`nativeInputs` trigger an in-place prebuild; ordinary JavaScript edits do not.
+Add custom native inputs to `frontend/ios-fast-build.json` when adding plugins or
+assets referenced by Expo configuration. Native source customizations should
+live in Expo config plugins because generated `ios/` is ignored. In-place
+prebuild does not remove every change from a deleted plugin; removing native
+plugins may require deliberate regeneration after preserving any local work.
+
+Public environment values come from the selected `frontend/eas.json` profile;
+explicit shell values take precedence, and `--api-url` overrides the selected
+environment's API URL. Local dotenv files are disabled for release builds.
+The default profile is `production`; development clients, simulator profiles,
+and App Store distribution still use EAS. From `frontend`, `yarn build:ios:eas`
+uses local EAS and `yarn build:ios:cloud` uses the original cloud build.
+
+Build logs are in `frontend/builds/native-cache/` (`expo-prebuild.log`,
+`pod-install.log`, `xcode-archive.log`, and `xcode-export.log`). Run
+`python3 -m pytest tests/test_ios_fast_build.py` to test the build tooling.
 
 ### Backend
 Deploy the backend to your preferred hosting platform (Railway, Render, AWS, etc.).

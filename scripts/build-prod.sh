@@ -1,61 +1,46 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-# Default production API URL
-DEFAULT_PROD_API_URL="https://eguchi-api-production.up.railway.app"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$(cd "$SCRIPT_DIR/../frontend" && pwd)"
 
-# Parse arguments
-TARGET=""
-API_URL="$DEFAULT_PROD_API_URL"
-
-# Function to show usage
-show_usage() {
-    echo "Usage: $0 <ios|android> [API_URL]"
-    echo ""
-    echo "Examples:"
-    echo "  $0 ios"
-    echo "  $0 android"
-    echo "  $0 ios https://my-custom-api.com"
-    echo "  $0 android https://staging-api.example.com"
-    echo ""
-    echo "Default API URL: $DEFAULT_PROD_API_URL"
+usage() {
+  echo "Usage: $0 <ios|android> [API_URL] [build options...]"
+  echo "iOS uses the cached local builder; --eas-build selects a local EAS build."
+  echo "Android retains the EAS cloud build."
 }
 
-# Parse command line arguments
-if [ $# -lt 1 ]; then
-    echo "Error: Target platform required"
-    show_usage
-    exit 1
-fi
-
+if [[ $# -eq 0 ]]; then usage; exit 1; fi
 TARGET="$1"
-
-# Validate target
+shift
 case "$TARGET" in
-  ios|android)
-    ;;
-  *)
-    echo "Error: Invalid target '$TARGET'. Must be 'ios' or 'android'"
-    show_usage
-    exit 1
-    ;;
+  -h|--help) usage; exit 0 ;;
+  ios|android) ;;
+  *) usage >&2; exit 1 ;;
 esac
 
-# Set API URL if provided as second argument
-if [ $# -ge 2 ]; then
-    API_URL="$2"
+API_URL=""
+if [[ $# -gt 0 && "$1" != -* ]]; then
+  API_URL="$1"
+  shift
 fi
 
-echo "Building production app for $TARGET"
-echo "API URL: $API_URL"
+EAS_BUILD=0
+BUILD_ARGS=()
+# The guarded array expansions below also support macOS's Bash 3.2 with set -u.
+for arg in "$@"; do
+  if [[ "$arg" == "--eas-build" ]]; then EAS_BUILD=1; else BUILD_ARGS+=("$arg"); fi
+done
 
-# Build the production app using EAS
-echo "Starting EAS build..."
-(cd frontend && EXPO_PUBLIC_API_URL="$API_URL" npx eas build --platform "$TARGET" --profile production)
+if [[ "$TARGET" == "ios" && "$EAS_BUILD" -eq 0 ]]; then
+  if [[ -n "$API_URL" ]]; then BUILD_ARGS=(--api-url "$API_URL" ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}); fi
+  exec bash "$SCRIPT_DIR/build-ios-ipa-fast.sh" ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}
+fi
 
-echo ""
-echo "Production build completed!"
-echo "Platform: $TARGET"
-echo "API URL: $API_URL"
-echo ""
-echo "You can check the build status at: https://expo.dev"
+cd "$APP_DIR"
+if [[ -n "$API_URL" ]]; then
+  export EXPO_PUBLIC_API_URL="$API_URL"
+  export EXPO_PUBLIC_API_URL_PRODUCTION="$API_URL"
+fi
+if [[ "$TARGET" == "ios" ]]; then BUILD_ARGS=(--local ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}); fi
+exec npx eas build --platform "$TARGET" --profile production ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"}

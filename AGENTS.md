@@ -39,7 +39,10 @@ changes so functionality can be tested early and often.
 - Default prod API: `https://eguchi-api-production.up.railway.app`.
 - Override via env: set `EXPO_PUBLIC_API_URL_PRODUCTION` (preferred) or `EXPO_PUBLIC_API_URL`.
 - EAS profile: `frontend/eas.json` `production.env` pre-configures the default; customize when inheriting.
-- Build: `cd frontend && EXPO_PUBLIC_API_URL_PRODUCTION=https://your-api eas build --platform ios --profile production`.
+- Default local build: `./scripts/build-prod.sh ios` (or `cd frontend && yarn build:ios:production`).
+- The cached builder uses `frontend/ios-fast-build.json`, public environment values from `eas.json`, generated `ios/`, Pods, and persistent Xcode intermediates. Keep generated native files, signing credentials, and `builds/` untracked.
+- Validate build tooling with `pytest tests/test_ios_fast_build.py`; `./scripts/build-ios-ipa-fast.sh --archive-only` builds an unsigned device archive without signing credentials.
+- Local EAS fallback: `cd frontend && yarn build:ios:eas`; cloud fallback: `yarn build:ios:cloud`. See README for signing setup and cache refresh options.
 
 ## Commit & Pull Request Guidelines
 - Current history is informal. Prefer Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, etc.; imperative, ≤72-char subject.

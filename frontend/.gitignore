@@ -10,6 +10,14 @@ web-build/
 expo-env.d.ts
 
 # Native
+/ios/
+/builds/
+/.signing/
+/credentials.json
+/credentials/
+*.ipa
+*.p12
+*.mobileprovision
 .kotlin/
 *.orig.*
 *.jks

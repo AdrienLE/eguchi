@@ -1,0 +1,12 @@
+{
+  "workspace": "ios/EguchiEarTrainer.xcworkspace",
+  "scheme": "EguchiEarTrainer",
+  "appTarget": "EguchiEarTrainer",
+  "targets": {
+    "EguchiEarTrainer": "com.eguchi.app"
+  },
+  "entitlements": {
+    "EguchiEarTrainer": "ios/EguchiEarTrainer/EguchiEarTrainer.entitlements"
+  },
+  "nativeInputs": ["plugins", "assets/images/eguchi/ui/app-icon.png"]
+}

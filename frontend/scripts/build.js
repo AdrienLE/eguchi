@@ -23,7 +23,7 @@ function showHelp() {
 Usage: node scripts/build.js [platform] [environment] [options]
 
 Platforms:
-  ios         Build for iOS
+  ios         Build for iOS (production uses the cached local builder)
   android     Build for Android
   web         Build for web
   all         Build for both iOS and Android
@@ -101,8 +101,12 @@ function runBuild(platform, environment, apiUrl) {
   if (platform === 'web') {
     command = 'yarn';
     args = [`build:web:${environment}`];
+  } else if (platform === 'ios' && environment === 'production') {
+    command = 'bash';
+    args = [path.resolve(__dirname, '../../scripts/build-ios-ipa-fast.sh')];
+    if (apiUrl) args.push('--api-url', apiUrl);
   } else {
-    // For mobile builds, use EAS
+    // Other profiles and combined-platform builds continue to use EAS.
     command = 'eas';
     args = ['build', '--platform', platform === 'all' ? 'all' : platform, '--profile', environment];
   }

@@ -2,6 +2,13 @@
 dist/
 .expo/
 web-build/
+builds/
+ios/
+
+# Local signing material
+.signing/
+credentials/
+credentials.json
 
 # Dependencies
 node_modules/

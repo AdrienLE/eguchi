@@ -16,6 +16,7 @@ from sqlalchemy import and_, or_, inspect, text
 from .auth import verify_jwt, AUTH0_DOMAIN
 from .eguchi_audio import get_audio_pack_metadata
 import os
+import asyncio
 import json
 import base64
 import binascii
@@ -30,6 +31,8 @@ import requests
 
 from .database import Base, engine, SessionLocal, enable_sqlite_check_same_thread
 from . import models
+from .foundation_api import create_foundation_router
+from .foundation_reminders import email_configured, reminders_enabled, reminder_worker
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -112,7 +115,16 @@ async def lifespan(app: FastAPI):
         logger.info(f"Working directory: {os.getcwd()}")
         logger.info(f"Environment variables: PORT={os.getenv('PORT')}")
         logger.info(f"Frontend dist exists: {os.path.exists('frontend/dist')}")
-    yield
+    worker = asyncio.create_task(reminder_worker()) if reminders_enabled() else None
+    try:
+        yield
+    finally:
+        if worker:
+            worker.cancel()
+            try:
+                await worker
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(lifespan=lifespan)
@@ -156,6 +168,9 @@ def health_check():
         "openai": "configured" if client else "not configured",
         "s3": "configured" if s3_client else "not configured",
         "database": "connected",
+        "foundation": "eguchi-foundation-1",
+        "parent_email": "configured" if email_configured() else "not configured",
+        "parent_reminders": "enabled" if reminders_enabled() else "disabled",
     }
 
 
@@ -183,6 +198,9 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+app.include_router(create_foundation_router(get_db, verify_jwt))
 
 
 def generate_nugget() -> str:

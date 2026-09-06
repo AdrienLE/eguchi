@@ -32,6 +32,11 @@ export interface Preferences {
   reviewPush: boolean;
 }
 export type EventPayloads = {
+  background: {
+    ageMonths: number | null;
+    priorTraining: 'none' | 'some' | 'unknown';
+    note: string;
+  };
   preferences: Partial<Preferences>;
   preparation: { lessonId: LessonId };
   pause: { date: string; paused: boolean };
@@ -218,6 +223,7 @@ export const reviewRecord = (events: FoundationEvent[], now = new Date()) => {
     assessment: 'not-performed',
     interpretation:
       'A single available response does not test pitch discrimination. No mastery or advancement is inferred.',
+    background: [...mergeEvents(events)].reverse().find(e => e.kind === 'background') ?? null,
     prepared: state.prepared,
     preferences: state.preferences,
     pausedDates: [...state.pausedDates],

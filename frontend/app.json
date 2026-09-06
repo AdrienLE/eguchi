@@ -30,6 +30,7 @@
       "favicon": "./assets/images/eguchi/ui/app-icon.png"
     },
     "plugins": [
+      "./plugins/withOptionalRemotePush",
       "./plugins/withFmtXcode26Fix",
       [
         "expo-router",
@@ -51,8 +52,7 @@
         {
           "color": "#E53935"
         }
-      ],
-      "./plugins/withOptionalRemotePush"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

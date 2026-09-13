@@ -5,6 +5,7 @@
   },
   "build": {
     "development": {
+      "channel": "development",
       "developmentClient": true,
       "distribution": "internal",
       "env": {
@@ -15,6 +16,7 @@
       }
     },
     "staging": {
+      "channel": "staging",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "staging",
@@ -24,6 +26,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "production",
@@ -41,6 +44,7 @@
       }
     },
     "app-store": {
+      "channel": "production",
       "distribution": "store",
       "env": {
         "EXPO_PUBLIC_ENVIRONMENT": "production",

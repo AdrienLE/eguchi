@@ -45,6 +45,17 @@ changes so functionality can be tested early and often.
 - Local EAS fallback: `cd frontend && yarn build:ios:eas`; cloud fallback: `yarn build:ios:cloud`. See README for signing setup and cache refresh options.
 - Diawi: `cd frontend && yarn diawi:ios` builds locally and uploads; `--skip-build` re-uploads the existing IPA. Use a local `DIAWI_TOKEN` or ignored `.signing/diawi-token`. Test integration with `pytest tests/test_diawi_upload.py tests/test_ios_fast_build.py`.
 
+## Native over-the-air updates
+- Routine iPad JavaScript/content releases: from `frontend`, use `yarn update:check`,
+  then `yarn update:ios --message "..."` after relevant tests and commit.
+- The helper uses the same `eas.json` profile as the local builder. Do not publish
+  with arbitrary shell/dotenv API values or override the runtime fingerprint.
+- EAS Update and Railway are separate: app UI/content deployments normally need
+  both; backend-only changes need Railway. Native dependency/config changes require
+  a new native build/install before that runtime can receive updates.
+- See `docs/eas-updates.md` for first install and verification. Never claim iPad
+  receipt of an update based only on a successful upload.
+
 ## Commit & Pull Request Guidelines
 - Current history is informal. Prefer Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, etc.; imperative, ≤72-char subject.
 - Commit policy: every completed change must be committed immediately after relevant tests pass.

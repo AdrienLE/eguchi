@@ -2,6 +2,7 @@
   "workspace": "ios/EguchiEarTrainer.xcworkspace",
   "scheme": "EguchiEarTrainer",
   "appTarget": "EguchiEarTrainer",
+  "updatesPlist": "ios/EguchiEarTrainer/Supporting/Expo.plist",
   "targets": {
     "EguchiEarTrainer": "com.eguchi.app"
   },

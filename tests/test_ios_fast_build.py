@@ -55,6 +55,18 @@ def test_profile_inheritance_errors():
         build.load_profile({"build": {"a": {"extends": "b"}, "b": {"extends": "a"}}}, "a")
 
 
+def test_selected_profile_drives_update_channel_and_invalidates_prebuild(tmp_path):
+    (tmp_path / "package.json").write_text("{}")
+    production = build.build_environment({}, {}, profile_name="production")
+    staging = build.build_environment(
+        {}, {"EAS_BUILD_PROFILE": "production"}, profile_name="staging"
+    )
+    assert staging["EAS_BUILD_PROFILE"] == "staging"
+    assert build.prebuild_fingerprint(tmp_path, {}, production) != build.prebuild_fingerprint(
+        tmp_path, {}, staging
+    )
+
+
 def test_release_rejects_dev_auth_and_unsafe_profile_environment():
     with pytest.raises(build.BuildError, match="AUTH_OVERRIDE"):
         build.build_environment({}, {"EXPO_PUBLIC_AUTH_OVERRIDE_TOKEN": "test-token"})
@@ -357,6 +369,40 @@ def test_prebuild_on_fresh_checkout_then_reuses_native_project(native_project, m
     (app / CONFIG["workspace"]).mkdir()
     build.prepare_project(app, cache, CONFIG, {})
     assert len(calls) == 1
+
+
+def test_stale_update_settings_force_prebuild_and_never_get_cached(native_project, monkeypatch):
+    app, cache = native_project
+    (app / CONFIG["workspace"]).mkdir()
+    (app / "app.json").write_text(
+        json.dumps({"expo": {"updates": {"url": "https://u.expo.dev/test"}}})
+    )
+    (app / "eas.json").write_text(json.dumps({"build": {"production": {"channel": "production"}}}))
+    path = app / CONFIG["updatesPlist"]
+    path.parent.mkdir(parents=True)
+    path.write_bytes(plistlib.dumps({"EXUpdatesEnabled": False}))
+    stamp = cache / "prebuild-inputs.sha256"
+    calls = []
+    monkeypatch.setattr(build, "run", lambda command, **kwargs: calls.append(command))
+    with pytest.raises(build.BuildError, match="update settings"):
+        build.prepare_project(app, cache, CONFIG, {})
+    assert len(calls) == 1
+    assert not stamp.exists()
+
+    valid = {
+        "EXUpdatesEnabled": True,
+        "EXUpdatesURL": "https://u.expo.dev/test",
+        "EXUpdatesRequestHeaders": {"expo-channel-name": "production"},
+    }
+    path.write_bytes(plistlib.dumps(valid))
+    build.prepare_project(app, cache, CONFIG, {})
+    assert stamp.exists()
+    # A stale plist must invalidate even an otherwise matching cache stamp.
+    valid["EXUpdatesRequestHeaders"]["expo-channel-name"] = "staging"
+    path.write_bytes(plistlib.dumps(valid))
+    with pytest.raises(build.BuildError, match="update settings"):
+        build.prepare_project(app, cache, CONFIG, {})
+    assert len(calls) == 3
 
 
 @pytest.mark.parametrize("change", ["js", "scripts", "dependency", "plugin", "app", "env", "force"])

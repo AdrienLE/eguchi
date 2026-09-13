@@ -54,7 +54,7 @@ def load_profile(eas, name, seen=()):
     return {**parent, **profile, "env": {**parent.get("env", {}), **profile.get("env", {})}}
 
 
-def build_environment(profile, inherited, api_url=None):
+def build_environment(profile, inherited, api_url=None, profile_name=None):
     env = dict(inherited)
     for key, value in profile.get("env", {}).items():
         if not re.fullmatch(r"EXPO_PUBLIC_[A-Z0-9_]+", key):
@@ -70,6 +70,8 @@ def build_environment(profile, inherited, api_url=None):
     # rather than silently loading a developer's local .env or skipping bundling.
     env.pop("SKIP_BUNDLING", None)
     env.update(NODE_ENV="production", FORCE_BUNDLING="1", EXPO_NO_DOTENV="1")
+    if profile_name:
+        env["EAS_BUILD_PROFILE"] = profile_name
     return env
 
 
@@ -102,14 +104,39 @@ def prebuild_fingerprint(app, config, env):
             digest.update(str(file.relative_to(app)).encode())
             digest.update(file.read_bytes() if file.is_file() else b"missing")
     public = {key: value for key, value in env.items() if key.startswith("EXPO_PUBLIC_")}
+    public["EAS_BUILD_PROFILE"] = env.get("EAS_BUILD_PROFILE", "production")
     digest.update(json.dumps(public, sort_keys=True).encode())
     return digest.hexdigest()
+
+
+def verify_updates_configuration(app, config, env):
+    """Reject stale prebuild output, including Expo CLI failures that exit zero."""
+    if not config.get("updatesPlist"):
+        return
+    expected = read_json(app / "app.json").get("expo", {}).get("updates", {})
+    if not expected.get("url"):
+        return
+    path = app / config["updatesPlist"]
+    profile = load_profile(read_json(app / "eas.json"), env.get("EAS_BUILD_PROFILE", "production"))
+    values = read_plist(path) if path.is_file() else {}
+    if (
+        values.get("EXUpdatesEnabled") is not True
+        or values.get("EXUpdatesURL") != expected["url"]
+        or values.get("EXUpdatesRequestHeaders", {}).get("expo-channel-name") != profile["channel"]
+    ):
+        raise BuildError(
+            "Generated iOS update settings are stale or missing; prebuild must succeed before building."
+        )
 
 
 def prepare_project(app, cache, config, env, force=False):
     stamp = cache / "prebuild-inputs.sha256"
     fingerprint = prebuild_fingerprint(app, config, env)
     workspace = app / config["workspace"]
+    try:
+        verify_updates_configuration(app, config, env)
+    except BuildError:
+        force = True
     if force or not workspace.is_dir() or not stamp.exists() or stamp.read_text() != fingerprint:
         print("Updating generated iOS configuration in place...", flush=True)
         run(
@@ -130,6 +157,7 @@ def prepare_project(app, cache, config, env, force=False):
         # CocoaPods creates the workspace afterwards on a fresh checkout.
         if not workspace.with_suffix(".xcodeproj").is_dir():
             raise BuildError(f"Expo did not generate the configured Xcode project: {workspace}")
+        verify_updates_configuration(app, config, env)
         stamp.write_text(prebuild_fingerprint(app, config, env))
     else:
         print("Reusing generated iOS configuration.", flush=True)
@@ -535,7 +563,9 @@ def main(argv=None):
         raise BuildError("Invalid build number")
     if args.jobs < 1:
         raise BuildError("--jobs must be at least 1")
-    env = build_environment(profile, os.environ, args.api_url or args.api_url_positional)
+    env = build_environment(
+        profile, os.environ, args.api_url or args.api_url_positional, profile_name=args.profile
+    )
     if args.check and not (APP_DIR / config["workspace"]).is_dir():
         raise BuildError("Run build-ios-ipa-fast.sh --prepare-only to generate the iOS workspace")
     if not (APP_DIR / "node_modules/react-native").is_dir():

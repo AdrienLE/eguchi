@@ -3,6 +3,13 @@
     "name": "Eguchi Ear Trainer",
     "slug": "eguchi-ear-trainer",
     "version": "1.0.0",
+    "runtimeVersion": { "policy": "fingerprint" },
+    "updates": {
+      "url": "https://u.expo.dev/5a909b9d-6999-431c-ab81-a53187d7575a",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": { "expo-channel-name": "production" }
+    },
     "orientation": "default",
     "icon": "./assets/images/eguchi/ui/app-icon.png",
     "scheme": "eguchieartrainer",

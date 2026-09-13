@@ -98,6 +98,25 @@ yarn build:web
 
 ### Mobile Apps
 
+For routine iPad UI/content changes, use **EAS Update** after installing an
+update-enabled native build once:
+
+```bash
+cd frontend
+yarn update:check                         # Local iOS export; publishes nothing
+yarn update:ios --message "Improve practice controls"
+```
+
+Commit and test before publishing. Updates use the production profile's API/auth
+configuration and download when the app starts; they apply on a subsequent cold
+launch. They never force a restart during practice. A native dependency, permission,
+or Expo SDK change needs a new native build. Expo's fingerprint policy keeps
+incompatible updates away from older installed builds.
+
+The web/backend Railway deployment and native EAS Update are separate release
+steps. See [Wireless iPad updates](docs/eas-updates.md) for first installation,
+verification, channels, and recovery.
+
 Production iOS builds use the same persistent local build approach as hue-2 and
 House Lights. On macOS, install Xcode, Python 3.11+, frontend dependencies, and
 CocoaPods (the builder prefers `/opt/homebrew/bin/pod`). Download the existing

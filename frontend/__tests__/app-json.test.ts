@@ -1,7 +1,48 @@
+import { describe, expect, test } from '@jest/globals';
+
 const appJson = require('../app.json');
 const easJson = require('../eas.json');
+const configureApp = require('../app.config');
 
 describe('Expo app configuration', () => {
+  test('wireless updates are compatible, nonblocking and configured for this project', () => {
+    expect(appJson.expo.runtimeVersion).toEqual({ policy: 'fingerprint' });
+    expect(appJson.expo.updates.url).toBe(`https://u.expo.dev/${appJson.expo.extra.eas.projectId}`);
+    expect(appJson.expo.updates.checkAutomatically).toBe('ON_LOAD');
+    expect(appJson.expo.updates.fallbackToCacheTimeout).toBe(0);
+  });
+
+  test.each([
+    ['production', 'production'],
+    ['production-simulator', 'production'],
+    ['app-store', 'production'],
+    ['staging', 'staging'],
+    ['development', 'development'],
+  ])('native builds use the %s profile channel', (profile, channel) => {
+    const previous = process.env.EAS_BUILD_PROFILE;
+    try {
+      process.env.EAS_BUILD_PROFILE = profile;
+      const config = configureApp({ config: appJson.expo });
+      expect(config.updates.requestHeaders['expo-channel-name']).toBe(channel);
+      expect(config.updates.url).toBe(appJson.expo.updates.url);
+      expect(config.extra).toEqual(appJson.expo.extra);
+    } finally {
+      if (previous === undefined) delete process.env.EAS_BUILD_PROFILE;
+      else process.env.EAS_BUILD_PROFILE = previous;
+    }
+  });
+
+  test('unknown build profiles cannot silently receive production updates', () => {
+    const previous = process.env.EAS_BUILD_PROFILE;
+    try {
+      process.env.EAS_BUILD_PROFILE = 'typo';
+      expect(() => configureApp({ config: appJson.expo })).toThrow('Invalid EAS build profile');
+    } finally {
+      if (previous === undefined) delete process.env.EAS_BUILD_PROFILE;
+      else process.env.EAS_BUILD_PROFILE = previous;
+    }
+  });
+
   test('production iPad build supports rotation', () => {
     expect(appJson.expo.orientation).toBe('default');
     expect(appJson.expo.ios.supportsTablet).toBe(true);

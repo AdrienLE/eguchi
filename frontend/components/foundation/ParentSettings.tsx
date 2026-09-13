@@ -1,5 +1,6 @@
 import AnimalPlan from './AnimalPlan';
 import BackgroundPicker from './BackgroundPicker';
+import AiReview from './AiReview';
 import React, { useEffect, useState } from 'react';
 import { Linking, Platform, Switch, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -184,7 +185,14 @@ function ParentSettingsReady() {
           />
         ))}
       </View>
-      {section === 'animals' && <AnimalPlan />}
+      {section === 'animals' && (
+        <>
+          <AiReview />
+          <AnimalPlan
+            key={`${f.state.preferences.stage}-${f.state.preferences.activeChordIds.join(',')}-${f.state.preferences.introductionChordId}`}
+          />
+        </>
+      )}
       {section === 'appearance' && (
         <Card>
           <Heading>Choose your playroom</Heading>
@@ -390,7 +398,7 @@ function ParentSettingsReady() {
             (!contact?.verified && !f.state.preferences.dailyEmail) || !auth.token
           )}
           {toggleRow(
-            'Two-week check-in — email',
+            'AI decisions & two-week check-ins — email',
             'reviewEmail',
             (!contact?.verified && !f.state.preferences.reviewEmail) || !auth.token
           )}

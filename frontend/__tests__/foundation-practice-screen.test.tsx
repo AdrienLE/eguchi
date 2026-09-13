@@ -2,6 +2,8 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, jest, test } from '@jest/globals';
 import ParentSettings from '@/components/foundation/ParentSettings';
+import AiReview from '@/components/foundation/AiReview';
+import BackgroundPicker from '@/components/foundation/BackgroundPicker';
 import AnimalPlan from '@/components/foundation/AnimalPlan';
 import AnimalCard from '@/components/foundation/AnimalCard';
 import DebugTools from '@/components/foundation/DebugTools';
@@ -477,6 +479,15 @@ test('a parent can save all fourteen animals and turn off the introduction mix',
 test('parent settings show one short section and save an explicit device-reminder opt-in', async () => {
   const root = await render(<ParentSettings />);
   expect(root.root.findAllByType(AnimalPlan)).toHaveLength(1);
+  expect(root.root.findAllByType(AiReview)).toHaveLength(1);
+  await press(root, 'Background');
+  expect(root.root.findAllByType(AnimalPlan)).toHaveLength(0);
+  expect(root.root.findAllByType(AiReview)).toHaveLength(0);
+  expect(root.root.findAllByType(BackgroundPicker)).toHaveLength(1);
+  await press(root, 'Animals');
+  expect(root.root.findAllByType(AiReview)).toHaveLength(1);
+  expect(root.root.findAllByType(AnimalPlan)).toHaveLength(1);
+  expect(root.root.findAllByType(BackgroundPicker)).toHaveLength(0);
   await press(root, 'Reminders');
   expect(root.root.findAllByType(AnimalPlan)).toHaveLength(0);
   const reminder = root.root.findAll(

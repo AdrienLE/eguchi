@@ -59,7 +59,7 @@ export default function AnimalPlan() {
     <Card style={{ borderColor: '#CFBDE9', backgroundColor: '#FCF9FF' }}>
       <Heading>Your animal journey</Heading>
       <Body>
-        Fourteen sounds, introduced in this order. You decide when to add the next friend.
+        Fourteen sounds, introduced in this order. You can override the latest AI decision here.
       </Body>
       <View style={[styles.row, { justifyContent: 'center' }]}>
         {CHORD_CURRICULUM.map((chord, index) => (
@@ -134,8 +134,8 @@ export default function AnimalPlan() {
         </>
       )}
       <Body muted>
-        {sessionTarget(active)} presentations per session. Automatic advancement and AI review are
-        not active.
+        {sessionTarget(active)} presentations per session. Changing the plan starts a fresh two-week
+        observation period. Pause AI reviews above to keep manual control.
       </Body>
       <Button title="Save animal plan" busy={busy} onPress={() => void save()} />
       {(message || piano.error) && <Notice>{message ?? piano.error}</Notice>}

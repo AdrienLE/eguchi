@@ -85,6 +85,7 @@ export class FoundationStore {
           {
             events: snapshot.events.filter(e => pending.has(e.id)),
             cursor: snapshot.cursor,
+            hasMorePending: snapshot.pendingIds.length > pending.size,
           },
           token
         );

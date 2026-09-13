@@ -40,6 +40,7 @@ class StrictModel(BaseModel):
 
 
 class Preferences(StrictModel):
+    aiReviewEnabled: bool | None = None
     stage: int | None = Field(default=None, ge=1, le=14)
     activeChordIds: list[ChordId] | None = Field(default=None, min_length=1, max_length=14)
     introductionChordId: ChordId | None = None
@@ -240,6 +241,7 @@ class Event(StrictModel):
 def derive(events: list[dict]):
     """Match the client projection; preserve gaps and do not infer pitch mastery."""
     prefs = {
+        "aiReviewEnabled": True,
         "timeZone": "UTC",
         "stage": 1,
         "activeChordIds": ["C-E-G"],
@@ -258,6 +260,15 @@ def derive(events: list[dict]):
         data, kind = event["data"], event["kind"]
         if kind == "preferences":
             prefs.update(data)
+        elif kind == "aiReview" and data["applied"]:
+            from typing import get_args
+
+            chords = list(get_args(ChordId))
+            prefs.update(
+                stage=data["stageAfter"],
+                activeChordIds=chords[: data["stageAfter"]],
+                introductionChordId=chords[data["stageAfter"] - 1],
+            )
         elif kind == "preparation":
             prepared.add(data["lessonId"])
         elif kind == "pause":
@@ -299,6 +310,7 @@ def derive(events: list[dict]):
         "startedOn": started,
         "reviewOn": review,
         "checkIns": check_ins,
+        "aiReviews": [e for e in ordered if e["kind"] == "aiReview"],
     }
 
 

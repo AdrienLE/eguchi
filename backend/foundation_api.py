@@ -19,6 +19,7 @@ from .foundation_protocol import Event, StrictModel, iso, utc_now
 class SyncIn(StrictModel):
     events: list[Event] = Field(default_factory=list, max_length=100)
     cursor: int = Field(default=0, ge=0)
+    hasMorePending: bool = False
 
 
 class EmailIn(StrictModel):
@@ -50,9 +51,15 @@ def create_foundation_router(get_db, verify_jwt):
 
     @router.post("/sync")
     def sync(body: SyncIn, payload=Depends(verify_jwt), db: Session = Depends(get_db)):
+        from .foundation_reviews import lock_account
+
         user_id = payload["sub"]
         acknowledged = []
         try:
+            account = lock_account(db, user_id)
+            account.upload_pending = body.hasMorePending
+            if body.events:
+                account.uploaded_at = iso(utc_now())
             for event in body.events:
                 serialized = json.dumps(event.model_dump(), sort_keys=True, separators=(",", ":"))
                 existing = (
@@ -107,6 +114,12 @@ def create_foundation_router(get_db, verify_jwt):
             "verified": bool(row and row.verified),
             "emailAvailable": email_configured() and reminders_enabled(),
         }
+
+    @router.get("/ai-review")
+    def ai_review(payload=Depends(verify_jwt), db: Session = Depends(get_db)):
+        from .foundation_reviews import review_status
+
+        return review_status(db, payload["sub"])
 
     @router.post("/contact/request-code")
     def request_code(body: EmailIn, payload=Depends(verify_jwt), db: Session = Depends(get_db)):
@@ -191,12 +204,15 @@ def create_foundation_router(get_db, verify_jwt):
 
     @router.get("/review-record")
     def export(payload=Depends(verify_jwt), db: Session = Depends(get_db)):
+        events = read_events(db, payload["sub"])
+        reviews = [event for event in events if event["kind"] == "aiReview"]
         return {
             "protocol": "eguchi-foundation-1",
             "phase": "chord-colors",
-            "assessment": "not-performed",
-            "interpretation": "One-choice trials measure participation only. Multi-choice trials preserve unaided choices and confusion pairs.",
-            "events": read_events(db, payload["sub"]),
+            "assessment": "ai-reviewed" if reviews else "not-performed",
+            "interpretation": "One-choice trials measure participation only. Multi-choice trials preserve unaided choices and confusion pairs. Server AI decisions are an app adaptation, not a diagnosis of absolute pitch.",
+            "aiReviews": reviews,
+            "events": events,
         }
 
     return router

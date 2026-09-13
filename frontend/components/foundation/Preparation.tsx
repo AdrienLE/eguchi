@@ -120,7 +120,8 @@ function PreparationSteps() {
             </Body>
             <Body>
               Add friends when your child is ready. You control the animal plan in Parent settings.
-              Check in every two weeks; automatic assessment comes later.
+              Check in every two weeks. Signed-in families can receive server AI reviews and
+              override the decisions.
             </Body>
             <Body muted>
               Listening comes first. Keep it playful, without pressure to get every answer right.

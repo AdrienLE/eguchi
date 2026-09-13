@@ -5,7 +5,6 @@ import { useFoundation } from '@/lib/foundation/FoundationProvider';
 import {
   dateInZone,
   makeEvent,
-  todaySummary,
   reviewRecord,
   recordedResponse,
   type ResponseKind,
@@ -18,6 +17,7 @@ export default function PracticeRecord() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+  const [showNote, setShowNote] = useState(false);
   const saveCheckIn = async () => {
     if (busy) return;
     setBusy(true);
@@ -30,8 +30,9 @@ export default function PracticeRecord() {
         })
       );
       setNote('');
+      setShowNote(false);
     } catch {
-      setError('Could not save the check-in. Please retry.');
+      setError('Could not save the note. Please retry.');
     } finally {
       setBusy(false);
     }
@@ -43,7 +44,7 @@ export default function PracticeRecord() {
     try {
       await exportPracticeRecord(reviewRecord(f.snapshot.events));
     } catch {
-      setError('Could not share the record. Please retry.');
+      setError('Could not export the record. Please retry.');
     } finally {
       setBusy(false);
     }
@@ -55,21 +56,22 @@ export default function PracticeRecord() {
       confusions.set(pair, (confusions.get(pair) ?? 0) + 1);
     }
   return (
-    <Page title="Practice record" subtitle="Your notes for the next check-in.">
+    <Page title="Practice record" subtitle="Sessions, AI reviews and optional notes.">
       <AiReview />
       <Card>
-        <Heading>
-          {f.state.reviewOn
-            ? `Check-in: ${f.state.reviewOn}`
-            : 'Check in after the first two weeks'}
-        </Heading>
-        <Body>
-          Parent check-ins add context. The server’s two-week AI review runs on its own schedule.
+        <Heading>Parent notes</Heading>
+        <Body muted>
+          Optional context for the AI. Reviews run automatically when practice is synced.
         </Body>
-        {todaySummary(f.state).reviewDue && (
+        <Button
+          secondary
+          title={showNote ? 'Cancel note' : 'Add a parent note'}
+          onPress={() => setShowNote(value => !value)}
+        />
+        {showNote && (
           <>
             <TextInput
-              accessibilityLabel="Check-in notes"
+              accessibilityLabel="Parent note"
               placeholder="What is going well? Any sounds getting mixed up?"
               placeholderTextColor="#69776F"
               multiline
@@ -78,15 +80,17 @@ export default function PracticeRecord() {
               onChangeText={setNote}
               style={[styles.input, { minHeight: 80, color: '#25382F' }]}
             />
-            <Button title="Save parent check-in" busy={busy} onPress={() => void saveCheckIn()} />
-            <Body muted>
-              Your next check-in will be in two weeks. Your animal plan stays as you set it.
-            </Body>
+            <Button
+              title="Save note"
+              disabled={!note.trim()}
+              busy={busy}
+              onPress={() => void saveCheckIn()}
+            />
           </>
         )}
         {f.state.checkIns.length > 0 && (
           <Body muted>
-            Last parent check-in: {f.state.checkIns.at(-1)!.data.date}
+            Last note: {f.state.checkIns.at(-1)!.data.date}
             {f.state.checkIns.at(-1)!.data.note ? ` · ${f.state.checkIns.at(-1)!.data.note}` : ''}
           </Body>
         )}
@@ -105,7 +109,8 @@ export default function PracticeRecord() {
           sounds, and help separately.
         </Body>
         <Button
-          title="Share practice record"
+          secondary
+          title="Export record"
           disabled={!f.ready}
           busy={busy}
           onPress={() => void share()}

@@ -3,7 +3,8 @@ import { Switch, View } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { api } from '@/lib/api';
 import { useFoundation } from '@/lib/foundation/FoundationProvider';
-import { makeEvent } from '@/lib/foundation/program';
+import { dateInZone, makeEvent } from '@/lib/foundation/program';
+import { aiReviewSchedule } from '@/lib/foundation/review-status';
 import { Body, Button, Card, Heading, Notice, styles } from './ui';
 
 interface ReviewStatus {
@@ -74,8 +75,12 @@ export default function AiReview() {
         <Body muted>AI reviews are paused. Your manual animal plan stays in place.</Body>
       ) : (
         <Body>
-          Next AI review:{' '}
-          {status?.nextReviewOn ?? latest?.nextReviewOn ?? 'two weeks after practice begins'}.
+          {status?.status === 'running'
+            ? 'AI review in progress.'
+            : aiReviewSchedule(
+                status?.nextReviewOn ?? latest?.nextReviewOn,
+                dateInZone(f.now, f.state.preferences.timeZone)
+              )}
         </Body>
       )}
       {status?.status === 'failed' && (
@@ -84,7 +89,6 @@ export default function AiReview() {
           support if this persists.
         </Notice>
       )}
-      {status?.status === 'running' && <Body>The server is reviewing your record.</Body>}
       {latest && (
         <>
           <Heading>

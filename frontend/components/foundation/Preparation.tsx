@@ -119,9 +119,8 @@ function PreparationSteps() {
               tomorrow.
             </Body>
             <Body>
-              Add friends when your child is ready. You control the animal plan in Parent settings.
-              Check in every two weeks. Signed-in families can receive server AI reviews and
-              override the decisions.
+              Sign in to get an automatic AI review every two weeks. It can add a new friend when
+              your child is ready. You can always change the plan in Parent settings.
             </Body>
             <Body muted>
               Listening comes first. Keep it playful, without pressure to get every answer right.

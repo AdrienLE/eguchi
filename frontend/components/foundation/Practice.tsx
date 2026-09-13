@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFoundation } from '@/lib/foundation/FoundationProvider';
 import { FOUNDATION_AUDIO, usePiano } from '@/lib/foundation/usePiano';
@@ -31,6 +31,9 @@ export default function Practice() {
   const f = useFoundation();
   const piano = usePiano();
   const router = useRouter();
+  const params = useLocalSearchParams<{ start?: string; reference?: string }>();
+  const quickStart = params.start === '1';
+  const autoBeginAttempted = useRef(false);
   const p = usePalette();
   const { background } = useAppearance();
   const { width, height } = useWindowDimensions();
@@ -38,7 +41,9 @@ export default function Practice() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [choices, setChoices] = useState<ChordId[]>(f.state.preferences.activeChordIds);
   const [plan, setPlan] = useState<ChordId[]>([]);
-  const [pitchReference, setPitchReference] = useState<'yes' | 'no' | 'unknown'>('unknown');
+  const [pitchReference, setPitchReference] = useState<'yes' | 'no' | 'unknown'>(
+    params.reference === 'yes' || params.reference === 'no' ? params.reference : 'unknown'
+  );
   const [previewed, setPreviewed] = useState(false);
   const [previewId, setPreviewId] = useState<ChordId>(choices[0]);
   const [paused, setPaused] = useState(false);
@@ -164,6 +169,13 @@ export default function Practice() {
     setPhase('respond');
   };
   const play = () => guarded(() => playSound(stimulus));
+  const beginRef = useRef(begin);
+  beginRef.current = begin;
+  useEffect(() => {
+    if (!quickStart || !f.ready || !piano.ready || autoBeginAttempted.current) return;
+    autoBeginAttempted.current = true;
+    void beginRef.current();
+  }, [quickStart, f.ready, piano.ready]);
   const preview = (id: ChordId) =>
     guarded(async () => {
       await piano.play(id);
@@ -305,6 +317,12 @@ export default function Practice() {
     return (
       <Page title="Opening practice">
         <Body>{f.error ?? 'Please wait…'}</Body>
+      </Page>
+    );
+  if (phase === 'before' && quickStart && !error && !piano.error)
+    return (
+      <Page title="Let’s listen">
+        <Body>Getting the piano ready…</Body>
       </Page>
     );
   if (phase === 'before')

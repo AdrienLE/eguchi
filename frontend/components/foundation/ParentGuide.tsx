@@ -25,7 +25,7 @@ const DETAILS = [
   },
   {
     title: 'Tired, distracted, or unwell?',
-    body: 'Stop if your child is upset or unwilling. Use “Make today a rest day” to pause reminders. Add a short observation after a session so a future reviewer can distinguish distraction or tiredness from listening difficulty.',
+    body: 'Stop if your child is upset or unwilling. Parent settings → Daily routine → Make today a rest day pauses reminders. An optional note helps the AI distinguish tiredness or distraction from listening difficulty.',
   },
   {
     title: 'When do we move on?',

@@ -2,7 +2,8 @@ import AnimalPlan from './AnimalPlan';
 import BackgroundPicker from './BackgroundPicker';
 import AiReview from './AiReview';
 import React, { useEffect, useState } from 'react';
-import { Linking, Platform, Switch, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/auth/AuthContext';
 import { api } from '@/lib/api';
@@ -10,7 +11,12 @@ import { getEguchiAccountKey, getEguchiAccountStorage } from '@/lib/eguchi/accou
 import { useFoundation } from '@/lib/foundation/FoundationProvider';
 import { getFoundationStore } from '@/lib/foundation/store';
 import { disconnectDevice, requestDevicePermission } from '@/lib/foundation/notifications';
-import { makeEvent, validateRoutine, type Preferences } from '@/lib/foundation/program';
+import {
+  makeEvent,
+  todaySummary,
+  validateRoutine,
+  type Preferences,
+} from '@/lib/foundation/program';
 import { Body, Button, Card, Heading, Notice, Page, styles, usePalette } from './ui';
 interface Contact {
   email: string;
@@ -26,7 +32,7 @@ function ParentSettingsReady() {
   const [section, setSection] = useState(
     ['animals', 'routine', 'appearance', 'reminders', 'account'].includes(params.section ?? '')
       ? params.section!
-      : 'animals'
+      : 'overview'
   );
   const [goal, setGoal] = useState<4 | 5>(f.state.preferences.dailyGoal);
   const [times, setTimes] = useState(f.state.preferences.practiceTimes);
@@ -38,6 +44,7 @@ function ParentSettingsReady() {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [guestCount, setGuestCount] = useState(0);
+  const today = todaySummary(f.state, f.now);
   useEffect(() => {
     let active = true;
     if (auth.token) {
@@ -167,24 +174,85 @@ function ParentSettingsReady() {
   return (
     <Page title="Parent settings" subtitle="A routine that fits your family.">
       {message && <Notice>{message}</Notice>}
-      <View style={styles.row}>
-        {(['animals', 'routine', 'appearance', 'reminders', 'account'] as const).map(value => (
-          <Button
-            key={value}
-            title={
-              {
-                animals: 'Animals',
-                routine: 'Routine',
-                appearance: 'Background',
-                reminders: 'Reminders',
-                account: 'Account & email',
-              }[value]
-            }
-            secondary={section !== value}
-            onPress={() => setSection(value)}
-          />
-        ))}
-      </View>
+      {section === 'overview' ? (
+        <Card>
+          {(
+            [
+              [
+                'animals',
+                'sparkles-outline',
+                'AI reviews & animals',
+                'Review status and your animal plan',
+              ],
+              ['routine', 'time-outline', 'Daily routine', 'Practice times and rest days'],
+              ['reminders', 'notifications-outline', 'Reminders', 'Email and device notifications'],
+              [
+                'records',
+                'list-outline',
+                'Practice record',
+                'Sessions, AI decisions and optional notes',
+              ],
+              ['appearance', 'color-palette-outline', 'Background', 'Choose your playroom color'],
+              ['account', 'person-outline', 'Account & email', 'Sign in, sync and parent email'],
+              ['sound', 'volume-high-outline', 'Sound check', 'Preview a sound before practice'],
+              ['guide', 'book-outline', 'Parent guide', 'A quick refresher whenever you need it'],
+            ] as const
+          ).map(([key, icon, title, detail]) => (
+            <Pressable
+              key={key}
+              accessibilityRole="button"
+              accessibilityLabel={title}
+              onPress={() =>
+                key === 'records'
+                  ? router.push('/records')
+                  : key === 'guide'
+                    ? router.push('/guide')
+                    : key === 'sound'
+                      ? router.push('/practice')
+                      : setSection(key)
+              }
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                paddingVertical: 10,
+                minHeight: 60,
+              }}
+            >
+              <Ionicons name={icon} size={26} color={palette.tint} />
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={{ color: palette.text, fontSize: 18, fontWeight: '600' }}>
+                  {title}
+                </Text>
+                <Text style={{ color: palette.subtleText, fontSize: 14 }}>{detail}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={palette.subtleText} />
+            </Pressable>
+          ))}
+        </Card>
+      ) : (
+        <>
+          <Button secondary title="All parent settings" onPress={() => setSection('overview')} />
+          <View style={styles.row}>
+            {(['animals', 'routine', 'appearance', 'reminders', 'account'] as const).map(value => (
+              <Button
+                key={value}
+                title={
+                  {
+                    animals: 'Animals',
+                    routine: 'Routine',
+                    appearance: 'Background',
+                    reminders: 'Reminders',
+                    account: 'Account & email',
+                  }[value]
+                }
+                secondary={section !== value}
+                onPress={() => setSection(value)}
+              />
+            ))}
+          </View>
+        </>
+      )}
       {section === 'animals' && (
         <>
           <AiReview />
@@ -203,6 +271,15 @@ function ParentSettingsReady() {
         <Card>
           <Heading>Your daily routine</Heading>
           <Body>Choose four or five short sessions, spread through your day.</Body>
+          <Button
+            secondary
+            title={today.paused ? 'Resume today’s plan' : 'Make today a rest day'}
+            onPress={() =>
+              void run(() =>
+                f.append(makeEvent('pause', { date: today.date, paused: !today.paused }))
+              )
+            }
+          />
           <View style={styles.row}>
             <Button title="4 sessions" secondary={goal !== 4} onPress={() => changeGoal(4)} />
             <Button title="5 sessions" secondary={goal !== 5} onPress={() => changeGoal(5)} />
@@ -432,8 +509,6 @@ function ParentSettingsReady() {
           <Button secondary title="Set up parent email" onPress={() => setSection('account')} />
         </Card>
       )}
-      <Button secondary title="Read the parent guide" onPress={() => router.push('/guide')} />
-      <Button secondary title="Practice record & export" onPress={() => router.push('/records')} />
     </Page>
   );
 }

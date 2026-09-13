@@ -2,6 +2,8 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, jest, test } from '@jest/globals';
 import ParentSettings from '@/components/foundation/ParentSettings';
+import ParentHome from '@/components/foundation/ParentHome';
+import PracticeRecord from '@/components/foundation/PracticeRecord';
 import AiReview from '@/components/foundation/AiReview';
 import BackgroundPicker from '@/components/foundation/BackgroundPicker';
 import AnimalPlan from '@/components/foundation/AnimalPlan';
@@ -22,12 +24,24 @@ let mockBackground: ((state: string) => void) | null = null;
 const mockPlay = jest.fn<() => Promise<number>>();
 const mockStop = jest.fn<() => Promise<void>>();
 const mockAppend = jest.fn<(event: FoundationEvent) => Promise<void>>();
+const mockStore = { append: mockAppend };
+const mockPush = jest.fn();
+let mockParams: { start?: string; reference?: string; section?: string } = {};
+let mockReady = true;
+let mockPianoReady = true;
 let mockEvents: FoundationEvent[] = [];
 let mockPlaying = false;
 let mockDebug = false;
 let mockReduceMotion = false;
 const mockAnimate = jest.fn();
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+jest.mock('@/lib/foundation/export', () => ({ exportPracticeRecord: async () => {} }));
+jest.mock('expo-router', () => ({
+  useLocalSearchParams: () => mockParams,
+  usePathname: () => '/',
+  useRouter: () => ({ push: mockPush, replace: mockPush, canGoBack: () => false, back: () => {} }),
+  useFocusEffect: (callback: () => void) => require('react').useEffect(callback, [callback]),
+}));
 jest.mock('react-native', () => ({
   View: 'View',
   Text: 'Text',
@@ -85,26 +99,31 @@ jest.mock('@/lib/foundation/usePiano', () => ({
   usePiano: () => ({
     play: mockPlay,
     stop: mockStop,
-    ready: true,
+    ready: mockPianoReady,
     playing: mockPlaying,
     error: null,
   }),
 }));
 jest.mock('@/lib/foundation/FoundationProvider', () => ({
   useFoundation: () => ({
-    ready: true,
+    ready: mockReady,
+    now: new Date(),
     debug: mockDebug,
     error: null,
     state: deriveProgram(mockEvents),
     snapshot: { events: mockEvents },
     append: mockAppend,
     sync: async () => {},
-    store: { append: mockAppend },
+    store: mockStore,
   }),
 }));
 beforeEach(() => {
   jest.useFakeTimers();
   mockPlaying = false;
+  mockParams = {};
+  mockReady = true;
+  mockPianoReady = true;
+  mockPush.mockClear();
   mockDebug = false;
   mockReduceMotion = false;
   mockAnimate.mockClear();
@@ -132,7 +151,10 @@ const press = async (root: ReactTestRenderer, title: string) => {
   await act(async () => {
     const target =
       button(root, title) ??
-      root.root.findAllByType(PictureButton).find(n => n.props.label === title);
+      root.root.findAllByType(PictureButton).find(n => n.props.label === title) ??
+      root.root.findAll(
+        n => n.type === ('Pressable' as any) && n.props.accessibilityLabel === title
+      )[0];
     expect(target).toBeDefined();
     expect(target.props.disabled).not.toBe(true);
     target.props.onPress();
@@ -478,6 +500,8 @@ test('a parent can save all fourteen animals and turn off the introduction mix',
 
 test('parent settings show one short section and save an explicit device-reminder opt-in', async () => {
   const root = await render(<ParentSettings />);
+  expect(root.root.findAllByType(AnimalPlan)).toHaveLength(0);
+  await press(root, 'AI reviews & animals');
   expect(root.root.findAllByType(AnimalPlan)).toHaveLength(1);
   expect(root.root.findAllByType(AiReview)).toHaveLength(1);
   await press(root, 'Background');
@@ -502,5 +526,133 @@ test('parent settings show one short section and save an explicit device-reminde
   await press(root, 'Routine');
   expect(root.root.findAll(node => node.type === ('Switch' as any))).toHaveLength(0);
   expect(button(root, 'Save routine')).toBeDefined();
+  await act(async () => root.unmount());
+});
+
+test('prepared home starts practice directly and keeps records behind parent settings', async () => {
+  const root = await render(<ParentHome />);
+  expect(button(root, 'Let’s listen!')).toBeDefined();
+  expect(JSON.stringify(root.toJSON())).not.toMatch(
+    /check-in|ready to share|Open practice record|Meet your listening friends/
+  );
+  await press(root, 'Let’s listen!');
+  expect(mockPush).toHaveBeenLastCalledWith('/practice?start=1&reference=unknown');
+  await press(root, 'No');
+  await press(root, 'Let’s listen!');
+  expect(mockPush).toHaveBeenLastCalledWith('/practice?start=1&reference=no');
+  await press(root, 'Parent settings');
+  expect(mockPush).toHaveBeenLastCalledWith('/settings');
+  await act(async () => root.unmount());
+});
+
+test('unprepared home requires the tutorial and a rest day cannot start practice', async () => {
+  mockEvents = [];
+  const first = await render(<ParentHome />);
+  expect(button(first, 'Let’s listen!')).toBeUndefined();
+  expect(button(first, 'Parent preparation · 0 of 3 complete')).toBeDefined();
+  await act(async () => first.unmount());
+  mockEvents = PREPARATION_IDS.map(lessonId => makeEvent('preparation', { lessonId }));
+  const state = deriveProgram(mockEvents);
+  mockEvents.push(
+    makeEvent('pause', {
+      date: new Date().toLocaleDateString('en-CA', { timeZone: state.preferences.timeZone }),
+      paused: true,
+    })
+  );
+  const second = await render(<ParentHome />);
+  expect(button(second, 'Let’s listen!')).toBeUndefined();
+  expect(button(second, 'Resume today’s plan')).toBeDefined();
+  await act(async () => second.unmount());
+});
+
+test('settings overview gives access to records, guide and sound check', async () => {
+  const root = await render(<ParentSettings />);
+  for (const [label, path] of [
+    ['Practice record', '/records'],
+    ['Parent guide', '/guide'],
+    ['Sound check', '/practice'],
+  ]) {
+    await press(root, label);
+    expect(mockPush).toHaveBeenLastCalledWith(path);
+  }
+  await act(async () => root.unmount());
+});
+
+test('direct start waits for data and piano, starts once, and preserves first-sound context', async () => {
+  mockParams = { start: '1', reference: 'no' };
+  mockReady = false;
+  mockPianoReady = false;
+  const root = await render();
+  expect(mockAppend).not.toHaveBeenCalled();
+  mockReady = true;
+  await act(async () => root.update(<Practice />));
+  expect(mockAppend).not.toHaveBeenCalled();
+  mockPianoReady = true;
+  await act(async () => root.update(<Practice />));
+  await act(async () => root.update(<Practice />));
+  const sessions = mockEvents.filter(e => e.kind === 'sessionStarted');
+  expect(sessions).toHaveLength(1);
+  expect(sessions[0].data.recentPitchReference).toBe('no');
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  expect(trials()).toHaveLength(0);
+  await act(async () => root.unmount());
+});
+
+test('direct start never bypasses preparation or spacing', async () => {
+  mockParams = { start: '1' };
+  mockEvents = [];
+  const unprepared = await render();
+  expect(mockEvents.filter(e => e.kind === 'sessionStarted')).toHaveLength(0);
+  await act(async () => unprepared.unmount());
+  mockEvents = PREPARATION_IDS.map(lessonId => makeEvent('preparation', { lessonId }));
+  const first = await render();
+  expect(mockEvents.find(e => e.kind === 'sessionStarted')?.data.recentPitchReference).toBe(
+    'unknown'
+  );
+  await choose(first);
+  await act(async () => first.unmount());
+  const spaced = await render();
+  expect(mockEvents.filter(e => e.kind === 'sessionStarted')).toHaveLength(1);
+  await act(async () => spaced.unmount());
+});
+
+test('direct-start audio failures offer replay without recording an answer', async () => {
+  mockParams = { start: '1', reference: 'yes' };
+  mockPlay.mockRejectedValueOnce(new Error('No sound'));
+  const root = await render();
+  expect(trials()).toHaveLength(0);
+  expect(mockEvents.find(e => e.kind === 'sessionStarted')?.data.recentPitchReference).toBe('yes');
+  await press(root, 'Play sound');
+  await choose(root);
+  expect(trials()).toHaveLength(1);
+  await act(async () => root.unmount());
+});
+
+test('parent notes are optional and available before a two-week date', async () => {
+  const root = await render(<PracticeRecord />);
+  expect(JSON.stringify(root.toJSON())).not.toMatch(/Check-in:|Share practice record/);
+  await press(root, 'Add a parent note');
+  const input = root.root.findAll(
+    n => n.type === ('TextInput' as any) && n.props.accessibilityLabel === 'Parent note'
+  )[0];
+  await act(async () => input.props.onChangeText('Tired after nursery today.'));
+  await press(root, 'Save note');
+  expect(mockEvents.find(e => e.kind === 'checkIn')?.data.note).toBe('Tired after nursery today.');
+  expect(button(root, 'Export record')).toBeDefined();
+  await act(async () => root.unmount());
+});
+
+test('direct start respects rest days', async () => {
+  mockParams = { start: '1' };
+  const state = deriveProgram(mockEvents);
+  mockEvents.push(
+    makeEvent('pause', {
+      date: new Date().toLocaleDateString('en-CA', { timeZone: state.preferences.timeZone }),
+      paused: true,
+    })
+  );
+  const root = await render();
+  expect(mockEvents.filter(e => e.kind === 'sessionStarted')).toHaveLength(0);
+  expect(mockPlay).not.toHaveBeenCalled();
   await act(async () => root.unmount());
 });

@@ -36,12 +36,14 @@ export const Page = ({
   children,
   back = true,
   backgroundPicker = false,
+  headerAction,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   back?: boolean;
   backgroundPicker?: boolean;
+  headerAction?: React.ReactNode;
 }) => {
   const palette = usePalette();
   const router = useRouter();
@@ -60,7 +62,7 @@ export const Page = ({
       style={{ flex: 1, backgroundColor: palette.appBackground }}
     >
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-        {backgroundPicker ? <BackgroundPicker leading={backButton} /> : backButton}
+        {backgroundPicker ? <BackgroundPicker leading={backButton ?? headerAction} /> : backButton}
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
           {title}
         </Text>

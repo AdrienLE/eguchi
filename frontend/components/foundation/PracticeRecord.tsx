@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import AiReview from './AiReview';
 import { TextInput } from 'react-native';
 import { useFoundation } from '@/lib/foundation/FoundationProvider';
 import {
@@ -55,13 +56,16 @@ export default function PracticeRecord() {
     }
   return (
     <Page title="Practice record" subtitle="Your notes for the next check-in.">
+      <AiReview />
       <Card>
         <Heading>
           {f.state.reviewOn
             ? `Check-in: ${f.state.reviewOn}`
             : 'Check in after the first two weeks'}
         </Heading>
-        <Body>You choose when to change the animal plan. Automatic assessment is not active.</Body>
+        <Body>
+          Parent check-ins add context. The server’s two-week AI review runs on its own schedule.
+        </Body>
         {todaySummary(f.state).reviewDue && (
           <>
             <TextInput

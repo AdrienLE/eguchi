@@ -207,14 +207,45 @@ def enqueue_due(db, now):
     db.commit()
 
 
+def enqueue_review_decision(db, user_id, event, now):
+    """Share the reviewEmail opt-in; registration alone never subscribes a parent."""
+    contact = db.get(models.FoundationContact, user_id)
+    if (
+        not contact
+        or not contact.verified
+        or not user_state(db, user_id)["preferences"]["reviewEmail"]
+    ):
+        return
+    key = hashlib.sha256(json.dumps([user_id, "decision", event["id"]]).encode()).hexdigest()
+    if db.get(models.FoundationDelivery, key):
+        return
+    db.add(
+        models.FoundationDelivery(
+            id=key,
+            user_id=user_id,
+            kind="decision",
+            channel="email",
+            period=event["id"],
+            destination=contact.email,
+            status="pending",
+            attempts=0,
+            next_attempt_at=iso(now),
+            receipt_checked=False,
+        )
+    )
+
+
 def still_allowed(db, row, now):
     state = user_state(db, row.user_id)
     today = daily_status(state, now)
     prefs = state["preferences"]
     if (
         not state["prepared"]
-        or today["paused"]
-        or not prefs[row.kind + ("Email" if row.channel == "email" else "Push")]
+        or (today["paused"] and row.kind != "decision")
+        or not prefs[
+            ("review" if row.kind == "decision" else row.kind)
+            + ("Email" if row.channel == "email" else "Push")
+        ]
     ):
         return False, state, today
     if row.channel == "email":
@@ -235,9 +266,26 @@ def still_allowed(db, row, now):
 
 
 def message_for(row, state, today):
-    if row.kind == "review":
+    if row.kind == "decision":
+        review = next(e["data"] for e in state["aiReviews"] if e["id"] == row.period)
+        label = {
+            "advance": "Ready for the next sound",
+            "hold": "Keep the current sounds",
+            "needs-guidance": "A parent or teacher check is needed",
+        }[review["decision"]]
+        subject = "Eguchi Ears review: " + label
+        plan = (
+            f"The plan moved from level {review['stageBefore']} to {review['stageAfter']}."
+            if review["applied"]
+            else f"The plan stayed at level {review['stageBefore']}."
+        )
+        body = f"Your two-week listening review is ready ({review['reviewedOn']}).\n\n{label}. {plan}\n\n{review['reason']}\n\nNext step: {review['nextStep']}"
+        if review["uncertainties"]:
+            body += "\n\nStill uncertain: " + " ".join(review["uncertainties"])
+        body += f"\n\nNext AI review: {review['nextReviewOn']}. Open Practice record for the book references. You can override the animal plan or pause AI reviews in Parent settings. This app's AI review is an adaptation, not a diagnosis or a guarantee of absolute pitch."
+    elif row.kind == "review":
         subject = "Your two-week Eguchi check-in is due"
-        body = "Your next two-week practice check-in is ready. Open Eguchi Ears to view or share the practice record.\n\nAn automated assessment is not available yet. The app keeps your current animals. A parent can change the practice set in Parent settings; this reminder does not recommend advancing."
+        body = "Your next two-week parent check-in is ready. Open Eguchi Ears to view or share the practice record and add your observations.\n\nAI level reviews run separately on the server when enabled. See Practice record for the latest decision and explanation. A reminder becoming due does not itself recommend advancing."
     else:
         remaining = today["remaining"]
         subject = (

@@ -33,10 +33,14 @@ from .database import Base, engine, SessionLocal, enable_sqlite_check_same_threa
 from . import models
 from .foundation_api import create_foundation_router
 from .foundation_reminders import email_configured, reminders_enabled, reminder_worker
+from .foundation_reviews import reviews_enabled, review_worker
 
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("uvicorn").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
 logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
@@ -116,15 +120,17 @@ async def lifespan(app: FastAPI):
         logger.info(f"Environment variables: PORT={os.getenv('PORT')}")
         logger.info(f"Frontend dist exists: {os.path.exists('frontend/dist')}")
     worker = asyncio.create_task(reminder_worker()) if reminders_enabled() else None
+    ai_worker = asyncio.create_task(review_worker()) if reviews_enabled() else None
     try:
         yield
     finally:
-        if worker:
-            worker.cancel()
-            try:
-                await worker
-            except asyncio.CancelledError:
-                pass
+        for task in (worker, ai_worker):
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
 
 app = FastAPI(lifespan=lifespan)
@@ -171,6 +177,7 @@ def health_check():
         "foundation": "eguchi-foundation-1",
         "parent_email": "configured" if email_configured() else "not configured",
         "parent_reminders": "enabled" if reminders_enabled() else "disabled",
+        "ai_reviews": "enabled" if reviews_enabled() else "disabled",
     }
 
 

@@ -308,7 +308,8 @@ def test_review_reminder_is_once_per_review_and_never_claims_assessment(setup):
     reminders.run_reminders_once(factory, NOW + timedelta(days=1))
     assert len(sent) == 1
     assert "check-in is due" in sent[0][1]
-    assert "not available" in sent[0][2] and "parent can change" in sent[0][2]
+    assert "AI level reviews run separately" in sent[0][2]
+    assert "does not itself recommend advancing" in sent[0][2]
     assert client.get("/api/foundation/review-record").json()["assessment"] == "not-performed"
 
 

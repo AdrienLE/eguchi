@@ -57,6 +57,7 @@ test('offline sync retains its queue and a retry is safe', async () => {
   await store.sync('account-a', api);
   expect(store.getSnapshot().events).toHaveLength(1);
   expect(store.getSnapshot().pendingIds).toHaveLength(0);
+  expect(post.mock.calls[1][1]).toMatchObject({ hasMorePending: false });
 });
 test('a response arriving during sync does not get lost or sent to another account', async () => {
   const a = new FoundationStore(memory());

@@ -21,6 +21,7 @@ export type Observation =
   | 'listening-only';
 export type ResponseKind = 'independent' | 'incorrect' | 'helped' | 'no-response';
 export interface Preferences {
+  aiReviewEnabled: boolean;
   timeZone: string;
   stage: number;
   activeChordIds: ChordId[];
@@ -34,6 +35,25 @@ export interface Preferences {
   reviewPush: boolean;
 }
 export type EventPayloads = {
+  aiReview: {
+    decision: 'advance' | 'hold' | 'needs-guidance';
+    confidence: 'high' | 'medium' | 'low';
+    reason: string;
+    nextStep: string;
+    uncertainties: string[];
+    sourceIds: string[];
+    sourceReferences: string[];
+    applied: boolean;
+    stageBefore: number;
+    stageAfter: number;
+    reviewedOn: string;
+    nextReviewOn: string;
+    model: string;
+    reasoningEffort: string;
+    policyVersion: string;
+    guardReasons: string[];
+    evidenceHash: string;
+  };
   background: {
     ageMonths: number | null;
     priorTraining: 'none' | 'some' | 'unknown';
@@ -94,6 +114,7 @@ export interface PracticeSession {
   end?: Extract<FoundationEvent, { kind: 'sessionEnded' }>;
 }
 export interface ProgramState {
+  aiReviews: Extract<FoundationEvent, { kind: 'aiReview' }>[];
   preferences: Preferences;
   prepared: LessonId[];
   sessions: PracticeSession[];
@@ -105,6 +126,7 @@ export interface ProgramState {
 export const defaultPreferences = (
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 ): Preferences => ({
+  aiReviewEnabled: true,
   timeZone,
   stage: 1,
   activeChordIds: ['C-E-G'],
@@ -159,6 +181,11 @@ export const deriveProgram = (events: FoundationEvent[], timeZone?: string): Pro
   for (const event of ordered) {
     if (event.protocol !== PROTOCOL_VERSION) continue;
     if (event.kind === 'preferences') Object.assign(preferences, event.data);
+    if (event.kind === 'aiReview' && event.data.applied) {
+      preferences.stage = event.data.stageAfter;
+      preferences.activeChordIds = CHORD_CURRICULUM.slice(0, event.data.stageAfter).map(c => c.id);
+      preferences.introductionChordId = CHORD_CURRICULUM[event.data.stageAfter - 1].id;
+    }
     if (event.kind === 'preparation') prepared.add(event.data.lessonId);
     if (event.kind === 'pause') {
       if (event.data.paused) pausedDates.add(event.data.date);
@@ -193,6 +220,9 @@ export const deriveProgram = (events: FoundationEvent[], timeZone?: string): Pro
   );
   const reviewBase = checkIns.at(-1)?.data.date ?? startedOn;
   return {
+    aiReviews: ordered.filter(
+      (e): e is Extract<FoundationEvent, { kind: 'aiReview' }> => e.kind === 'aiReview'
+    ),
     checkIns,
     preferences,
     prepared: [...prepared],
@@ -247,9 +277,10 @@ export const reviewRecord = (events: FoundationEvent[], now = new Date()) => {
     exportedAt: now.toISOString(),
     phase: 'chord-colors',
     reviewOn: state.reviewOn,
-    assessment: 'not-performed',
+    assessment: state.aiReviews.length ? 'ai-reviewed' : 'not-performed',
+    aiReviews: state.aiReviews,
     interpretation:
-      'One-choice trials measure participation only. Trial events preserve the original tap; assistance annotations identify parent-assisted answers, which must be excluded from unaided results and confusion pairs. No mastery or advancement is inferred.',
+      'One-choice trials measure participation only. Trial events preserve the original tap; assisted answers are excluded from unaided results and confusion pairs. Server AI reviews record level decisions and their sources separately; these are not a diagnosis of absolute pitch.',
     background: [...mergeEvents(events)].reverse().find(e => e.kind === 'background') ?? null,
     checkIns: state.checkIns,
     prepared: state.prepared,

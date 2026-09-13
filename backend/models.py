@@ -63,6 +63,36 @@ class FoundationContact(Base):
     attempts = Column(Integer, nullable=False, default=0)
 
 
+class FoundationReviewAccount(Base):
+    """Serializes event writes and review application across processes."""
+
+    __tablename__ = "foundation_review_accounts"
+    user_id = Column(String, primary_key=True)
+    revision = Column(Integer, nullable=False, default=0)
+    uploaded_at = Column(String, nullable=True)
+    upload_pending = Column(Boolean, nullable=False, default=False)
+
+
+class FoundationReview(Base):
+    __tablename__ = "foundation_reviews"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, index=True)
+    due_on = Column(String, nullable=False)
+    status = Column(String, nullable=False, index=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    retry_at = Column(String, nullable=False)
+    claimed_at = Column(String, nullable=True)
+    completed_at = Column(String, nullable=True)
+    evidence_json = Column(Text, nullable=True)
+    evidence_hash = Column(String, nullable=True)
+    result_json = Column(Text, nullable=True)
+    usage_json = Column(Text, nullable=True)
+    model = Column(String, nullable=False)
+    effort = Column(String, nullable=False)
+    failure = Column(String, nullable=True)
+    __table_args__ = (UniqueConstraint("user_id", "due_on"),)
+
+
 class FoundationDevice(Base):
     __tablename__ = "foundation_devices"
     token = Column(String, primary_key=True)

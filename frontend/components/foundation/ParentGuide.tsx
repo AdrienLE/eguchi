@@ -29,7 +29,7 @@ const DETAILS = [
   },
   {
     title: 'When do we move on?',
-    body: 'A parent decides when to add the next animal in Parent settings. Introduce new sounds gently among familiar ones. Review the record every two weeks; automatic assessment and advancement rules are not active yet.',
+    body: 'When signed in, the server can review synced practice every two weeks and introduce one new sound when the book-based evidence supports it. See Practice record for the explanation. You can pause AI reviews or override the animal plan in Parent settings. New sounds are introduced gently; the later note-name phase needs parent or teacher guidance.',
   },
   {
     title: 'What does the record tell us?',

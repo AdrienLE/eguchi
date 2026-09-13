@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, jest, test } from '@jest/globals';
 import ParentSettings from '@/components/foundation/ParentSettings';
 import AnimalPlan from '@/components/foundation/AnimalPlan';
 import AnimalCard from '@/components/foundation/AnimalCard';
+import DebugTools from '@/components/foundation/DebugTools';
 import { CHORD_CURRICULUM } from '@/lib/foundation/curriculum';
 import Practice, { FEEDBACK_MS } from '@/components/foundation/Practice';
 import { Button, PictureButton } from '@/components/foundation/ui';
@@ -21,6 +22,7 @@ const mockStop = jest.fn<() => Promise<void>>();
 const mockAppend = jest.fn<(event: FoundationEvent) => Promise<void>>();
 let mockEvents: FoundationEvent[] = [];
 let mockPlaying = false;
+let mockDebug = false;
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 jest.mock('react-native', () => ({
   View: 'View',
@@ -72,6 +74,7 @@ jest.mock('@/lib/foundation/usePiano', () => ({
 jest.mock('@/lib/foundation/FoundationProvider', () => ({
   useFoundation: () => ({
     ready: true,
+    debug: mockDebug,
     error: null,
     state: deriveProgram(mockEvents),
     snapshot: { events: mockEvents },
@@ -83,6 +86,7 @@ jest.mock('@/lib/foundation/FoundationProvider', () => ({
 beforeEach(() => {
   jest.useFakeTimers();
   mockPlaying = false;
+  mockDebug = false;
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   mockEvents = PREPARATION_IDS.map(lessonId => makeEvent('preparation', { lessonId }));
   mockPlay.mockReset().mockResolvedValue(Date.now());
@@ -136,6 +140,76 @@ test('Ready previews can be replayed and mark the upcoming first sound as primed
   expect(mockEvents.find(e => e.kind === 'sessionStarted')?.data.recentPitchReference).toBe('yes');
   await choose(root);
   expect(trials()[0].data.replays).toBe(0);
+  await act(async () => root.unmount());
+});
+
+test('debug mode can start unprepared and during a rest day or session break', async () => {
+  mockDebug = true;
+  mockEvents = [
+    makeEvent('pause', {
+      date: new Date().toLocaleDateString('en-CA'),
+      paused: true,
+    }),
+  ];
+  const first = await render();
+  await press(first, 'We’re ready to listen');
+  await choose(first);
+  await act(async () => first.unmount());
+  const second = await render();
+  await press(second, 'We’re ready to listen');
+  expect(mockEvents.filter(e => e.kind === 'sessionStarted')).toHaveLength(2);
+  await act(async () => second.unmount());
+});
+
+test('normal practice still enforces the break between sessions', async () => {
+  const first = await render();
+  await press(first, 'We’re ready to listen');
+  await choose(first);
+  await act(async () => first.unmount());
+  const second = await render();
+  await press(second, 'We’re ready to listen');
+  expect(mockEvents.filter(e => e.kind === 'sessionStarted')).toHaveLength(1);
+  await act(async () => second.unmount());
+});
+
+test('debug controls stay hidden normally and advance the entire animal plan immediately', async () => {
+  const hidden = await render(<DebugTools />);
+  expect(hidden.toJSON()).toBeNull();
+  await act(async () => hidden.unmount());
+  mockDebug = true;
+  const root = await render(<DebugTools />);
+  const expand = async () => {
+    // Real user actions have distinct event times; fake timers otherwise freeze both saves.
+    await act(async () => jest.advanceTimersByTime(1));
+    await act(async () =>
+      root.root
+        .findAll(
+          n => n.type === ('Pressable' as any) && n.props.accessibilityLabel === 'Debug tools'
+        )[0]
+        .props.onPress()
+    );
+  };
+  await expand();
+  await press(root, 'Next level · Yellow');
+  expect(deriveProgram(mockEvents).preferences).toMatchObject({
+    stage: 2,
+    activeChordIds: ['C-E-G', 'C-F-A'],
+  });
+  await expand();
+  await press(root, 'Unlock all animals');
+  expect(deriveProgram(mockEvents).preferences.activeChordIds).toHaveLength(14);
+  await expand();
+  expect(button(root, 'All levels unlocked').props.disabled).toBe(true);
+  await act(async () => root.unmount());
+});
+
+test('account and notification actions are absent in the debug sandbox', async () => {
+  mockDebug = true;
+  const root = await render(<ParentSettings />);
+  await press(root, 'Reminders');
+  expect(root.root.findAll(n => n.type === ('Switch' as any))).toHaveLength(0);
+  await press(root, 'Account & email');
+  expect(root.root.findAll(n => n.type === ('TextInput' as any))).toHaveLength(0);
   await act(async () => root.unmount());
 });
 

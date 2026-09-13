@@ -51,6 +51,20 @@ cd frontend
 yarn start
 ```
 
+### Web debug preview
+
+Start `cd frontend && yarn web --port 8081`, then open
+`http://localhost:8081/?debug=True`. Expand **Debug tools** at the top to move to
+the previous/next animal level, unlock all fourteen animals, open parent
+preparation, or reset the debug record. Preparation, daily limits, rest days, and
+session spacing do not block debug practice. Changing levels during a session
+returns to the daily plan so the old session retains its original animal choices.
+
+Debug practice uses a separate local record and never signs in, syncs, or sends
+reminders. The flag follows internal navigation and survives refresh. **Exit debug
+mode** returns to the normal record; removing the flag and reloading does the same.
+This URL mode is web-only and is not a curriculum advancement rule.
+
 ## Configuration
 
 This app uses a centralized configuration system. Main configuration files:

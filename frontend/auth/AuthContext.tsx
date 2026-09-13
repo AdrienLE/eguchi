@@ -9,6 +9,8 @@ import { TOKEN_KEY, resolveStoredAuthToken, getLogoutReturnTo } from './auth-sta
 
 import { getEguchiAccountKey, getEguchiAccountStorage } from '@/lib/eguchi/account-storage';
 import type { StorageService } from '@/lib/storage';
+import { storage } from '@/lib/storage';
+import { getDebugStorage } from '@/lib/foundation/debug';
 
 // Close the Auth0 popup on web if a redirect back to the app occurred
 WebBrowser.maybeCompleteAuthSession();
@@ -30,6 +32,19 @@ const AuthContext = createContext<AuthContextValue>({
   logout: async () => {},
   validateToken: async () => false,
 });
+
+const debugAuth: AuthContextValue = {
+  practiceStorage: getDebugStorage(storage),
+  token: null,
+  loading: false,
+  login: () => {},
+  logout: async () => {},
+  validateToken: async () => false,
+};
+/** Debug previews never mount the real account's authentication effects. */
+export const DebugAuthProvider = ({ children }: { children: React.ReactNode }) => (
+  <AuthContext.Provider value={debugAuth}>{children}</AuthContext.Provider>
+);
 
 const discovery = {
   authorizationEndpoint: `https://${process.env.EXPO_PUBLIC_AUTH0_DOMAIN}/authorize`,

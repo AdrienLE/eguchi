@@ -65,6 +65,7 @@ export class FoundationStore {
     return next;
   };
   append = (event: FoundationEvent) => this.appendMany([event]);
+  reset = () => this.update(() => empty());
   appendMany = (events: FoundationEvent[]) =>
     this.update(current => ({
       ...current,

@@ -6,17 +6,29 @@ import { View } from 'react-native';
 import 'react-native-reanimated';
 
 import { FoundationProvider } from '@/lib/foundation/FoundationProvider';
-import { AuthProvider } from '@/auth/AuthContext';
+import { AuthProvider, DebugAuthProvider } from '@/auth/AuthContext';
+import { DebugModeProvider, useDebugMode } from '@/lib/foundation/DebugMode';
+import DebugTools from '@/components/foundation/DebugTools';
 import { getEguchiTheme } from '@/lib/eguchi/theme';
 import { getRootContentFrameStyle, getSettingsPresentation } from '@/lib/platform-layout';
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
+    <DebugModeProvider>
+      <AccountLayout />
+    </DebugModeProvider>
+  );
+}
+
+function AccountLayout() {
+  const debug = useDebugMode();
+  const AccountProvider = debug ? DebugAuthProvider : AuthProvider;
+  return (
+    <AccountProvider key={debug ? 'debug' : 'normal'}>
       <FoundationProvider>
         <RootLayoutNav />
       </FoundationProvider>
-    </AuthProvider>
+    </AccountProvider>
   );
 }
 
@@ -40,6 +52,7 @@ function RootLayoutNav() {
         }}
       >
         <View style={getRootContentFrameStyle()}>
+          <DebugTools />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="prepare" />

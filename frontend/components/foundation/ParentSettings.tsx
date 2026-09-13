@@ -228,7 +228,13 @@ function ParentSettingsReady() {
           <Button title="Save routine" busy={busy} onPress={() => void saveRoutine()} />
         </Card>
       )}
-      {section === 'account' && (
+      {f.debug && (section === 'account' || section === 'reminders') && (
+        <Notice>
+          Account sync and reminders are off in this debug sandbox. Exit debug mode to configure
+          them.
+        </Notice>
+      )}
+      {!f.debug && section === 'account' && (
         <>
           <Card>
             <Heading>Account & practice backup</Heading>
@@ -366,7 +372,7 @@ function ParentSettingsReady() {
           </Card>
         </>
       )}
-      {section === 'reminders' && (
+      {!f.debug && section === 'reminders' && (
         <Card>
           <Heading>Reminders</Heading>
           <Body>Daily reminders stop on rest days and when today’s sessions are complete.</Body>

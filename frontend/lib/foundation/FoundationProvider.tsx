@@ -14,7 +14,10 @@ import { getEguchiAccountKey } from '@/lib/eguchi/account-storage';
 import { deriveProgram, type FoundationEvent, type ProgramState } from './program';
 import { getFoundationStore, type FoundationSnapshot, type FoundationStore } from './store';
 import { reconcileNotifications, type NotificationMode } from './notifications';
+import { useDebugMode } from './DebugMode';
 interface Context {
+  debug: boolean;
+  resetDebug: () => Promise<void>;
   store: FoundationStore;
   snapshot: FoundationSnapshot;
   state: ProgramState;
@@ -28,6 +31,7 @@ interface Context {
 }
 const FoundationContext = createContext<Context | null>(null);
 export const FoundationProvider = ({ children }: { children: React.ReactNode }) => {
+  const debug = useDebugMode();
   const { practiceStorage, token, loading } = useAuth();
   const store = useMemo(() => getFoundationStore(practiceStorage), [practiceStorage]);
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
@@ -71,8 +75,8 @@ export const FoundationProvider = ({ children }: { children: React.ReactNode }) 
     };
   }, []);
   const sync = useCallback(async () => {
-    if (!token) {
-      setSyncStatus('Saved on this device');
+    if (debug || !token) {
+      setSyncStatus(debug ? 'Debug sandbox · saved locally' : 'Saved on this device');
       return;
     }
     setSyncStatus('Syncing…');
@@ -82,7 +86,7 @@ export const FoundationProvider = ({ children }: { children: React.ReactNode }) 
     } catch (error) {
       setSyncStatus(error instanceof Error ? error.message : 'Saved locally; sync will retry.');
     }
-  }, [store, token]);
+  }, [store, token, debug]);
   useEffect(() => {
     if (!ready) return;
     const timer = setTimeout(() => {
@@ -91,7 +95,7 @@ export const FoundationProvider = ({ children }: { children: React.ReactNode }) 
     return () => clearTimeout(timer);
   }, [ready, snapshot.pendingIds.length, foreground, sync]);
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || debug) return;
     let active = true;
     const timer = setTimeout(() => {
       void reconcileNotifications(state, token, getEguchiAccountKey(token))
@@ -106,7 +110,12 @@ export const FoundationProvider = ({ children }: { children: React.ReactNode }) 
       active = false;
       clearTimeout(timer);
     };
-  }, [ready, state, token, foreground]);
+  }, [ready, state, token, foreground, debug]);
+  const resetDebug = useCallback(async () => {
+    if (!debug || !ready) throw new Error('Only the debug sandbox can be reset here.');
+    await store.reset();
+    setNow(new Date());
+  }, [debug, ready, store]);
   const append = useCallback(
     async (event: FoundationEvent) => {
       if (!ready) throw new Error('Please wait for your practice record to open.');
@@ -118,6 +127,8 @@ export const FoundationProvider = ({ children }: { children: React.ReactNode }) 
   return (
     <FoundationContext.Provider
       value={{
+        debug,
+        resetDebug,
         store,
         snapshot,
         state,

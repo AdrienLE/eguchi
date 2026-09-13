@@ -42,9 +42,9 @@ export default function ParentHome() {
       </Page>
     );
   const today = todaySummary(f.state, f.now);
-  const prepared = isPrepared(f.state);
+  const prepared = f.debug || isPrepared(f.state);
   const next = nextSessionAt(f.state, f.now);
-  const waiting = next > f.now;
+  const waiting = !f.debug && next > f.now;
   const pause = async () => {
     try {
       await f.append(makeEvent('pause', { date: today.date, paused: !today.paused }));
@@ -84,11 +84,13 @@ export default function ParentHome() {
         <>
           <Card style={{ backgroundColor: '#F0F8FF', borderColor: '#BFD9EC' }}>
             <Heading>
-              {today.paused
-                ? 'A rest day'
-                : today.remaining === 0
-                  ? 'All done for today!'
-                  : 'Today’s little sessions'}
+              {f.debug
+                ? 'Debug practice'
+                : today.paused
+                  ? 'A rest day'
+                  : today.remaining === 0
+                    ? 'All done for today!'
+                    : 'Today’s little sessions'}
             </Heading>
             <View style={styles.row}>
               {Array.from({ length: f.state.preferences.dailyGoal }, (_, i) => (
@@ -126,15 +128,17 @@ export default function ParentHome() {
               remaining{today.shortened ? ` · ${today.shortened} stopped early` : ''}
             </Body>
             <Body muted>
-              {today.paused
-                ? 'Rest today. Your usual plan returns tomorrow.'
-                : today.remaining === 0
-                  ? 'Enjoy the rest of your day.'
-                  : waiting
-                    ? `Next session from ${next.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
-                    : `${sessionTarget(f.state.preferences.activeChordIds)} presentations · about 2–3 minutes.`}
+              {f.debug
+                ? `${sessionTarget(f.state.preferences.activeChordIds)} presentations · practice waits skipped`
+                : today.paused
+                  ? 'Rest today. Your usual plan returns tomorrow.'
+                  : today.remaining === 0
+                    ? 'Enjoy the rest of your day.'
+                    : waiting
+                      ? `Next session from ${next.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
+                      : `${sessionTarget(f.state.preferences.activeChordIds)} presentations · about 2–3 minutes.`}
             </Body>
-            {!today.paused && today.remaining > 0 && (
+            {(f.debug || (!today.paused && today.remaining > 0)) && (
               <Button
                 title={waiting ? 'Time for a break' : 'Let’s listen!'}
                 disabled={waiting}

@@ -119,7 +119,10 @@ export default function Practice() {
       const state = stateRef.current.state;
       const now = new Date();
       const today = todaySummary(state, now);
-      if (!isPrepared(state) || today.paused || !today.remaining || nextSessionAt(state, now) > now)
+      if (
+        !f.debug &&
+        (!isPrepared(state) || today.paused || !today.remaining || nextSessionAt(state, now) > now)
+      )
         throw new Error('Return to your daily plan before starting.');
       const active = [...state.preferences.activeChordIds];
       const presentations = planPresentations(active, state.preferences.introductionChordId);
@@ -338,7 +341,7 @@ export default function Practice() {
         {(error || piano.error) && <Notice>{error ?? piano.error}</Notice>}
         <Button
           title="We’re ready to listen"
-          disabled={!piano.ready || !isPrepared(f.state)}
+          disabled={!piano.ready || (!f.debug && !isPrepared(f.state))}
           busy={busy}
           onPress={() => void begin()}
         />

@@ -118,6 +118,9 @@ def test_server_advance_sync_and_one_decision_per_fortnight(setup):
     while data["hasMore"]:
         data = client.post("/api/foundation/sync", json={"cursor": data["cursor"]}).json()
     assert data["events"][-1]["kind"] == "aiReview"
+    exported = client.get("/api/foundation/review-record").json()
+    assert exported["assessment"] == "ai-reviewed"
+    assert exported["aiReviews"][0]["data"]["stageAfter"] == 2
 
 
 @pytest.mark.parametrize(

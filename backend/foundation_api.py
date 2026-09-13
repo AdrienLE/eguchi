@@ -204,12 +204,15 @@ def create_foundation_router(get_db, verify_jwt):
 
     @router.get("/review-record")
     def export(payload=Depends(verify_jwt), db: Session = Depends(get_db)):
+        events = read_events(db, payload["sub"])
+        reviews = [event for event in events if event["kind"] == "aiReview"]
         return {
             "protocol": "eguchi-foundation-1",
             "phase": "chord-colors",
-            "assessment": "not-performed",
-            "interpretation": "One-choice trials measure participation only. Multi-choice trials preserve unaided choices and confusion pairs.",
-            "events": read_events(db, payload["sub"]),
+            "assessment": "ai-reviewed" if reviews else "not-performed",
+            "interpretation": "One-choice trials measure participation only. Multi-choice trials preserve unaided choices and confusion pairs. Server AI decisions are an app adaptation, not a diagnosis of absolute pitch.",
+            "aiReviews": reviews,
+            "events": events,
         }
 
     return router

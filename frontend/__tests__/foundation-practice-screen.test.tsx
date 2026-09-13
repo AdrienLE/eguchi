@@ -10,6 +10,7 @@ import AnimalPlan from '@/components/foundation/AnimalPlan';
 import AnimalCard from '@/components/foundation/AnimalCard';
 import DebugTools from '@/components/foundation/DebugTools';
 import { CHORD_CURRICULUM } from '@/lib/foundation/curriculum';
+import { normalizePlayroomOptions, type PlayroomOptions } from '@/lib/foundation/playroom-options';
 import Practice, { FEEDBACK_MS } from '@/components/foundation/Practice';
 import { Button, PictureButton } from '@/components/foundation/ui';
 import {
@@ -29,6 +30,10 @@ const mockPush = jest.fn();
 let mockParams: { start?: string; reference?: string; section?: string } = {};
 let mockReady = true;
 let mockPianoReady = true;
+let mockOptionsReady = true;
+let mockOptions = normalizePlayroomOptions(null);
+let mockPlatform = 'ios';
+const mockUpdateOptions = jest.fn<(patch: Partial<PlayroomOptions>) => Promise<void>>();
 let mockEvents: FoundationEvent[] = [];
 let mockPlaying = false;
 let mockDebug = false;
@@ -36,6 +41,16 @@ let mockReduceMotion = false;
 const mockAnimate = jest.fn();
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 jest.mock('@/lib/foundation/export', () => ({ exportPracticeRecord: async () => {} }));
+jest.mock('@/lib/foundation/Appearance', () => ({
+  useAppearance: () => ({
+    background: require('@/lib/eguchi/playroom-backgrounds').getPlayroomBackground('pink'),
+    options: mockOptions,
+    ready: mockOptionsReady,
+    saving: false,
+    error: null,
+    updateOptions: mockUpdateOptions,
+  }),
+}));
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
   usePathname: () => '/',
@@ -67,7 +82,11 @@ jest.mock('react-native', () => ({
   ScrollView: 'ScrollView',
   ActivityIndicator: 'ActivityIndicator',
   StyleSheet: { create: (value: unknown) => value },
-  Platform: { OS: 'ios' },
+  Platform: {
+    get OS() {
+      return mockPlatform;
+    },
+  },
   useWindowDimensions: () => ({ width: 1024, height: 1366 }),
   AppState: {
     addEventListener: (_name: string, callback: (state: string) => void) => {
@@ -123,6 +142,12 @@ beforeEach(() => {
   mockParams = {};
   mockReady = true;
   mockPianoReady = true;
+  mockOptionsReady = true;
+  mockOptions = normalizePlayroomOptions(null);
+  mockPlatform = 'ios';
+  mockUpdateOptions.mockReset().mockImplementation(async patch => {
+    mockOptions = { ...mockOptions, ...patch };
+  });
   mockPush.mockClear();
   mockDebug = false;
   mockReduceMotion = false;
@@ -160,7 +185,20 @@ const press = async (root: ReactTestRenderer, title: string) => {
     target.props.onPress();
   });
 };
+const openSettings = async (root: ReactTestRenderer, title: string) => {
+  if (button(root, 'All parent settings')) await press(root, 'All parent settings');
+  await press(root, title);
+};
 const trials = () => mockEvents.filter(event => event.kind === 'trial');
+const holdNoResponse = async (root: ReactTestRenderer) => {
+  await act(async () =>
+    root.root
+      .findAll(
+        n => n.type === ('Pressable' as any) && n.props.accessibilityLabel === 'No response'
+      )[0]
+      .props.onLongPress()
+  );
+};
 const choose = async (root: ReactTestRenderer, id = 'C-E-G') => {
   await act(async () => {
     root.root
@@ -249,9 +287,9 @@ test('debug controls stay hidden normally and advance the entire animal plan imm
 test('account and notification actions are absent in the debug sandbox', async () => {
   mockDebug = true;
   const root = await render(<ParentSettings />);
-  await press(root, 'Reminders');
+  await openSettings(root, 'Reminders');
   expect(root.root.findAll(n => n.type === ('Switch' as any))).toHaveLength(0);
-  await press(root, 'Account & email');
+  await openSettings(root, 'Account & email');
   expect(root.root.findAll(n => n.type === ('TextInput' as any))).toHaveLength(0);
   await act(async () => root.unmount());
 });
@@ -305,7 +343,7 @@ test('parent help on feedback annotates the tap, can be undone, and restarts the
 test('backgrounding ends the session without inventing a parent observation', async () => {
   const root = await render();
   await press(root, 'We’re ready to listen');
-  await press(root, 'No response');
+  await holdNoResponse(root);
   await act(async () => {
     mockBackground?.('background');
   });
@@ -429,7 +467,7 @@ test.each(['correct', 'incorrect', 'no-response'])(
     expect(mockAnimate).not.toHaveBeenCalled();
     const start = mockEvents.find(e => e.kind === 'sessionStarted')!;
     const heard = start.data.presentationPlan![0];
-    if (response === 'no-response') await press(root, 'No response');
+    if (response === 'no-response') await holdNoResponse(root);
     else await choose(root, response === 'correct' ? heard : heard === 'C-E-G' ? 'C-F-A' : 'C-E-G');
     expect(mockAnimate).toHaveBeenCalledTimes(1);
     expect(
@@ -504,15 +542,15 @@ test('parent settings show one short section and save an explicit device-reminde
   await press(root, 'AI reviews & animals');
   expect(root.root.findAllByType(AnimalPlan)).toHaveLength(1);
   expect(root.root.findAllByType(AiReview)).toHaveLength(1);
-  await press(root, 'Background');
+  await openSettings(root, 'Background');
   expect(root.root.findAllByType(AnimalPlan)).toHaveLength(0);
   expect(root.root.findAllByType(AiReview)).toHaveLength(0);
   expect(root.root.findAllByType(BackgroundPicker)).toHaveLength(1);
-  await press(root, 'Animals');
+  await openSettings(root, 'AI reviews & animals');
   expect(root.root.findAllByType(AiReview)).toHaveLength(1);
   expect(root.root.findAllByType(AnimalPlan)).toHaveLength(1);
   expect(root.root.findAllByType(BackgroundPicker)).toHaveLength(0);
-  await press(root, 'Reminders');
+  await openSettings(root, 'Reminders');
   expect(root.root.findAllByType(AnimalPlan)).toHaveLength(0);
   const reminder = root.root.findAll(
     node =>
@@ -523,7 +561,7 @@ test('parent settings show one short section and save an explicit device-reminde
     reminder.props.onValueChange(true);
   });
   expect(deriveProgram(mockEvents).preferences.dailyPush).toBe(true);
-  await press(root, 'Routine');
+  await openSettings(root, 'Daily routine');
   expect(root.root.findAll(node => node.type === ('Switch' as any))).toHaveLength(0);
   expect(button(root, 'Save routine')).toBeDefined();
   await act(async () => root.unmount());
@@ -654,5 +692,119 @@ test('direct start respects rest days', async () => {
   const root = await render();
   expect(mockEvents.filter(e => e.kind === 'sessionStarted')).toHaveLength(0);
   expect(mockPlay).not.toHaveBeenCalled();
+  await act(async () => root.unmount());
+});
+
+test('custom feedback duration drives both the progress bar and advancement', async () => {
+  mockOptions.feedbackMs = 8000;
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  await choose(root);
+  await act(async () => jest.advanceTimersByTime(4000));
+  expect(
+    root.root.find(n => n.props.accessibilityRole === 'progressbar').props.accessibilityValue.now
+  ).toBe(50);
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await act(async () => jest.advanceTimersByTime(4000));
+  expect(mockPlay).toHaveBeenCalledTimes(2);
+  await act(async () => root.unmount());
+});
+
+test('short feedback still waits for the complete piano sound', async () => {
+  mockOptions.feedbackMs = 1000;
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  mockPlaying = true;
+  await choose(root);
+  await act(async () => jest.advanceTimersByTime(1000));
+  expect(
+    root.root.find(n => n.props.accessibilityRole === 'progressbar').props.accessibilityValue
+  ).toMatchObject({ now: 100, text: 'Finishing sound' });
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  mockPlaying = false;
+  await act(async () => root.update(<Practice />));
+  expect(mockPlay).toHaveBeenCalledTimes(2);
+  await act(async () => root.unmount());
+});
+
+test('an ordinary tap cannot mark no response when hold protection is enabled', async () => {
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  await press(root, 'No response');
+  expect(trials()).toHaveLength(0);
+  await holdNoResponse(root);
+  expect(trials()).toHaveLength(1);
+  expect(trials()[0].data.response).toBe('no-response');
+  await act(async () => root.unmount());
+});
+
+test('no-response holds respect pause and the parent can opt back into taps', async () => {
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  await press(root, 'Pause practice');
+  await holdNoResponse(root);
+  expect(trials()).toHaveLength(0);
+  await press(root, 'Resume practice');
+  mockOptions.holdNoResponse = false;
+  await act(async () => root.update(<Practice />));
+  await press(root, 'No response');
+  expect(trials()).toHaveLength(1);
+  await act(async () => root.unmount());
+});
+
+test.each([{ nativeEvent: { detail: 0 } }, { key: 'Enter' }, { key: ' ' }])(
+  'web accessible activation %j works while pointer clicks remain protected',
+  async activation => {
+    mockPlatform = 'web';
+    const root = await render();
+    await press(root, 'We’re ready to listen');
+    const control = root.root.findAll(
+      n => n.type === ('Pressable' as any) && n.props.accessibilityLabel === 'No response'
+    )[0];
+    await act(async () => control.props.onPress({ nativeEvent: { detail: 1 } }));
+    expect(trials()).toHaveLength(0);
+    await act(async () => control.props.onPress(activation));
+    expect(trials()).toHaveLength(1);
+    await act(async () => root.unmount());
+  }
+);
+
+test('animal movement can be disabled without changing the color reveal or feedback', async () => {
+  mockOptions.animalMotion = false;
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  await choose(root);
+  expect(mockAnimate).not.toHaveBeenCalled();
+  expect(root.root.findAll(n => n.props.accessibilityRole === 'progressbar')).toHaveLength(1);
+  await waitForFeedback();
+  expect(mockPlay).toHaveBeenCalledTimes(2);
+  await act(async () => root.unmount());
+});
+
+test('practice controls are available in settings and update the feedback duration', async () => {
+  const root = await render(<ParentSettings />);
+  await press(root, 'Practice controls');
+  await press(root, 'Longer feedback');
+  expect(mockUpdateOptions).toHaveBeenLastCalledWith({ feedbackMs: 4000 });
+  await act(async () => root.update(<ParentSettings />));
+  await press(root, 'Shorter feedback');
+  expect(mockUpdateOptions).toHaveBeenLastCalledWith({ feedbackMs: 3000 });
+  await act(async () => root.unmount());
+});
+
+test('direct start waits for saved practice controls before opening the session', async () => {
+  mockParams = { start: '1' };
+  mockOptionsReady = false;
+  const root = await render();
+  expect(mockPlay).not.toHaveBeenCalled();
+  mockOptions.feedbackMs = 5000;
+  mockOptionsReady = true;
+  await act(async () => root.update(<Practice />));
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await choose(root);
+  await act(async () => jest.advanceTimersByTime(3000));
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await act(async () => jest.advanceTimersByTime(2000));
+  expect(mockPlay).toHaveBeenCalledTimes(2);
   await act(async () => root.unmount());
 });

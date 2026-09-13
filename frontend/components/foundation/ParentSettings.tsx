@@ -1,5 +1,6 @@
 import AnimalPlan from './AnimalPlan';
 import BackgroundPicker from './BackgroundPicker';
+import PracticeControls from './PracticeControls';
 import AiReview from './AiReview';
 import React, { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, Switch, Text, TextInput, View } from 'react-native';
@@ -30,7 +31,9 @@ function ParentSettingsReady() {
   const palette = usePalette();
   const params = useLocalSearchParams<{ section?: string }>();
   const [section, setSection] = useState(
-    ['animals', 'routine', 'appearance', 'reminders', 'account'].includes(params.section ?? '')
+    ['animals', 'routine', 'controls', 'appearance', 'reminders', 'account'].includes(
+      params.section ?? ''
+    )
       ? params.section!
       : 'overview'
   );
@@ -185,6 +188,12 @@ function ParentSettingsReady() {
                 'Review status and your animal plan',
               ],
               ['routine', 'time-outline', 'Daily routine', 'Practice times and rest days'],
+              [
+                'controls',
+                'options-outline',
+                'Practice controls',
+                'Feedback time, movement and parent taps',
+              ],
               ['reminders', 'notifications-outline', 'Reminders', 'Email and device notifications'],
               [
                 'records',
@@ -231,27 +240,7 @@ function ParentSettingsReady() {
           ))}
         </Card>
       ) : (
-        <>
-          <Button secondary title="All parent settings" onPress={() => setSection('overview')} />
-          <View style={styles.row}>
-            {(['animals', 'routine', 'appearance', 'reminders', 'account'] as const).map(value => (
-              <Button
-                key={value}
-                title={
-                  {
-                    animals: 'Animals',
-                    routine: 'Routine',
-                    appearance: 'Background',
-                    reminders: 'Reminders',
-                    account: 'Account & email',
-                  }[value]
-                }
-                secondary={section !== value}
-                onPress={() => setSection(value)}
-              />
-            ))}
-          </View>
-        </>
+        <Button secondary title="All parent settings" onPress={() => setSection('overview')} />
       )}
       {section === 'animals' && (
         <>
@@ -267,6 +256,7 @@ function ParentSettingsReady() {
           <BackgroundPicker expanded />
         </Card>
       )}
+      {section === 'controls' && <PracticeControls />}
       {section === 'routine' && (
         <Card>
           <Heading>Your daily routine</Heading>

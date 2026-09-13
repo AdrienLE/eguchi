@@ -22,11 +22,13 @@ import {
 } from '@/lib/foundation/curriculum';
 import { animalGridLayout } from '@/lib/foundation/grid';
 import { useAppearance } from '@/lib/foundation/Appearance';
+import { DEFAULT_FEEDBACK_MS } from '@/lib/foundation/playroom-options';
 import AnimalCard from './AnimalCard';
+import NoResponseButton from './NoResponseButton';
 import { Body, Button, Card, Heading, Notice, Page, PictureButton, styles, usePalette } from './ui';
 
 type Phase = 'before' | 'listen' | 'respond' | 'recorded' | 'finish' | 'done';
-export const FEEDBACK_MS = 3000;
+export const FEEDBACK_MS = DEFAULT_FEEDBACK_MS;
 export default function Practice() {
   const f = useFoundation();
   const piano = usePiano();
@@ -35,7 +37,8 @@ export default function Practice() {
   const quickStart = params.start === '1';
   const autoBeginAttempted = useRef(false);
   const p = usePalette();
-  const { background } = useAppearance();
+  const { background, options, ready: optionsReady } = useAppearance();
+  const feedbackMs = options.feedbackMs;
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState<Phase>('before');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -125,6 +128,7 @@ export default function Practice() {
   const begin = () =>
     guarded(async () => {
       const state = stateRef.current.state;
+      if (!optionsReady) throw new Error('Please wait for your practice controls to load.');
       const now = new Date();
       const today = todaySummary(state, now);
       if (
@@ -172,10 +176,11 @@ export default function Practice() {
   const beginRef = useRef(begin);
   beginRef.current = begin;
   useEffect(() => {
-    if (!quickStart || !f.ready || !piano.ready || autoBeginAttempted.current) return;
+    if (!quickStart || !f.ready || !optionsReady || !piano.ready || autoBeginAttempted.current)
+      return;
     autoBeginAttempted.current = true;
     void beginRef.current();
-  }, [quickStart, f.ready, piano.ready]);
+  }, [quickStart, f.ready, optionsReady, piano.ready]);
   const preview = (id: ChordId) =>
     guarded(async () => {
       await piano.play(id);
@@ -255,18 +260,18 @@ export default function Practice() {
     const started = Date.now();
     setFeedbackProgress(0);
     const progress = setInterval(() => {
-      setFeedbackProgress(Math.min(1, (Date.now() - started) / FEEDBACK_MS));
+      setFeedbackProgress(Math.min(1, (Date.now() - started) / feedbackMs));
     }, 50);
     const timer = setTimeout(() => {
       clearInterval(progress);
       setFeedbackProgress(1);
       setFeedbackElapsed(true);
-    }, FEEDBACK_MS);
+    }, feedbackMs);
     return () => {
       clearTimeout(timer);
       clearInterval(progress);
     };
-  }, [phase, count, paused, busy, error, helped]);
+  }, [phase, count, paused, busy, error, helped, feedbackMs]);
   useEffect(() => {
     if (phase === 'recorded' && feedbackElapsed && !paused && !busy && !piano.playing && !error)
       advanceRef.current();
@@ -378,7 +383,7 @@ export default function Practice() {
         {(error || piano.error) && <Notice>{error ?? piano.error}</Notice>}
         <Button
           title="We’re ready to listen"
-          disabled={!piano.ready || (!f.debug && !isPrepared(f.state))}
+          disabled={!piano.ready || !optionsReady || (!f.debug && !isPrepared(f.state))}
           busy={busy}
           onPress={() => void begin()}
         />
@@ -506,7 +511,7 @@ export default function Practice() {
                 id={id}
                 size={layout.size}
                 selected={revealed && id === stimulus}
-                react={phase === 'recorded' && id === stimulus && !paused}
+                react={options.animalMotion && phase === 'recorded' && id === stimulus && !paused}
                 muted={revealed && id !== stimulus}
                 disabled={
                   phase !== 'respond' || busy || paused || revealed || !!pendingTrial.current
@@ -617,13 +622,10 @@ export default function Practice() {
                 onPress={() => void play()}
               />
               {phase === 'respond' && (
-                <PictureButton
-                  small
-                  icon="chatbubble-ellipses-outline"
-                  label="No response"
-                  caption="No response"
+                <NoResponseButton
+                  requireHold={options.holdNoResponse}
                   disabled={busy || paused}
-                  onPress={() => void respond('no-response')}
+                  onRespond={() => void respond('no-response')}
                 />
               )}
             </View>

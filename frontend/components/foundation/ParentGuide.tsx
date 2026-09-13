@@ -9,7 +9,7 @@ const DETAILS = [
   },
   {
     title: 'What if my child hesitates?',
-    body: 'Gently name the color and show its animal. Tap the answer, then mark “I helped” during feedback. If they only listen, use the speech-bubble “No response” button. Avoid repeated guessing or higher/lower clues.',
+    body: 'Gently name the color and show its animal. Tap the answer, then mark “I helped” during feedback. If they only listen, hold the speech-bubble “No response” control for one second (or tap if you changed it in Practice controls). Avoid repeated guessing or higher/lower clues.',
   },
   {
     title: 'Replay or take more time?',

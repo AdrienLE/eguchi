@@ -1,7 +1,12 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, expect, jest, test } from '@jest/globals';
-import { AppearanceProvider, loadBackground, useAppearance } from '@/lib/foundation/Appearance';
+import {
+  AppearanceProvider,
+  loadBackground,
+  loadPlayroomOptions,
+  useAppearance,
+} from '@/lib/foundation/Appearance';
 import { getDebugStorage } from '@/lib/foundation/debug';
 import { STORAGE_KEYS, type StorageService } from '@/lib/storage';
 
@@ -62,15 +67,18 @@ test('defaults to Iris’s original pink and reads the previous color without ch
 
 test('debug appearance stays separate and changing accounts reloads the correct background', async () => {
   const real = mockStorage;
-  await real.set(STORAGE_KEYS.EGUCHI_APPEARANCE, { backgroundId: 'sunshine' });
+  await real.set(STORAGE_KEYS.EGUCHI_APPEARANCE, { backgroundId: 'sunshine', feedbackMs: 4000 });
   mockStorage = getDebugStorage(real);
   const root = await render();
   expect(appearance.background.color).toBe('#FFD6E7');
   await act(async () => appearance.chooseBackground('lavender'));
+  await act(async () => appearance.updateOptions({ feedbackMs: 8000 }));
   mockStorage = real;
   await act(async () => root.update(tree()));
   expect(appearance.background.id).toBe('sunshine');
+  expect(appearance.options.feedbackMs).toBe(4000);
   expect(await loadBackground(getDebugStorage(real))).toBe('lavender');
+  expect((await loadPlayroomOptions(getDebugStorage(real))).feedbackMs).toBe(8000);
   await act(async () => root.unmount());
 });
 
@@ -93,4 +101,52 @@ test('a failed save leaves the displayed choice intact and can be retried', asyn
 test('unknown stored colors fall back to pink', async () => {
   await mockStorage.set(STORAGE_KEYS.EGUCHI_APPEARANCE, { backgroundId: 'dark' });
   expect(await loadBackground(mockStorage)).toBe('pink');
+});
+
+test('timing and parent controls persist across color changes and reload', async () => {
+  const root = await render();
+  expect(appearance.options).toMatchObject({
+    feedbackMs: 3000,
+    animalMotion: true,
+    holdNoResponse: true,
+  });
+  await act(async () => appearance.updateOptions({ feedbackMs: 5000, animalMotion: false }));
+  await act(async () => appearance.chooseBackground('sky'));
+  await act(async () => appearance.updateOptions({ holdNoResponse: false }));
+  await act(async () => root.unmount());
+  const restored = await render();
+  expect(appearance.options).toEqual({
+    backgroundId: 'sky',
+    feedbackMs: 5000,
+    animalMotion: false,
+    holdNoResponse: false,
+  });
+  await act(async () => restored.unmount());
+});
+
+test.each([0, -1000, 10001, '5000', null, Number.NaN])(
+  'invalid saved timer %s uses the three-second default',
+  async feedbackMs => {
+    await mockStorage.set(STORAGE_KEYS.EGUCHI_APPEARANCE, { backgroundId: 'mint', feedbackMs });
+    expect(await loadPlayroomOptions(mockStorage)).toMatchObject({
+      backgroundId: 'mint',
+      feedbackMs: 3000,
+    });
+  }
+);
+
+test('a failed timing save preserves the current timer and can be retried', async () => {
+  const root = await render();
+  const write = mockStorage.set;
+  mockStorage.set = async () => {
+    throw new Error('Full disk');
+  };
+  await act(async () => appearance.updateOptions({ feedbackMs: 8000 }));
+  expect(appearance.options.feedbackMs).toBe(3000);
+  expect(appearance.error).toContain('could not be saved');
+  mockStorage.set = write;
+  await act(async () => appearance.updateOptions({ feedbackMs: 8000 }));
+  expect(appearance.options.feedbackMs).toBe(8000);
+  expect((await loadPlayroomOptions(mockStorage)).feedbackMs).toBe(8000);
+  await act(async () => root.unmount());
 });

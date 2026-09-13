@@ -580,7 +580,15 @@ export default function Practice() {
               )}
             </View>
           ) : (
-            <View style={{ alignItems: 'center' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 120,
+                gap: 24,
+              }}
+            >
               <PictureButton
                 icon="volume-high"
                 label={phase === 'listen' ? 'Play sound' : 'Replay sound'}
@@ -590,22 +598,20 @@ export default function Practice() {
                 disabled={!piano.ready || piano.playing || replays >= 50 || busy || paused}
                 onPress={() => void play()}
               />
+              {phase === 'respond' && (
+                <PictureButton
+                  small
+                  icon="chatbubble-ellipses-outline"
+                  label="No response"
+                  caption="No response"
+                  disabled={busy || paused}
+                  onPress={() => void respond('no-response')}
+                />
+              )}
             </View>
           )}
           {(error || piano.error) && <Notice>{error ?? piano.error}</Notice>}
         </View>
-      </View>
-      <View style={{ alignItems: 'center', minHeight: 66 }}>
-        {phase === 'respond' && (
-          <PictureButton
-            small
-            icon="chatbubble-ellipses-outline"
-            label="No response"
-            caption="No response"
-            disabled={busy || paused}
-            onPress={() => void respond('no-response')}
-          />
-        )}
       </View>
     </SafeAreaView>
   );

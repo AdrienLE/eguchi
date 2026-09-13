@@ -9,7 +9,7 @@ import { FoundationProvider } from '@/lib/foundation/FoundationProvider';
 import { AuthProvider, DebugAuthProvider } from '@/auth/AuthContext';
 import { DebugModeProvider, useDebugMode } from '@/lib/foundation/DebugMode';
 import DebugTools from '@/components/foundation/DebugTools';
-import { getEguchiTheme } from '@/lib/eguchi/theme';
+import { AppearanceProvider, useAppearance } from '@/lib/foundation/Appearance';
 import { getRootContentFrameStyle, getSettingsPresentation } from '@/lib/platform-layout';
 
 export default function RootLayout() {
@@ -25,19 +25,22 @@ function AccountLayout() {
   const AccountProvider = debug ? DebugAuthProvider : AuthProvider;
   return (
     <AccountProvider key={debug ? 'debug' : 'normal'}>
-      <FoundationProvider>
-        <RootLayoutNav />
-      </FoundationProvider>
+      <AppearanceProvider>
+        <FoundationProvider>
+          <RootLayoutNav />
+        </FoundationProvider>
+      </AppearanceProvider>
     </AccountProvider>
   );
 }
 
 function RootLayoutNav() {
-  const colorScheme = 'light';
-  const theme = getEguchiTheme(colorScheme);
+  const { background } = useAppearance();
 
   return (
-    <ThemeProvider value={DefaultTheme}>
+    <ThemeProvider
+      value={{ ...DefaultTheme, colors: { ...DefaultTheme.colors, background: background.color } }}
+    >
       <Head>
         <title>Eguchi Ear Trainer</title>
         {/* Static favicon for production web */}
@@ -48,7 +51,7 @@ function RootLayoutNav() {
           flex: 1,
           alignItems: 'center',
           width: '100%',
-          backgroundColor: theme.appBackground,
+          backgroundColor: background.color,
         }}
       >
         <View style={getRootContentFrameStyle()}>

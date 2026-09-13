@@ -13,45 +13,54 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getEguchiTheme } from '@/lib/eguchi/theme';
-export const usePalette = () => ({
-  ...getEguchiTheme('light'),
-  text: '#35304D',
-  tint: '#7155AA',
-  subtleText: '#625C75',
-  surfaceMuted: '#F0EBFC',
-  borderMuted: '#E5DDF2',
-  primary: '#FFDA79',
-  primaryBorder: '#F0C764',
-  secondary: '#EBE2FF',
-});
+import { useAppearance } from '@/lib/foundation/Appearance';
+import BackgroundPicker from './BackgroundPicker';
+export const usePalette = () => {
+  const { background } = useAppearance();
+  return {
+    ...getEguchiTheme('light'),
+    appBackground: background.color,
+    text: '#35304D',
+    tint: '#7155AA',
+    subtleText: '#625C75',
+    surfaceMuted: '#F0EBFC',
+    borderMuted: '#E5DDF2',
+    primary: '#FFDA79',
+    primaryBorder: '#F0C764',
+    secondary: '#EBE2FF',
+  };
+};
 export const Page = ({
   title,
   subtitle,
   children,
   back = true,
+  backgroundPicker = false,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   back?: boolean;
+  backgroundPicker?: boolean;
 }) => {
   const palette = usePalette();
   const router = useRouter();
+  const backButton = back ? (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+      style={styles.back}
+    >
+      <Text style={{ color: palette.tint, fontSize: 17 }}>‹ Back</Text>
+    </Pressable>
+  ) : null;
   return (
     <SafeAreaView
       edges={['top', 'bottom', 'left', 'right']}
-      style={{ flex: 1, backgroundColor: '#FFF9ED' }}
+      style={{ flex: 1, backgroundColor: palette.appBackground }}
     >
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-        {back && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-            style={styles.back}
-          >
-            <Text style={{ color: palette.tint, fontSize: 17 }}>‹ Back</Text>
-          </Pressable>
-        )}
+        {backgroundPicker ? <BackgroundPicker leading={backButton} /> : backButton}
         <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>
           {title}
         </Text>

@@ -61,6 +61,7 @@ export default function ParentHome() {
           : 'Learn piano sounds through colors and animals, together.'
       }
       back={false}
+      backgroundPicker
     >
       {error && <Notice>{error}</Notice>}
       {!prepared ? (

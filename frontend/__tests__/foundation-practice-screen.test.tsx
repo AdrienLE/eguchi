@@ -23,6 +23,8 @@ const mockAppend = jest.fn<(event: FoundationEvent) => Promise<void>>();
 let mockEvents: FoundationEvent[] = [];
 let mockPlaying = false;
 let mockDebug = false;
+let mockReduceMotion = false;
+const mockAnimate = jest.fn();
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 jest.mock('react-native', () => ({
   View: 'View',
@@ -30,6 +32,21 @@ jest.mock('react-native', () => ({
   TextInput: 'TextInput',
   Pressable: 'Pressable',
   Image: 'Image',
+  AccessibilityInfo: {
+    isReduceMotionEnabled: async () => mockReduceMotion,
+    addEventListener: () => ({ remove: () => {} }),
+  },
+  Animated: {
+    View: 'AnimatedView',
+    Value: class {
+      setValue() {}
+      interpolate() {
+        return 0;
+      }
+    },
+    timing: () => ({}),
+    sequence: () => ({ start: mockAnimate, stop: () => {} }),
+  },
   Switch: 'Switch',
   ScrollView: 'ScrollView',
   ActivityIndicator: 'ActivityIndicator',
@@ -87,6 +104,8 @@ beforeEach(() => {
   jest.useFakeTimers();
   mockPlaying = false;
   mockDebug = false;
+  mockReduceMotion = false;
+  mockAnimate.mockClear();
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   mockEvents = PREPARATION_IDS.map(lessonId => makeEvent('preparation', { lessonId }));
   mockPlay.mockReset().mockResolvedValue(Date.now());
@@ -342,6 +361,7 @@ test('automatic advance waits for full audio and honors a parent pause', async (
 test('waiting never invents a no-response result, and replay counts without adding a trial', async () => {
   const root = await render();
   await press(root, 'We’re ready to listen');
+  expect(root.root.findAll(n => n.props.accessibilityRole === 'progressbar')).toHaveLength(0);
   await act(async () => jest.advanceTimersByTime(60_000));
   expect(trials()).toHaveLength(0);
   expect(mockPlay).toHaveBeenCalledTimes(1);
@@ -349,6 +369,63 @@ test('waiting never invents a no-response result, and replay counts without addi
   await choose(root);
   expect(trials()[0].data.replays).toBe(1);
   expect(trials()).toHaveLength(1);
+  await act(async () => root.unmount());
+});
+
+test('the next-sound bar follows feedback, freezes on pause, and restarts after help', async () => {
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  await choose(root);
+  const progress = () =>
+    root.root.find(n => n.props.accessibilityRole === 'progressbar').props.accessibilityValue;
+  expect(progress().now).toBe(0);
+  await act(async () => jest.advanceTimersByTime(FEEDBACK_MS / 2));
+  expect(progress().now).toBe(50);
+  await press(root, 'Pause practice');
+  await waitForFeedback();
+  expect(progress()).toMatchObject({ now: 50, text: 'Paused' });
+  expect(mockPlay).toHaveBeenCalledTimes(1);
+  await press(root, 'Resume practice');
+  expect(progress().now).toBe(0);
+  await act(async () => jest.advanceTimersByTime(FEEDBACK_MS / 2));
+  await press(root, 'I helped');
+  expect(progress().now).toBe(0);
+  await waitForFeedback();
+  expect(root.root.findAll(n => n.props.accessibilityRole === 'progressbar')).toHaveLength(0);
+  expect(mockPlay).toHaveBeenCalledTimes(2);
+  await act(async () => root.unmount());
+});
+
+test.each(['correct', 'incorrect', 'no-response'])(
+  'the animal gives the same gentle reaction after a %s response, with no idle animation',
+  async response => {
+    mockEvents.push(makeEvent('preferences', { stage: 2, activeChordIds: ['C-E-G', 'C-F-A'] }));
+    const root = await render();
+    await press(root, 'We’re ready to listen');
+    expect(mockAnimate).not.toHaveBeenCalled();
+    const start = mockEvents.find(e => e.kind === 'sessionStarted')!;
+    const heard = start.data.presentationPlan![0];
+    if (response === 'no-response') await press(root, 'No response');
+    else await choose(root, response === 'correct' ? heard : heard === 'C-E-G' ? 'C-F-A' : 'C-E-G');
+    expect(mockAnimate).toHaveBeenCalledTimes(1);
+    expect(
+      root.root
+        .findAllByType(AnimalCard)
+        .filter(n => n.props.react)
+        .map(n => n.props.id)
+    ).toEqual([heard]);
+    await act(async () => root.unmount());
+  }
+);
+
+test('reduced motion keeps the color reveal and feedback bar without a hop', async () => {
+  mockReduceMotion = true;
+  const root = await render();
+  await press(root, 'We’re ready to listen');
+  await choose(root);
+  expect(mockAnimate).not.toHaveBeenCalled();
+  expect(root.root.findAllByType(AnimalCard)[0].props.selected).toBe(true);
+  expect(root.root.findAll(n => n.props.accessibilityRole === 'progressbar')).toHaveLength(1);
   await act(async () => root.unmount());
 });
 

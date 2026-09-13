@@ -45,8 +45,17 @@ test.each([
   const rows = Math.ceil(14 / grid.columns);
   expect(grid.size).toBeGreaterThanOrEqual(90);
   expect(grid.columns * (grid.size + 20) + (grid.columns - 1) * 10).toBeLessThanOrEqual(width);
-  expect(rows * (grid.size + 54) + (rows - 1) * 10).toBeLessThanOrEqual(height);
+  expect(rows * (grid.size + 58) + (rows - 1) * 10).toBeLessThanOrEqual(height);
 });
 test('the app has a fixed light palette', () => {
   expect(useColorScheme()).toBe('light');
+});
+test.each([
+  [350, 650],
+  [768, 900],
+  [1100, 520],
+])('two animals stay side by side at %i by %i', (width, height) => {
+  const grid = animalGridLayout(2, width, height);
+  expect(grid.columns).toBe(2);
+  expect(2 * (grid.size + 20) + 10).toBeLessThanOrEqual(width);
 });

@@ -1,4 +1,5 @@
 import AnimalPlan from './AnimalPlan';
+import BackgroundPicker from './BackgroundPicker';
 import React, { useEffect, useState } from 'react';
 import { Linking, Platform, Switch, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,7 +23,7 @@ function ParentSettingsReady() {
   const palette = usePalette();
   const params = useLocalSearchParams<{ section?: string }>();
   const [section, setSection] = useState(
-    ['animals', 'routine', 'reminders', 'account'].includes(params.section ?? '')
+    ['animals', 'routine', 'appearance', 'reminders', 'account'].includes(params.section ?? '')
       ? params.section!
       : 'animals'
   );
@@ -166,13 +167,14 @@ function ParentSettingsReady() {
     <Page title="Parent settings" subtitle="A routine that fits your family.">
       {message && <Notice>{message}</Notice>}
       <View style={styles.row}>
-        {(['animals', 'routine', 'reminders', 'account'] as const).map(value => (
+        {(['animals', 'routine', 'appearance', 'reminders', 'account'] as const).map(value => (
           <Button
             key={value}
             title={
               {
                 animals: 'Animals',
                 routine: 'Routine',
+                appearance: 'Background',
                 reminders: 'Reminders',
                 account: 'Account & email',
               }[value]
@@ -183,6 +185,12 @@ function ParentSettingsReady() {
         ))}
       </View>
       {section === 'animals' && <AnimalPlan />}
+      {section === 'appearance' && (
+        <Card>
+          <Heading>Choose your playroom</Heading>
+          <BackgroundPicker expanded />
+        </Card>
+      )}
       {section === 'routine' && (
         <Card>
           <Heading>Your daily routine</Heading>

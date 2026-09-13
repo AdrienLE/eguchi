@@ -21,6 +21,7 @@ import {
   type ChordId,
 } from '@/lib/foundation/curriculum';
 import { animalGridLayout } from '@/lib/foundation/grid';
+import { useAppearance } from '@/lib/foundation/Appearance';
 import AnimalCard from './AnimalCard';
 import { Body, Button, Card, Heading, Notice, Page, PictureButton, styles, usePalette } from './ui';
 
@@ -31,6 +32,7 @@ export default function Practice() {
   const piano = usePiano();
   const router = useRouter();
   const p = usePalette();
+  const { background } = useAppearance();
   const { width, height } = useWindowDimensions();
   const [phase, setPhase] = useState<Phase>('before');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -41,6 +43,7 @@ export default function Practice() {
   const [previewId, setPreviewId] = useState<ChordId>(choices[0]);
   const [paused, setPaused] = useState(false);
   const [feedbackElapsed, setFeedbackElapsed] = useState(false);
+  const [feedbackProgress, setFeedbackProgress] = useState(0);
   const [helped, setHelped] = useState(false);
   const [showObservation, setShowObservation] = useState(false);
   const lastTrial = useRef<Trial | null>(null);
@@ -237,8 +240,20 @@ export default function Practice() {
   advanceRef.current = () => void next();
   useEffect(() => {
     if (phase !== 'recorded' || paused || busy || error) return;
-    const timer = setTimeout(() => setFeedbackElapsed(true), FEEDBACK_MS);
-    return () => clearTimeout(timer);
+    const started = Date.now();
+    setFeedbackProgress(0);
+    const progress = setInterval(() => {
+      setFeedbackProgress(Math.min(1, (Date.now() - started) / FEEDBACK_MS));
+    }, 50);
+    const timer = setTimeout(() => {
+      clearInterval(progress);
+      setFeedbackProgress(1);
+      setFeedbackElapsed(true);
+    }, FEEDBACK_MS);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(progress);
+    };
   }, [phase, count, paused, busy, error, helped]);
   useEffect(() => {
     if (phase === 'recorded' && feedbackElapsed && !paused && !busy && !piano.playing && !error)
@@ -294,7 +309,11 @@ export default function Practice() {
     );
   if (phase === 'before')
     return (
-      <Page title="A little listening together" subtitle={`${target} presentations · then a break`}>
+      <Page
+        title="A little listening together"
+        subtitle={`${target} presentations · then a break`}
+        backgroundPicker
+      >
         <Card>
           <Heading>Ready?</Heading>
           <Body>Quiet room, comfortable volume, a willing child.</Body>
@@ -415,12 +434,11 @@ export default function Practice() {
         </Card>
       </Page>
     );
-  const landscape = width > height && width >= 900;
   const layout = animalGridLayout(choices.length, gridArea.width, gridArea.height);
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF9ED', padding: 16, gap: 10 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: background.color, padding: 16, gap: 10 }}>
       <View style={[styles.row, { justifyContent: 'space-between' }]}>
-        <Text style={{ color: '#536B75', fontSize: 17, fontWeight: '600' }}>
+        <Text style={{ color: background.textColor, fontSize: 17, fontWeight: '600' }}>
           {count} of {target}
         </Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -444,7 +462,7 @@ export default function Practice() {
       <View
         style={{
           flex: 1,
-          flexDirection: landscape ? 'row' : 'column',
+          flexDirection: 'column',
           gap: 16,
           maxWidth: 1400,
           width: '100%',
@@ -470,6 +488,7 @@ export default function Practice() {
                 id={id}
                 size={layout.size}
                 selected={revealed && id === stimulus}
+                react={phase === 'recorded' && id === stimulus && !paused}
                 muted={revealed && id !== stimulus}
                 disabled={
                   phase !== 'respond' || busy || paused || revealed || !!pendingTrial.current
@@ -482,8 +501,8 @@ export default function Practice() {
         <View
           style={{
             gap: 4,
-            width: landscape ? 290 : '100%',
-            maxWidth: landscape ? 290 : 650,
+            width: '100%',
+            maxWidth: 650,
             alignSelf: 'center',
             justifyContent: 'center',
           }}
@@ -504,7 +523,40 @@ export default function Practice() {
               onPress={() => void guarded(savePendingTrial)}
             />
           ) : phase === 'recorded' ? (
-            <View style={{ alignItems: 'center', minHeight: 120, justifyContent: 'center' }}>
+            <View
+              style={{ alignItems: 'center', minHeight: 120, justifyContent: 'center', gap: 12 }}
+            >
+              <View
+                accessibilityRole="progressbar"
+                accessibilityLabel="Next sound"
+                accessibilityValue={{
+                  min: 0,
+                  max: 100,
+                  now: Math.round(feedbackProgress * 100),
+                  text: paused
+                    ? 'Paused'
+                    : feedbackElapsed && piano.playing
+                      ? 'Finishing sound'
+                      : 'Next sound',
+                }}
+                style={{
+                  width: '75%',
+                  maxWidth: 360,
+                  height: 12,
+                  borderRadius: 6,
+                  backgroundColor: background.surfaceColor,
+                  overflow: 'hidden',
+                }}
+              >
+                <View
+                  style={{
+                    width: `${feedbackProgress * 100}%`,
+                    height: '100%',
+                    backgroundColor: background.accentColor,
+                    borderRadius: 6,
+                  }}
+                />
+              </View>
               {lastResponse !== 'no-response' && (
                 <PictureButton
                   small
